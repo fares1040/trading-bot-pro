@@ -1,0 +1,13 @@
+import { NextResponse } from 'next/server';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+export async function POST(req: Request) {
+  const { symbol } = await req.json();
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
+  const prompt = `حلل السهم ${symbol} كمتداول محترف، ركز على احتمالية الانفجار السعري بناءً على المعطيات الفنية، كن مختصراً ومباشراً.`;
+  const result = await model.generateContent(prompt);
+  
+  return NextResponse.json({ analysis: result.response.text() });
+}
