@@ -1,30 +1,27 @@
 import { NextResponse } from 'next/server';
+const yahooFinance = require('yahoo-finance2').default;
 
 export async function GET() {
-  // قائمة أسهم الترند الحالية (يمكنك تعديلها وإضافة ما تشاء)
-  const trendingStocks = ['NVDA', 'TSLA', 'AAPL', 'AMD', 'MSFT'];
-
   try {
+    // 1. جلب قائمة الأسهم الأكثر نشاطاً (الترند) من السوق
+    const trending = await yahooFinance.trendingSymbols('US');
+    const symbols = trending.quotes.map((q: any) => q.symbol).slice(0, 10); // نأخذ أول 10 أسهم
+
     let signalsSent = 0;
 
-    for (const symbol of trendingStocks) {
-      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`;
-      const response = await fetch(url);
-      const data = await response.json();
-      
-      const quote = data.chart.result[0].meta;
-      const currentPrice = quote.regularMarketPrice;
-      const prevClose = quote.chartPreviousClose;
-      const priceChange = ((currentPrice - prevClose) / prevClose) * 100;
+    // 2. فحص كل سهم في القائمة
+    for (const symbol of symbols) {
+      const quote = await yahooFinance.quote(symbol);
+      const priceChange = quote.regularMarketChangePercent;
 
-      // شرط الانفجار السعري
-      if (priceChange > 2) {
-        const message = `🏆✨ انفجار سعري! ✨🏆
+      // 3. التحقق من شرط الانفجار السعري (> 2%)
+      if (priceChange && priceChange > 2) {
+        const message = `🏆✨ انفجار سعري في سهم ترند! ✨🏆
 
-📍 ${symbol} │ 🟢 │ ⭐ ثقة عالية
-💰 السعر الحالي: ${currentPrice.toFixed(2)}$
+📍 السهم: ${symbol}
+💰 السعر: ${quote.regularMarketPrice}$
 📈 التغير اليومي: ${priceChange.toFixed(2)}%
-🎯 الأهداف: ${(currentPrice * 1.03).toFixed(2)} → ${(currentPrice * 1.05).toFixed(2)}`;
+🎯 الأهداف: ${(quote.regularMarketPrice * 1.03).toFixed(2)} → ${(quote.regularMarketPrice * 1.05).toFixed(2)}`;
 
         await fetch(`https://api.telegram.org/bot8822034470:AAgez21V8daSkeFtb9Hq6yTArBUJx0k4YQw/sendMessage`, {
           method: 'POST',
@@ -35,7 +32,7 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({ status: "Scan complete", signalsSent });
+    return NextResponse.json({ status: "Scan complete", checked: symbols, signalsSent });
   } catch (error) {
     return NextResponse.json({ error: "Scan failed" }, { status: 500 });
   }
