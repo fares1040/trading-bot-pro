@@ -2,14 +2,12 @@
 import { useState } from 'react';
 
 export default function Home() {
-  const [analysis, setAnalysis] = useState("اضغط تحليل للحصول على التقرير...");
+  const [analysis, setAnalysis] = useState("اختر سهماً للحصول على تحليل تقني لحظي...");
   const [loading, setLoading] = useState(false);
-
-  const stocks = ['PTORW', 'FGIWW', 'NXTC'];
 
   const handleAnalyze = async (symbol: string) => {
     setLoading(true);
-    setAnalysis("جاري التحليل لـ " + symbol + "...");
+    setAnalysis("جاري تحليل بيانات " + symbol + "...");
     try {
       const res = await fetch('/api/analyze', {
         method: 'POST',
@@ -19,31 +17,37 @@ export default function Home() {
       const data = await res.json();
       setAnalysis(data.analysis || "خطأ في التحليل");
     } catch (e) {
-      setAnalysis("خطأ في الاتصال بالسيرفر");
+      setAnalysis("خطأ في الاتصال");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <main style={{ backgroundColor: '#0A0A0A', color: '#fff', padding: '20px', minHeight: '100vh', fontFamily: 'sans-serif' }}>
-      <h1 style={{ color: '#FFD700', marginBottom: '20px' }}>⚡ TRADING RADAR PRO</h1>
+    <main style={{ backgroundColor: '#050505', color: '#E0E0E0', padding: '40px 20px', minHeight: '100vh', fontFamily: "'Segoe UI', sans-serif" }}>
+      {/* الهيدر */}
+      <header style={{ marginBottom: '40px', borderBottom: '1px solid #222', paddingBottom: '20px' }}>
+        <h1 style={{ color: '#FFD700', fontSize: '28px', margin: 0 }}>TRADING RADAR <span style={{ fontWeight: 200, color: '#fff' }}>PRO</span></h1>
+        <p style={{ color: '#666', fontSize: '14px' }}>نظام التحليل التقني اللحظي للمؤسسات</p>
+      </header>
       
-      {/* منطقة عرض التحليل */}
-      <div style={{ border: '1px solid #FFD700', padding: '15px', borderRadius: '10px', marginBottom: '20px', minHeight: '100px' }}>
-        {analysis}
+      {/* لوحة التحليل */}
+      <div style={{ backgroundColor: '#111', border: '1px solid #222', padding: '25px', borderRadius: '16px', marginBottom: '40px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+        <h3 style={{ color: '#FFD700', marginTop: 0, fontSize: '16px', textTransform: 'uppercase', letterSpacing: '2px' }}>المحلل الذكي</h3>
+        <p style={{ lineHeight: '1.8', fontSize: '16px' }}>{analysis}</p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '15px' }}>
-        {stocks.map(s => (
-          <div key={s} style={{ border: '1px solid #333', padding: '15px', borderRadius: '10px', backgroundColor: '#161616', textAlign: 'center' }}>
-            <h2 style={{ margin: '0 0 10px 0' }}>{s}</h2>
+      {/* شبكة البطاقات */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px' }}>
+        {['PTORW', 'FGIWW', 'NXTC'].map(s => (
+          <div key={s} style={{ backgroundColor: '#0D0D0D', border: '1px solid #1A1A1A', padding: '20px', borderRadius: '20px', transition: '0.3s', cursor: 'pointer' }}>
+            <h2 style={{ fontSize: '22px', margin: '0 0 15px 0' }}>{s}</h2>
             <button 
               onClick={() => handleAnalyze(s)}
               disabled={loading}
-              style={{ width: '100%', padding: '10px', backgroundColor: '#FFD700', border: 'none', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer' }}
+              style={{ width: '100%', padding: '12px', backgroundColor: '#FFD700', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', color: '#000' }}
             >
-              {loading ? "جاري..." : "تحليل"}
+              {loading ? "جاري..." : "بدء التحليل"}
             </button>
           </div>
         ))}
