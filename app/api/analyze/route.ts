@@ -1,12 +1,29 @@
-// استبدل جزء جلب السعر في ملف الـ route.ts بهذا الكود:
-let price = "غير متاح حالياً";
-try {
-  const priceRes = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${process.env.ALPHA_VANTAGE_API_KEY}`);
-  const priceData = await priceRes.json();
-  if (priceData['Global Quote'] && priceData['Global Quote']['05. price']) {
-    price = priceData['Global Quote']['05. price'];
+import { NextResponse } from 'next/server';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const { symbol } = body;
+    
+    // استدعاء المفتاح من إعدادات Vercel
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+      return NextResponse.json({ analysis: "خطأ: مفتاح API غير مضبوط." }, { status: 500 });
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    const prompt = `حلل السهم ${symbol} فنياً بشكل مختصر ومباشر.`;
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    return NextResponse.json({ analysis: text });
+  } catch (error) {
+    console.error("Error:", error);
+    return NextResponse.json({ analysis: "حدث خطأ في الاتصال بالذكاء الاصطناعي." }, { status: 500 });
   }
-} catch (e) {
-  console.error("خطأ في جلب السعر، سنكمل التحليل بدونه");
 }
-// ثم أكمل التحليل بـ Gemini كما في الكود السابق
