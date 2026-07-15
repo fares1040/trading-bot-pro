@@ -1,38 +1,42 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 export default function Home() {
-  const [stocks, setStocks] = useState([
-    { symbol: 'NXTC', price: '6.58', color: 'text-green-500' },
-    { symbol: 'FGIWW', price: '0.09', color: 'text-red-500' },
-    { symbol: 'PTORW', price: '0.684', color: 'text-green-500' },
-    { symbol: 'PRENW', price: '0.0159', color: 'text-yellow-500' },
-    { symbol: 'BOSER', price: '0.04', color: 'text-green-500' }
-  ]);
+  const [analysis, setAnalysis] = useState("اختر سهماً للبدء في التحليل الفني...");
 
-  // تحديث الأسعار تلقائياً كل 30 ثانية
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setStocks(prev => prev.map(s => ({
-        ...s,
-        price: (parseFloat(s.price) + (Math.random() - 0.5) * 0.01).toFixed(4)
-      })));
-    }, 30000);
-    return () => clearInterval(interval);
-  }, []);
+  const stocks = [
+    { symbol: 'NXTC', price: '6.58' },
+    { symbol: 'FGIWW', price: '0.09' },
+    { symbol: 'PTORW', price: '0.684' },
+    { symbol: 'PRENW', price: '0.0159' },
+    { symbol: 'BOSER', price: '0.04' }
+  ];
 
   return (
-    <main className="p-8 bg-black min-h-screen text-white">
-      <h1 className="text-3xl font-bold mb-8 text-yellow-500">TRADING RADAR PRO ⚡</h1>
+    <main style={{ padding: '20px', backgroundColor: '#000', color: '#fff', minHeight: '100vh', fontFamily: 'sans-serif' }}>
+      <h1 style={{ color: '#FFD700', fontSize: '24px' }}>⚡ TRADING RADAR PRO</h1>
       
-      {stocks.map((stock) => (
-        <div key={stock.symbol} className="flex justify-between items-center border-b border-gray-800 py-4">
-          <div>
-            <p className="font-bold text-xl">{stock.symbol}</p>
-            <p className={`${stock.color} font-mono`}>{stock.price} $</p>
+      <div style={{ border: '1px solid #FFD700', padding: '15px', marginTop: '20px', borderRadius: '8px' }}>
+        <p style={{ color: '#FFD700', fontWeight: 'bold' }}>(Gemini) المحلل الذكي</p>
+        <p>{analysis}</p>
+      </div>
+
+      <div style={{ marginTop: '30px' }}>
+        {stocks.map((stock) => (
+          <div key={stock.symbol} style={{ borderBottom: '1px solid #333', padding: '15px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <p style={{ fontSize: '18px', margin: 0 }}>{stock.symbol}</p>
+              <p style={{ color: '#aaa', margin: 0 }}>$ {stock.price}</p>
+            </div>
+            <button 
+              onClick={() => setAnalysis(`تحليل ${stock.symbol}: جارٍ الاتصال بالمحلل...`)}
+              style={{ backgroundColor: '#FFD700', color: '#000', border: 'none', padding: '8px 12px', borderRadius: '4px', cursor: 'pointer' }}
+            >
+              تحليل تقني
+            </button>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </main>
   );
 }
