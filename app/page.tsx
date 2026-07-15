@@ -6,13 +6,20 @@ export default function Dashboard() {
   const [analysis, setAnalysis] = useState('اختر سهماً للبدء في التحليل التقني...');
   const [loading, setLoading] = useState(false);
 
+  // جلب الأسهم عند تحميل الصفحة
   useEffect(() => {
-    fetch('/api/stocks').then(res => res.json()).then(data => setStocks(data.data));
+    fetch('/api/stocks')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.data) {
+          setStocks(data.data);
+        }
+      });
   }, []);
 
   const runAnalysis = async (symbol: string) => {
     setLoading(true);
-    setAnalysis('جاري تحليل البيانات واستخراج نقاط المقاومة... ⏳');
+    setAnalysis('جاري التحليل واستخراج النقاط الفنية... ⏳');
     try {
       const res = await fetch('/api/analyze', {
         method: 'POST',
@@ -20,13 +27,14 @@ export default function Dashboard() {
         body: JSON.stringify({ symbol }),
       });
       const data = await res.json();
-      setAnalysis(data.analysis);
+      setAnalysis(data.analysis || "لم يتم العثور على تحليل.");
     } catch {
-      setAnalysis("حدث خطأ، تأكد من الاتصال.");
+      setAnalysis("خطأ في الاتصال بالمحلل. تأكد من إعدادات API Key.");
     }
     setLoading(false);
   };
 
+  // دالة تحديد الفرص (تغير > 3% وسعر > 1)
   const isExplosive = (change: string, price: string) => parseFloat(change) > 3 && parseFloat(price) > 1;
 
   return (
@@ -35,13 +43,11 @@ export default function Dashboard() {
         <h1 style={{ color: '#ffcc00', letterSpacing: '2px' }}>TRADING RADAR PRO ⚡</h1>
       </header>
 
-      {/* منطقة التحليل الذكي */}
       <div style={{ backgroundColor: '#111', border: '1px solid #ffcc00', padding: '20px', borderRadius: '15px', marginBottom: '30px', minHeight: '100px' }}>
         <h3 style={{ color: '#ffcc00', marginTop: 0 }}>المحلل الذكي (Gemini)</h3>
         <p style={{ whiteSpace: 'pre-line' }}>{analysis}</p>
       </div>
 
-      {/* قائمة الأسهم */}
       <div style={{ display: 'grid', gap: '15px' }}>
         {stocks.map((s: any) => (
           <div key={s.symbol} style={{ 
