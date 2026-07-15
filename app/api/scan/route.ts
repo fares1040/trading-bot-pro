@@ -1,10 +1,6 @@
 import { NextResponse } from 'next/server';
-import yahooFinance from 'yahoo-finance2';
-
-// إعداد المكتبة لتعمل في بيئة Vercel (إلغاء التخزين المؤقت للملفات)
-yahooFinance.setGlobalConfig({
-  queue: { cache: false }
-});
+// استدعاء النسخة المستقرة مباشرة لتجنب أخطاء الملفات المفقودة
+const yahooFinance = require('yahoo-finance2/dist/cjs/yahoo-finance.js').default;
 
 export async function GET() {
   try {
@@ -32,6 +28,6 @@ export async function GET() {
 
     return NextResponse.json({ status: "No Signal", priceChange });
   } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch data" }, { status: 500 });
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }
