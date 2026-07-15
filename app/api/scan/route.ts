@@ -1,18 +1,16 @@
 import { NextResponse } from 'next/server';
-// استدعاء النسخة المستقرة مباشرة لتجنب أخطاء الملفات المفقودة
-const yahooFinance = require('yahoo-finance2/dist/cjs/yahoo-finance.js').default;
+import yahooFinance from 'yahoo-finance2';
 
 export async function GET() {
   try {
-    const query = 'NVDA';
-    const quote = await yahooFinance.quote(query);
-    
+    // جلب بيانات السهم
+    const quote = await yahooFinance.quote('NVDA');
     const priceChange = quote.regularMarketChangePercent;
     
     if (priceChange && priceChange > 2) { 
       const message = `🏆✨ بداية الصفقة ✨🏆
 
-📍 ${query} │ 🟢 │ ⭐ ثقة عالية
+📍 NVDA │ 🟢 │ ⭐ ثقة عالية
 💰 السعر الحالي: ${quote.regularMarketPrice}$
 📈 التغير اليومي: ${priceChange.toFixed(2)}%
 🎯 الأهداف: ${ (quote.regularMarketPrice * 1.03).toFixed(2) } → ${ (quote.regularMarketPrice * 1.05).toFixed(2) }`;
@@ -23,10 +21,10 @@ export async function GET() {
         body: JSON.stringify({ chat_id: 'آيديك_هنا', text: message })
       });
 
-      return NextResponse.json({ status: "Signal Sent", price: quote.regularMarketPrice });
+      return NextResponse.json({ status: "Signal Sent" });
     }
 
-    return NextResponse.json({ status: "No Signal", priceChange });
+    return NextResponse.json({ status: "No Signal" });
   } catch (error) {
     return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
