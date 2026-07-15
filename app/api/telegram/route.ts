@@ -2,27 +2,27 @@ import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export async function POST(req: Request) {
-  try {
-    const body = await req.json();
-    // التحقق من أن الرسالة نصية
-    if (!body.message?.text) return NextResponse.json({ ok: true });
+  const body = await req.json();
+  const token = process.env.TELEGRAM_BOT_TOKEN; // سحب التوكن من Vercel
+  
+  if (!body.message?.text || !token) return NextResponse.json({ ok: true });
 
-    const symbol = body.message.text;
-    const apiKey = process.env.GEMINI_API_KEY;
+  const symbol = body.message.text;
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    const genAI = new GoogleGenerativeAI(apiKey!);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const result = await model.generateContent(`حلل السهم ${symbol} فنياً.`);
+  const analysis = result.response.text();
 
-    const result = await model.generateContent(`حلل السهم ${symbol} فنياً.`);
-    const analysis = result.response.text();
-
-    // إرجاع النتيجة بتنسيق التليجرام
-    return NextResponse.json({
-      method: "sendMessage",
+  // إرسال الرد لتليجرام
+  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
       chat_id: body.message.chat.id,
       text: analysis
-    });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
-  }
+    })
+  });
+
+  return NextResponse.json({ ok: true });
 }
