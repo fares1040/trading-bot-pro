@@ -7,7 +7,7 @@ export async function POST(req: Request) {
     // التوكن الخاص بك
     const TELEGRAM_TOKEN = '8822034470:AAGqmVjti7WUHlBqTektxlgU9dfwJqU4lUQ';
     
-    // ضع مفتاح الـ API الخاص بـ Gemini هنا مكان النص التالي
+    // تأكد من وضع مفتاحك هنا
     const GEMINI_KEY = 'AQ.Ab8RN6JzSJcweZqEDNULyEhLVY0aO2FR8AUVlnrI6DRmebrf-A'; 
 
     if (!body.message?.text) return NextResponse.json({ ok: true });
@@ -15,28 +15,32 @@ export async function POST(req: Request) {
     const chatId = body.message.chat.id;
     const symbol = body.message.text;
 
-    // إرسال رسالة "جاري التحليل" لتأكيد الاستلام
+    // إرسال رسالة تأكيد
     await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text: `🔍 جاري تحليل سهم ${symbol}، لحظات...` })
+      body: JSON.stringify({ chat_id: chatId, text: `🔍 جاري تحليل السهم: ${symbol}...` })
     });
 
-    // الاتصال المباشر بـ Google Gemini
+    // الاتصال المباشر بـ Google Gemini بتعليمات واضحة
     const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: `أنت خبير تداول. قم بتحليل السهم ${symbol} فنياً بشكل مختصر ومباشر واذكر اتجاهه ومستويات الدعم والمقاومة.` }] }]
+        contents: [{ 
+          parts: [{ 
+            text: `أنت محلل مالي خبير. قم بتحليل سهم السوق المالي "${symbol}" بشكل مختصر. اذكر الاتجاه العام (صاعد/هابط)، ومستويات الدعم والمقاومة التقريبية. إذا لم تكن لديك بيانات كافية عن السهم، اطلب من المستخدم التأكد من الرمز.` 
+          }] 
+        }]
       })
     });
 
     const geminiData = await geminiResponse.json();
     
-    // استخراج التحليل أو إظهار رسالة خطأ في حال فشل الرد
-    const analysis = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "عذراً، لم أتمكن من تحليل السهم حالياً. تأكد من صحة اسم السهم.";
+    // استخراج التحليل
+    const analysis = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "لم يتمكن الذكاء الاصطناعي من استخراج تحليل لهذا الرمز.";
 
-    // إرسال النتيجة النهائية لتليجرام
+    // إرسال النتيجة
     await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
