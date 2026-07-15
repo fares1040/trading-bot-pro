@@ -2,12 +2,16 @@ import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export async function POST(req: Request) {
-  const { symbol } = await req.json();
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+  try {
+    const { symbol } = await req.json();
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-  const prompt = `حلل السهم ${symbol} كمتداول محترف، ركز على احتمالية الانفجار السعري بناءً على المعطيات الفنية، كن مختصراً ومباشراً.`;
-  const result = await model.generateContent(prompt);
-  
-  return NextResponse.json({ analysis: result.response.text() });
+    const prompt = `حلل السهم ${symbol} فنياً كمتداول محترف. ركز على التغير السعري وهل تظهر علامات انفجار سعري (Trend). كن مختصراً جداً.`;
+    const result = await model.generateContent(prompt);
+    
+    return NextResponse.json({ analysis: result.response.text() });
+  } catch (error) {
+    return NextResponse.json({ analysis: "عذراً، لم أتمكن من التحليل حالياً، تأكد من مفتاح الـ API." });
+  }
 }
