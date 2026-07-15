@@ -1,44 +1,36 @@
-export default function Page() {
+'use client';
+import { useEffect, useState } from 'react';
+
+export default function Dashboard() {
+  const [stocks, setStocks] = useState([]);
+
+  useEffect(() => {
+    fetch('/api/stocks')
+      .then(res => res.json())
+      .then(data => setStocks(data.data));
+  }, []);
+
   return (
-    <div style={{
-      backgroundColor: '#0a0a0a',
-      color: '#ffffff',
-      minHeight: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontFamily: "'Segoe UI', sans-serif",
-      textAlign: 'center',
-      padding: '20px'
-    }}>
-      <div style={{
-        padding: '40px',
-        borderRadius: '20px',
-        backgroundColor: '#161616',
-        boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-        border: '1px solid #333'
-      }}>
-        <h1 style={{ fontSize: '2.5rem', marginBottom: '10px', color: '#00ff9d' }}>
-          Trading Bot Pro 🚀
-        </h1>
-        <p style={{ fontSize: '1.2rem', color: '#a0a0a0', marginBottom: '30px' }}>
-          نظام رصد الانفجارات السعرية نشط الآن
-        </p>
-        <div style={{
-          display: 'inline-block',
-          padding: '10px 20px',
-          borderRadius: '50px',
-          backgroundColor: '#00ff9d',
-          color: '#000',
-          fontWeight: 'bold'
-        }}>
-          ● جاري الرصد في الوقت الفعلي
-        </div>
-      </div>
-      <p style={{ marginTop: '30px', fontSize: '0.9rem', color: '#555' }}>
-        مربوط بنجاح مع Telegram API
-      </p>
+    <div style={{ padding: '40px', backgroundColor: '#0a0a0a', color: '#fff', minHeight: '100vh', fontFamily: 'sans-serif' }}>
+      <h1 style={{ color: '#00ff9d', textAlign: 'center' }}>لوحة تحكم التداول 🚀</h1>
+      <table style={{ width: '100%', marginTop: '30px', borderCollapse: 'collapse', backgroundColor: '#161616' }}>
+        <thead>
+          <tr style={{ borderBottom: '1px solid #333' }}>
+            <th style={{ padding: '15px' }}>الرمز</th>
+            <th style={{ padding: '15px' }}>السعر</th>
+            <th style={{ padding: '15px' }}>التغير</th>
+          </tr>
+        </thead>
+        <tbody>
+          {stocks.map((stock: any) => (
+            <tr key={stock.symbol} style={{ borderBottom: '1px solid #222' }}>
+              <td style={{ padding: '15px', textAlign: 'center', fontWeight: 'bold' }}>{stock.symbol}</td>
+              <td style={{ padding: '15px', textAlign: 'center' }}>{stock.price} $</td>
+              <td style={{ padding: '15px', textAlign: 'center', color: stock.change.includes('-') ? '#ff4d4d' : '#00ff9d' }}>{stock.change}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
