@@ -5,7 +5,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     // ضع مفتاحك هنا مباشرة لتجاوز مشاكل الإعدادات
-    const GEMINI_KEY = 'AQ.Ab8RN6JD4c1CBOxUs9QsCX2zJmdbPfucL_0hYZoLkPYJk6IAAw'; 
+    const GEMINI_KEY = 'AQ.AQ.Ab8RN6JzSJcweZqEDNULyEhLVY0aO2FR8AUVlnrI6DRmebrf-A'; 
     const TELEGRAM_TOKEN = '8822034470:AAGqmVjti7WUHlBqTektxlgU9dfwJqU4lUQ'; 
     
     if (!body.message?.text) return NextResponse.json({ ok: true });
