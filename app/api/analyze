@@ -2,25 +2,17 @@ import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export async function POST(req: Request) {
-  try {
-    const { symbol } = await req.json();
-    const apiKey = process.env.GEMINI_API_KEY;
+  const { symbol } = await req.json();
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-    if (!apiKey) {
-      return NextResponse.json({ analysis: "خطأ برمجي: المفتاح غير موجود في الخادم" });
-    }
-
-    const genAI = new GoogleGenerativeAI(apiKey);
-    // جرب استخدام 'gemini-1.5-flash' بدلاً من 'gemini-pro' لأنه أحدث وأسرع في الاستجابة
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-    const result = await model.generateContent(`حلل السهم ${symbol} فنياً.`);
-    const response = await result.response;
-    return NextResponse.json({ analysis: response.text() });
-    
-  } catch (error: any) {
-    // هذا السطر سيكتب الخطأ الحقيقي في Vercel Logs
-    console.error("DEBUG_ERROR:", error.message);
-    return NextResponse.json({ analysis: "خطأ تقني: " + error.message });
-  }
+  // هنا نطلب منه أرقاماً محددة
+  const prompt = `حلل السهم ${symbol} فنياً.
+  1. حدد نقطة المقاومة (Resistance) الحالية.
+  2. حدد نقطة الكسر (Breakout) التي لو تجاوزها السهم سينفجر.
+  3. هل هو في مرحلة تجميع؟ (نعم/لا).
+  أجب باختصار شديد وبشكل منظم.`;
+  
+  const result = await model.generateContent(prompt);
+  return NextResponse.json({ analysis: result.response.text() });
 }
