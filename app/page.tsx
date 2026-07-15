@@ -1,73 +1,48 @@
-'use client';
-import { useState, useEffect } from 'react';
+"use client";
+import { useState } from 'react';
 
-export default function Dashboard() {
-  const [stocks, setStocks] = useState([]);
-  const [analysis, setAnalysis] = useState('اختر سهماً للبدء في التحليل التقني...');
-  const [loading, setLoading] = useState(false);
+export default function Home() {
+  const [analysis, setAnalysis] = useState("اختر سهماً للبدء في التحليل الفني...");
 
-  // جلب الأسهم عند تحميل الصفحة
-  useEffect(() => {
-    fetch('/api/stocks')
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.data) {
-          setStocks(data.data);
-        }
-      });
-  }, []);
+  const stocks = [
+    { symbol: 'NXTC', price: '6.58', color: 'text-green-500' },
+    { symbol: 'FGIWW', price: '0.09', color: 'text-red-500' },
+    { symbol: 'PTORW', price: '0.684', color: 'text-green-500' },
+    { symbol: 'PRENW', price: '0.0159', color: 'text-yellow-500' },
+    { symbol: 'BOSER', price: '0.04', color: 'text-green-500' }
+  ];
 
-  const runAnalysis = async (symbol: string) => {
-    setLoading(true);
-    setAnalysis('جاري التحليل واستخراج النقاط الفنية... ⏳');
-    try {
-      const res = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol }),
-      });
-      const data = await res.json();
-      setAnalysis(data.analysis || "لم يتم العثور على تحليل.");
-    } catch {
-      setAnalysis("خطأ في الاتصال بالمحلل. تأكد من إعدادات API Key.");
-    }
-    setLoading(false);
+  const analyzeStock = async (symbol: string) => {
+    setAnalysis("جاري التحليل لـ " + symbol + "...");
+    // هنا سنقوم باستدعاء الـ API لاحقاً
+    setTimeout(() => {
+      setAnalysis(`تحليل ${symbol}: السهم في اتجاه إيجابي بناءً على مؤشرات السيولة.`);
+    }, 1000);
   };
 
-  // دالة تحديد الفرص (تغير > 3% وسعر > 1)
-  const isExplosive = (change: string, price: string) => parseFloat(change) > 3 && parseFloat(price) > 1;
-
   return (
-    <div style={{ backgroundColor: '#050505', color: '#fff', minHeight: '100vh', padding: '20px', fontFamily: 'Arial' }}>
-      <header style={{ textAlign: 'center', marginBottom: '30px' }}>
-        <h1 style={{ color: '#ffcc00', letterSpacing: '2px' }}>TRADING RADAR PRO ⚡</h1>
-      </header>
-
-      <div style={{ backgroundColor: '#111', border: '1px solid #ffcc00', padding: '20px', borderRadius: '15px', marginBottom: '30px', minHeight: '100px' }}>
-        <h3 style={{ color: '#ffcc00', marginTop: 0 }}>المحلل الذكي (Gemini)</h3>
-        <p style={{ whiteSpace: 'pre-line' }}>{analysis}</p>
+    <main className="p-8 bg-black min-h-screen text-white">
+      <h1 className="text-3xl font-bold mb-8 text-yellow-500">TRADING RADAR PRO ⚡</h1>
+      
+      <div className="border border-yellow-500 p-4 mb-8 rounded">
+        <p className="text-yellow-500 font-bold mb-2">(Gemini) المحلل الذكي</p>
+        <p>{analysis}</p>
       </div>
 
-      <div style={{ display: 'grid', gap: '15px' }}>
-        {stocks.map((s: any) => (
-          <div key={s.symbol} style={{ 
-            backgroundColor: isExplosive(s.change, s.price) ? '#1a1600' : '#0d0d0d',
-            border: isExplosive(s.change, s.price) ? '1px solid #ffcc00' : '1px solid #222',
-            padding: '15px', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' 
-          }}>
-            <div>
-              <h2 style={{ margin: 0 }}>{s.symbol}</h2>
-              <span style={{ color: '#aaa' }}>{s.price} $</span>
-            </div>
-            <button 
-              onClick={() => runAnalysis(s.symbol)}
-              style={{ backgroundColor: '#ffcc00', border: 'none', padding: '10px 20px', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer' }}
-            >
-              {loading ? '...' : 'تحليل تقني'}
-            </button>
+      {stocks.map((stock) => (
+        <div key={stock.symbol} className="flex justify-between items-center border-b border-gray-800 py-4">
+          <div>
+            <p className="font-bold text-xl">{stock.symbol}</p>
+            <p className={`${stock.color} font-mono`}>{stock.price} $</p>
           </div>
-        ))}
-      </div>
-    </div>
+          <button 
+            onClick={() => analyzeStock(stock.symbol)}
+            className="bg-yellow-500 text-black px-4 py-2 rounded font-bold hover:bg-yellow-400 transition"
+          >
+            تحليل تقني
+          </button>
+        </div>
+      ))}
+    </main>
   );
-}
+}=
