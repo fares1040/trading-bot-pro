@@ -5,8 +5,12 @@ export async function POST(req: Request) {
   try {
     const { symbol } = await req.json();
     
-    // ضع مفتاحك هنا بين علامات التنصيص
-    const apiKey = "AQ.Ab8RN6Jnk3naalqjqEwfrfcAdN-dzFxWyCHBAOpuIOXerndLNg";
+    // الكود الآن يسحب المفتاح من المتغيرات الآمنة في Vercel
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+      return NextResponse.json({ analysis: "خطأ: مفتاح API غير مضبوط في إعدادات الموقع." });
+    }
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
@@ -15,6 +19,6 @@ export async function POST(req: Request) {
     
     return NextResponse.json({ analysis: result.response.text() });
   } catch (error) {
-    return NextResponse.json({ analysis: "حدث خطأ في الاتصال بالذكاء الاصطناعي." });
+    return NextResponse.json({ analysis: "حدث خطأ أثناء الاتصال بـ Gemini." });
   }
 }
