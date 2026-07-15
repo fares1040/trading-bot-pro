@@ -14,7 +14,6 @@ export default function Home() {
 
   const analyzeStock = async (symbol: string) => {
     setAnalysis("جاري التحليل لـ " + symbol + "...");
-    // هنا سنقوم باستدعاء الـ API لاحقاً
     setTimeout(() => {
       setAnalysis(`تحليل ${symbol}: السهم في اتجاه إيجابي بناءً على مؤشرات السيولة.`);
     }, 1000);
@@ -45,4 +44,4 @@ export default function Home() {
       ))}
     </main>
   );
-}=
+}
