@@ -12,36 +12,38 @@ export default function Dashboard() {
 
   const analyzeStock = async (symbol: string) => {
     setLoading(true);
-    const res = await fetch('/api/analyze', {
-      method: 'POST',
-      body: JSON.stringify({ symbol }),
-    });
-    const data = await res.json();
-    setAnalysis(data.analysis);
+    try {
+      const res = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol }),
+      });
+      const data = await res.json();
+      setAnalysis(data.analysis);
+    } catch (e) {
+      setAnalysis("خطأ في الاتصال بالمحلل");
+    }
     setLoading(false);
   };
 
   return (
     <div style={{ padding: '20px', backgroundColor: '#0a0a0a', color: '#fff', minHeight: '100vh' }}>
-      <h1 style={{ color: '#00ff9d', textAlign: 'center' }}>منصة التداول الذكية 🚀</h1>
-      
+      <h1 style={{ textAlign: 'center' }}>منصة التداول الذكية 🚀</h1>
       {analysis && (
-        <div style={{ backgroundColor: '#222', padding: '15px', borderRadius: '10px', marginBottom: '20px', border: '1px solid #00ff9d' }}>
-          <strong>تحليل Gemini:</strong> <p>{analysis}</p>
+        <div style={{ backgroundColor: '#111', padding: '15px', borderRadius: '8px', border: '1px solid #00ff9d', marginBottom: '20px' }}>
+          <strong>تحليل AI:</strong> <p>{analysis}</p>
           <button onClick={() => setAnalysis('')}>إغلاق</button>
         </div>
       )}
-
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
-        <thead><tr style={{ borderBottom: '1px solid #333' }}><th>الرمز</th><th>السعر</th><th>التحليل</th></tr></thead>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <tbody>
-          {stocks.map((stock: any) => (
-            <tr key={stock.symbol} style={{ borderBottom: '1px solid #222' }}>
-              <td style={{ padding: '10px' }}>{stock.symbol}</td>
-              <td style={{ padding: '10px' }}>{stock.price} $</td>
+          {stocks.map((s: any) => (
+            <tr key={s.symbol} style={{ borderBottom: '1px solid #333' }}>
+              <td style={{ padding: '10px' }}>{s.symbol}</td>
+              <td style={{ padding: '10px' }}>{s.price} $</td>
               <td style={{ padding: '10px' }}>
-                <button onClick={() => analyzeStock(stock.symbol)} style={{ backgroundColor: '#0070f3', border: 'none', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer' }}>
-                  {loading ? '...' : 'تحليل AI'}
+                <button onClick={() => analyzeStock(s.symbol)} style={{ backgroundColor: '#0070f3', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}>
+                  {loading ? '...' : 'تحليل'}
                 </button>
               </td>
             </tr>
