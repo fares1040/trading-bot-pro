@@ -3,15 +3,16 @@ import { useState, useEffect } from 'react';
 
 export default function Dashboard() {
   const [stocks, setStocks] = useState([]);
-  const [analysis, setAnalysis] = useState('');
+  const [analysis, setAnalysis] = useState('اختر سهماً للبدء في التحليل التقني...');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetch('/api/stocks').then(res => res.json()).then(data => setStocks(data.data));
   }, []);
 
-  const analyzeStock = async (symbol: string) => {
+  const runAnalysis = async (symbol: string) => {
     setLoading(true);
+    setAnalysis('جاري تحليل البيانات واستخراج نقاط المقاومة... ⏳');
     try {
       const res = await fetch('/api/analyze', {
         method: 'POST',
@@ -20,36 +21,47 @@ export default function Dashboard() {
       });
       const data = await res.json();
       setAnalysis(data.analysis);
-    } catch (e) {
-      setAnalysis("خطأ في الاتصال بالمحلل");
+    } catch {
+      setAnalysis("حدث خطأ، تأكد من الاتصال.");
     }
     setLoading(false);
   };
 
+  const isExplosive = (change: string, price: string) => parseFloat(change) > 3 && parseFloat(price) > 1;
+
   return (
-    <div style={{ padding: '20px', backgroundColor: '#0a0a0a', color: '#fff', minHeight: '100vh' }}>
-      <h1 style={{ textAlign: 'center' }}>منصة التداول الذكية 🚀</h1>
-      {analysis && (
-        <div style={{ backgroundColor: '#111', padding: '15px', borderRadius: '8px', border: '1px solid #00ff9d', marginBottom: '20px' }}>
-          <strong>تحليل AI:</strong> <p>{analysis}</p>
-          <button onClick={() => setAnalysis('')}>إغلاق</button>
-        </div>
-      )}
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <tbody>
-          {stocks.map((s: any) => (
-            <tr key={s.symbol} style={{ borderBottom: '1px solid #333' }}>
-              <td style={{ padding: '10px' }}>{s.symbol}</td>
-              <td style={{ padding: '10px' }}>{s.price} $</td>
-              <td style={{ padding: '10px' }}>
-                <button onClick={() => analyzeStock(s.symbol)} style={{ backgroundColor: '#0070f3', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}>
-                  {loading ? '...' : 'تحليل'}
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div style={{ backgroundColor: '#050505', color: '#fff', minHeight: '100vh', padding: '20px', fontFamily: 'Arial' }}>
+      <header style={{ textAlign: 'center', marginBottom: '30px' }}>
+        <h1 style={{ color: '#ffcc00', letterSpacing: '2px' }}>TRADING RADAR PRO ⚡</h1>
+      </header>
+
+      {/* منطقة التحليل الذكي */}
+      <div style={{ backgroundColor: '#111', border: '1px solid #ffcc00', padding: '20px', borderRadius: '15px', marginBottom: '30px', minHeight: '100px' }}>
+        <h3 style={{ color: '#ffcc00', marginTop: 0 }}>المحلل الذكي (Gemini)</h3>
+        <p style={{ whiteSpace: 'pre-line' }}>{analysis}</p>
+      </div>
+
+      {/* قائمة الأسهم */}
+      <div style={{ display: 'grid', gap: '15px' }}>
+        {stocks.map((s: any) => (
+          <div key={s.symbol} style={{ 
+            backgroundColor: isExplosive(s.change, s.price) ? '#1a1600' : '#0d0d0d',
+            border: isExplosive(s.change, s.price) ? '1px solid #ffcc00' : '1px solid #222',
+            padding: '15px', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' 
+          }}>
+            <div>
+              <h2 style={{ margin: 0 }}>{s.symbol}</h2>
+              <span style={{ color: '#aaa' }}>{s.price} $</span>
+            </div>
+            <button 
+              onClick={() => runAnalysis(s.symbol)}
+              style={{ backgroundColor: '#ffcc00', border: 'none', padding: '10px 20px', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer' }}
+            >
+              {loading ? '...' : 'تحليل تقني'}
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
