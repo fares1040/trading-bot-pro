@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 
 export default function Home() {
-  const [stocks, setStocks] = useState([]);
+  const [stocks, setStocks] = useState<any[]>([]);
 
   useEffect(() => {
     fetch('/api/stocks')
@@ -11,15 +11,13 @@ export default function Home() {
   }, []);
 
   return (
-    <main style={{ padding: '40px', backgroundColor: '#111', color: '#fff', minHeight: '100vh' }}>
+    <main style={{ padding: '40px', backgroundColor: '#111', color: '#fff' }}>
       <h1>TRADING RADAR PRO V2</h1>
-      <div style={{ marginTop: '20px' }}>
-        {stocks.map((stock: any) => (
-          <div key={stock.symbol} style={{ padding: '10px', border: '1px solid #444', marginBottom: '10px' }}>
-            {stock.symbol} - السعر: {stock.price} - الاتجاه: {stock.trend}
-          </div>
-        ))}
-      </div>
+      {stocks.map((s, i) => (
+        <div key={i} style={{ border: '1px solid #444', padding: '10px', margin: '5px' }}>
+          {s.symbol}: {s.price} ({s.trend})
+        </div>
+      ))}
     </main>
   );
 }
