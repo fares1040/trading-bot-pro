@@ -1,23 +1,29 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  try {
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    const chatId = process.env.TELEGRAM_CHAT_ID;
-    
-    // اختبار بسيط للاتصال
-    const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: "تم الاتصال بنجاح من Vercel 🚀"
-      }),
-    });
+  const apiKey = process.env.ALPHA_VANTAGE_API_KEY;
+  const stocks = ['NVDA', 'AAPL', 'TSLA']; // يمكنك إضافة أي أسهم هنا
+  
+  let results = [];
 
-    const data = await response.json();
-    return NextResponse.json({ status: "Success", data });
-  } catch (error) {
-    return NextResponse.json({ status: "Error", error: String(error) }, { status: 500 });
+  for (let symbol of stocks) {
+    try {
+      const res = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${apiKey}`);
+      const data = await res.json();
+      const quote = data['Global Quote'];
+      
+      if (quote) {
+        results.push({
+          symbol: quote['01. symbol'],
+          price: quote['05. price'],
+          change: quote['10. change percent']
+        });
+      }
+    } catch (e) {
+      console.error(`Error fetching ${symbol}:`, e);
+    }
   }
+
+  // إرسال تنبيه لتليجرام (يمكنك تفعيله لاحقاً)
+  return NextResponse.json({ status: "Success", data: results });
 }
