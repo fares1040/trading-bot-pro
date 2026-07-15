@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     // ضع مفتاحك هنا بدقة بين علامات التنصيص
     const apiKey = "AQ.Ab8RN6JnK3naalqjqEwfrfcAdN-dzFxWyCHBAOpuIOXernDLng"; 
 
-    if (!apiKey || apiKey === "ضع_مفتاحك_الخاص_هنا") {
+    if (!apiKey || apiKey === "AQ.Ab8RN6JnK3naalqjqEwfrfcAdN-dzFxWyCHBAOpuIOXernDLng") {
       return NextResponse.json({ analysis: "خطأ: المفتاح غير موجود." });
     }
 
