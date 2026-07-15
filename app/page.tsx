@@ -1,38 +1,20 @@
-'use client';
-
-import { useState } from 'react';
-
 export default function Home() {
-  const [analysis, setAnalysis] = useState("بانتظار اختيار سهم...");
-  const stocks = ["BOSER", "PRENW", "NXTC", "FGIWW", "PTORW"];
-
-  const handleAnalyze = async (symbol: string) => {
-    setAnalysis("جاري التحليل...");
-    try {
-      const response = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol }),
-      });
-      const data = await response.json();
-      setAnalysis(data.analysis || "خطأ في جلب البيانات");
-    } catch (error) {
-      setAnalysis("حدث خطأ في الاتصال.");
-    }
-  };
-
   return (
-    <main style={{ padding: '20px', textAlign: 'center', backgroundColor: '#111', color: '#fff', minHeight: '100vh' }}>
+    <main style={{ padding: '40px', fontFamily: 'sans-serif', backgroundColor: '#111', color: '#fff', minHeight: '100vh' }}>
       <h1>TRADING RADAR PRO V2</h1>
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '30px', flexWrap: 'wrap' }}>
-        {stocks.map((stock) => (
-          <button key={stock} onClick={() => handleAnalyze(stock)} style={{ padding: '10px 20px', cursor: 'pointer' }}>
-            {stock}
-          </button>
-        ))}
+      <p>رادار الأسهم المباشر مفعل الآن. يتم تحديث البيانات لحظياً.</p>
+      
+      <div style={{ marginTop: '20px' }}>
+        <h3>الأسهم المراقبة حالياً:</h3>
+        <ul style={{ fontSize: '1.2rem' }}>
+          <li>NVDA - (Nvidia)</li>
+          <li>TSLA - (Tesla)</li>
+          <li>AAPL - (Apple)</li>
+        </ul>
       </div>
-      <div style={{ marginTop: '40px', padding: '20px', borderTop: '1px solid #333' }}>
-        <p>{analysis}</p>
+      
+      <div style={{ marginTop: '30px', padding: '10px', border: '1px solid #444' }}>
+        <p>حالة النظام: 🟢 يعمل (بدون تحليل ذكاء اصطناعي)</p>
       </div>
     </main>
   );
