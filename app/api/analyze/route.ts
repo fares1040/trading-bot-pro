@@ -7,13 +7,13 @@ export async function POST(req: Request) {
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      return NextResponse.json({ analysis: "تنبيه: مفتاح API Key مفقود في إعدادات Vercel. يرجى إضافته." });
+      return NextResponse.json({ analysis: "خطأ: مفتاح GEMINI_API_KEY غير موجود في إعدادات Vercel." });
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    const prompt = `حلل السهم ${symbol} فنياً بشكل مختصر جداً.`;
+    const prompt = `حلل السهم ${symbol} فنياً بشكل مختصر.`;
     const result = await model.generateContent(prompt);
     
     return NextResponse.json({ analysis: result.response.text() });
