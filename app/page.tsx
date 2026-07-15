@@ -1,40 +1,49 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 export default function Home() {
-  const [stocks, setStocks] = useState([
-    { symbol: 'NXTC', price: 'Loading...' },
-    { symbol: 'FGIWW', price: 'Loading...' },
-    { symbol: 'PTORW', price: 'Loading...' }
-  ]);
+  const [analysis, setAnalysis] = useState("اضغط تحليل للحصول على التقرير...");
+  const [loading, setLoading] = useState(false);
 
-  // دالة لجلب السعر المباشر (سنربطها لاحقاً بـ API حقيقي)
-  useEffect(() => {
-    const fetchPrices = async () => {
-      // هنا يمكنك ربط API مثل Yahoo Finance
-      const updatedStocks = stocks.map(s => ({
-        ...s,
-        price: (Math.random() * 10).toFixed(2) + " $" // محاكاة للسعر المباشر
-      }));
-      setStocks(updatedStocks);
-    };
+  const stocks = ['PTORW', 'FGIWW', 'NXTC'];
 
-    const interval = setInterval(fetchPrices, 5000); // تحديث كل 5 ثواني
-    fetchPrices();
-    return () => clearInterval(interval);
-  }, []);
+  const handleAnalyze = async (symbol: string) => {
+    setLoading(true);
+    setAnalysis("جاري التحليل لـ " + symbol + "...");
+    try {
+      const res = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol })
+      });
+      const data = await res.json();
+      setAnalysis(data.analysis || "خطأ في التحليل");
+    } catch (e) {
+      setAnalysis("خطأ في الاتصال بالسيرفر");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <main style={{ backgroundColor: '#0A0A0A', color: '#fff', padding: '20px', minHeight: '100vh', fontFamily: 'sans-serif' }}>
       <h1 style={{ color: '#FFD700', marginBottom: '20px' }}>⚡ TRADING RADAR PRO</h1>
       
+      {/* منطقة عرض التحليل */}
+      <div style={{ border: '1px solid #FFD700', padding: '15px', borderRadius: '10px', marginBottom: '20px', minHeight: '100px' }}>
+        {analysis}
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '15px' }}>
-        {stocks.map(stock => (
-          <div key={stock.symbol} style={{ border: '1px solid #333', padding: '15px', borderRadius: '10px', backgroundColor: '#161616' }}>
-            <h2 style={{ fontSize: '20px', margin: '0 0 10px 0' }}>{stock.symbol}</h2>
-            <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#00FF00' }}>{stock.price}</p>
-            <button style={{ width: '100%', padding: '8px', marginTop: '10px', backgroundColor: '#FFD700', border: 'none', borderRadius: '5px', fontWeight: 'bold' }}>
-              تحليل
+        {stocks.map(s => (
+          <div key={s} style={{ border: '1px solid #333', padding: '15px', borderRadius: '10px', backgroundColor: '#161616', textAlign: 'center' }}>
+            <h2 style={{ margin: '0 0 10px 0' }}>{s}</h2>
+            <button 
+              onClick={() => handleAnalyze(s)}
+              disabled={loading}
+              style={{ width: '100%', padding: '10px', backgroundColor: '#FFD700', border: 'none', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer' }}
+            >
+              {loading ? "جاري..." : "تحليل"}
             </button>
           </div>
         ))}
