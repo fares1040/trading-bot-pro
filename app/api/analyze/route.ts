@@ -4,10 +4,12 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 export async function POST(req: Request) {
   try {
     const { symbol } = await req.json();
+    
+    // سحب المفتاح من المتغيرات في Vercel
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      return NextResponse.json({ analysis: "خطأ: مفتاح GEMINI_API_KEY غير موجود في إعدادات Vercel." });
+      return NextResponse.json({ analysis: "يرجى إضافة مفتاح GEMINI_API_KEY في إعدادات Vercel." });
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
@@ -18,6 +20,6 @@ export async function POST(req: Request) {
     
     return NextResponse.json({ analysis: result.response.text() });
   } catch (error: any) {
-    return NextResponse.json({ analysis: "خطأ تقني: " + error.message });
+    return NextResponse.json({ analysis: "خطأ في الاتصال بالمحلل." });
   }
 }
