@@ -5,12 +5,8 @@ export async function POST(req: Request) {
   try {
     const { symbol } = await req.json();
     
-    // سحب المفتاح من المتغيرات في Vercel
-    const apiKey = process.env.GEMINI_API_KEY;
-
-    if (!apiKey) {
-      return NextResponse.json({ analysis: "يرجى إضافة مفتاح GEMINI_API_KEY في إعدادات Vercel." });
-    }
+    // سنضع المفتاح هنا مباشرة داخل الكود لنتجاوز مشاكل إعدادات Vercel
+    const apiKey = "AQ.Ab8RN6JnK3naalqjqEwfrfcAdN-dzFxWyCHBAOpuIOXernDLng";
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
@@ -20,6 +16,6 @@ export async function POST(req: Request) {
     
     return NextResponse.json({ analysis: result.response.text() });
   } catch (error: any) {
-    return NextResponse.json({ analysis: "خطأ في الاتصال بالمحلل." });
+    return NextResponse.json({ analysis: "حدث خطأ أثناء الاتصال بـ Gemini." });
   }
 }
