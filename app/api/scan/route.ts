@@ -1,38 +1,47 @@
 import { NextResponse } from 'next/server';
-const yahooFinance = require('yahoo-finance2').default;
 
 export async function GET() {
   try {
-    // 1. جلب قائمة الأسهم الأكثر نشاطاً (الترند) من السوق
-    const trending = await yahooFinance.trendingSymbols('US');
-    const symbols = trending.quotes.map((q: any) => q.symbol).slice(0, 10); // نأخذ أول 10 أسهم
-
+    // 1. جلب قائمة الأسهم الأكثر نشاطاً (الترند) من Yahoo Finance
+    const trendingResponse = await fetch('https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=most_active&count=10');
+    const trendingData = await trendingResponse.json();
+    const symbols = trendingData.finance.result[0].quotes.map((q: any) => q.symbol);
+    
     let signalsSent = 0;
 
-    // 2. فحص كل سهم في القائمة
+    // 2. فحص كل سهم ترند تم جلبه
     for (const symbol of symbols) {
-      const quote = await yahooFinance.quote(symbol);
-      const priceChange = quote.regularMarketChangePercent;
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`;
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (!data.chart.result) continue;
 
-      // 3. التحقق من شرط الانفجار السعري (> 2%)
-      if (priceChange && priceChange > 2) {
+      const quote = data.chart.result[0].meta;
+      const currentPrice = quote.regularMarketPrice;
+      const prevClose = quote.chartPreviousClose;
+      const priceChange = ((currentPrice - prevClose) / prevClose) * 100;
+
+      // 3. التنبيه إذا كان التغير أكثر من 2% (الانفجار السعري)
+      if (priceChange > 2) {
         const message = `🏆✨ انفجار سعري في سهم ترند! ✨🏆
 
 📍 السهم: ${symbol}
-💰 السعر: ${quote.regularMarketPrice}$
+💰 السعر: ${currentPrice.toFixed(2)}$
 📈 التغير اليومي: ${priceChange.toFixed(2)}%
-🎯 الأهداف: ${(quote.regularMarketPrice * 1.03).toFixed(2)} → ${(quote.regularMarketPrice * 1.05).toFixed(2)}`;
+🎯 الأهداف: ${(currentPrice * 1.03).toFixed(2)} → ${(currentPrice * 1.05).toFixed(2)}`;
 
+        // أرسل التنبيه لتليجرام
         await fetch(`https://api.telegram.org/bot8822034470:AAgez21V8daSkeFtb9Hq6yTArBUJx0k4YQw/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: 'آيديك_هنا', text: message })
+          body: JSON.stringify({ chat_id: '896028407', text: message })
         });
         signalsSent++;
       }
     }
 
-    return NextResponse.json({ status: "Scan complete", checked: symbols, signalsSent });
+    return NextResponse.json({ status: "Scan complete", count: signalsSent });
   } catch (error) {
     return NextResponse.json({ error: "Scan failed" }, { status: 500 });
   }
