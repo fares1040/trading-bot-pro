@@ -1,32 +1,39 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  try {
-    // محاولة الاتصال بـ Yahoo Finance بـ Headers قوية
-    const response = await fetch('https://query1.finance.yahoo.com/v7/finance/quote?symbols=NVDA,AAPL,TSLA,AMD,PLTR', {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0'
-      },
-      next: { revalidate: 0 } // لضمان عدم أخذ بيانات قديمة
-    });
+  const API_KEY = 'QE3ODUMP7UQR22T8';
+  const symbols = ['PPSI', 'ANVS', 'BYRN', 'KULR', 'HURA', 'BJDX', 'OPI', 'MRAM', 'SPSC', 'PODC', 'NOK', 'ERNA', 'PRFX', 'VMAR', 'CETX', 'GSIT'];
+  let watchlist = [];
+  let alerts = [];
 
-    if (!response.ok) {
-      return NextResponse.json({ error: "API limit or connection error" }, { status: 502 });
-    }
+  for (const symbol of symbols) {
+    try {
+      const res = await fetch(`https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${API_KEY}`);
+      const data = await res.json();
+      if (!data['Time Series (Daily)']) continue;
 
-    const data = await response.json();
-    
-    // تأكد من وجود البيانات قبل معالجتها
-    const stocks = data.quoteResponse.result.map(s => ({
-      symbol: s.symbol,
-      price: s.regularMarketPrice ? s.regularMarketPrice.toFixed(2) : '0.00'
-    }));
+      const prices = Object.values(data['Time Series (Daily)']).slice(0, 20).map(d => parseFloat(d['4. close']));
+      const currentPrice = prices[0];
+      const avg = prices.reduce((a, b) => a + b, 0) / 20;
+      const stdDev = Math.sqrt(prices.map(x => Math.pow(x - avg, 2)).reduce((a, b) => a + b) / 20);
+      
+      const bollingerUpper = avg + (2 * stdDev);
+      const resistance = Math.max(...prices.slice(1, 6)); 
 
-    return NextResponse.json({ data: stocks });
-    
-  } catch (error) {
-    return NextResponse.json({ error: "Server connection failed" }, { status: 500 });
+      watchlist.push({ symbol, price: currentPrice.toFixed(2) });
+
+      if (currentPrice > bollingerUpper && currentPrice > resistance) {
+        alerts.push({ symbol, price: currentPrice.toFixed(2), reason: 'اختراق انفجاري' });
+      }
+    } catch (e) { continue; }
   }
+
+  if (alerts.length > 0) {
+    await fetch('https://trading-bot-pro-sage.vercel.app/api/telegram', {
+      method: 'POST',
+      body: JSON.stringify({ type: 'NEW_TRADE', data: alerts[0] })
+    });
+  }
+
+  return NextResponse.json({ watchlist, alerts });
 }
