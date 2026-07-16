@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 
-export async function GET() {
+export async function GET(req) {
+  const { searchParams } = new URL(req.url);
+  const symbolsInput = searchParams.get('symbols') || 'PPSI,ANVS,BYRN,KULR,HURA,BJDX,OPI,MRAM,SPSC,PODC,NOK,ERNA,PRFX,VMAR,CETX,GSIT';
+  const symbols = symbolsInput.split(',');
   const API_KEY = 'QE3ODUMP7UQR22T8';
-  const symbols = ['PPSI', 'ANVS', 'BYRN', 'KULR', 'HURA', 'BJDX', 'OPI', 'MRAM', 'SPSC', 'PODC', 'NOK', 'ERNA', 'PRFX', 'VMAR', 'CETX', 'GSIT'];
   let watchlist = [];
   let alerts = [];
 
@@ -26,13 +28,6 @@ export async function GET() {
         alerts.push({ symbol, price: currentPrice.toFixed(2), reason: 'اختراق انفجاري' });
       }
     } catch (e) { continue; }
-  }
-
-  if (alerts.length > 0) {
-    await fetch('https://trading-bot-pro-sage.vercel.app/api/telegram', {
-      method: 'POST',
-      body: JSON.stringify({ type: 'NEW_TRADE', data: alerts[0] })
-    });
   }
 
   return NextResponse.json({ watchlist, alerts });
