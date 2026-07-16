@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 
 export async function GET(req) {
-  // المحرك الذكي: يمكنك إضافة أي عدد من الأسهم هنا
-  const marketList = ['AAPL', 'ERNA', 'PPSI', 'ANVS', 'BYRN', 'LCID', 'NVDA', 'AMD', 'RHI', 'TGHL'];
+  // قائمة الأسهم التي يمسحها الرادار تلقائياً
+  const marketList = ['AAPL', 'TSLA', 'PPSI', 'ANVS', 'BYRN', 'LCID', 'NVDA', 'AMD', 'RHI', 'TGHL'];
   const API_KEY = 'QE3ODUMP7UQR22T8';
+  // تم تحديث التوكن الجديد هنا
   const BOT_TOKEN = '8822034470:AAEbooViT3tdkkQqt2lx86GZBWipYUq0MgA';
   const CHAT_ID = '896028407';
   let alerts = [];
@@ -23,11 +24,15 @@ export async function GET(req) {
       // منطق الاختراق (سنايبر)
       if (price > prevPrice * 1.02 && vol > avgVol * 1.5) {
         alerts.push({ symbol, msg: '🚀 فرصة دخول: اختراق بفوليوم' });
-        // تنبيه تليجرام تلقائي
+        
+        // إرسال تنبيه تليجرام تلقائي
         await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: CHAT_ID, text: `رادار السنايبر: فرصة في ${symbol}\nالسعر: ${price}` })
+            body: JSON.stringify({ 
+                chat_id: CHAT_ID, 
+                text: `رادار السنايبر: فرصة في ${symbol}\nالسعر: ${price}\nالحالة: اختراق بفوليوم` 
+            })
         });
       }
     } catch (e) { continue; }
