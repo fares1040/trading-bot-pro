@@ -1,46 +1,49 @@
 import { NextResponse } from 'next/server';
 
 export async function GET(req) {
-  const API_KEY = 'QE3ODUMP7UQR22T8';
+  const API_KEY = process.env.MASSIVE_API_KEY;
   const BOT_TOKEN = '8822034470:AAEbooViT3tdkkQqt2lx86GZBWipYUq0MgA';
   const CHAT_ID = '896028407';
+  
+  // قائمة الأسهم (يمكنك توسيعها لاحقاً)
+  const symbols = ['AAPL', 'NVDA', 'TSLA', 'AMD', 'PLTR', 'SOFI', 'MARA', 'RIOT'];
   let alerts = [];
 
-  // 1. نجلب قائمة الـ Top Gainers من Alpha Vantage مباشرة
-  const marketRes = await fetch(`https://www.alphavantage.co/query?function=TOP_GAINERS&apikey=${API_KEY}`);
-  const marketData = await marketRes.json();
-  
-  // نأخذ أول 10 أسهم فقط لضمان سرعة التنفيذ وعدم تجاوز حدود الـ API
-  const topStocks = marketData.top_gainers ? marketData.top_gainers.slice(0, 10) : [];
-
-  for (const stock of topStocks) {
-    const symbol = stock.ticker;
+  for (const symbol of symbols) {
     try {
-      // 2. فحص تفاصيل السهم (فوليوم والسعر)
-      const res = await fetch(`https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${API_KEY}`);
+      // جلب البيانات من Massive API
+      const res = await fetch(`https://api.massive.com/v3/stocks/${symbol}/daily?apiKey=${API_KEY}`);
       const data = await res.json();
-      if (!data['Time Series (Daily)']) continue;
+      
+      if (!data || !data.results || data.results.length < 50) continue;
 
-      const dailyData = Object.values(data['Time Series (Daily)']);
-      const price = parseFloat(dailyData[0]['4. close']);
-      const prevPrice = parseFloat(dailyData[1]['4. close']);
-      const vol = parseFloat(dailyData[0]['5. volume']);
-      const avgVol = dailyData.slice(1, 11).reduce((a, b) => a + parseFloat(b['5. volume']), 0) / 10;
+      const latest = data.results[0]; // بيانات اليوم
+      const history = data.results.slice(1, 51); // آخر 50 يوم لحساب المتوسط
+      
+      const price = latest.c; // سعر الإغلاق
+      const vol = latest.v; // فوليوم اليوم
+      const avgVol = history.reduce((a, b) => a + b.v, 0) / 50;
+      const sma50 = history.reduce((a, b) => a + b.c, 0) / 50;
 
-      // 3. تطبيق منطق السنايبر الخاص بك
-      if (price > prevPrice * 1.01 && vol > avgVol * 1.2) {
-        alerts.push({ symbol, msg: '🚀 فرصة انفجارية مرصودة!' });
+      // --- منطق السنايبر الاحترافي ---
+      // 1. السعر فوق متوسط 50 يوم (اتجاه صاعد)
+      // 2. الفوليوم اليومي أكبر من متوسط 50 يوم بـ 1.5 مرة (زخم دخول)
+      // 3. السعر ارتفع اليوم بأكثر من 1%
+      
+      if (price > sma50 && vol > (avgVol * 1.5) && price > (latest.o * 1.01)) {
+        alerts.push({ symbol, msg: '🚀 فرصة سنايبر مؤكدة!' });
         
         await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 chat_id: CHAT_ID, 
-                text: `رادار السنايبر: سهم ترند جديد ${symbol}\nالسعر الحالي: ${price}\nحالة الاختراق: مؤكدة` 
+                text: `🚨 رادار السنايبر: سهم ${symbol} ينفجر!\nالسعر: $${price}\nحالة الاختراق: فوق SMA 50 + فوليوم عالي` 
             })
         });
       }
     } catch (e) { continue; }
   }
-  return NextResponse.json({ alerts });
+
+  return NextResponse.json({ alerts, status: 'Scan Complete' });
 }
