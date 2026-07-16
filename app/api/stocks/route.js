@@ -6,12 +6,9 @@ export async function GET(req) {
   const API_KEY = 'QE3ODUMP7UQR22T8';
   let alerts = [];
 
-  // تم تحسين الحلقة لتكون أكثر استقراراً
   for (const symbol of symbols) {
     try {
-      const res = await fetch(`https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${API_KEY}`, { 
-          next: { revalidate: 3600 } // تخزين البيانات مؤقتاً لتسريع الاستجابة
-      });
+      const res = await fetch(`https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${API_KEY}`);
       const data = await res.json();
       if (!data['Time Series (Daily)']) continue;
 
@@ -24,23 +21,20 @@ export async function GET(req) {
 
       if (price > prevPrice * 1.02 && vol > avgVol * 1.5) {
         alerts.push({ symbol, msg: '🚀 فرصة دخول: اختراق بفوليوم' });
-      }
-      else if (price < avgPrice * 0.95) {
+      } else if (price < avgPrice * 0.95) {
         alerts.push({ symbol, msg: '⚠️ تنبيه خطر: انعكاس سعري' });
       }
-      
-      // تأخير بسيط (1 ثانية) بين كل سهم لتجنب حظر الـ API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
     } catch (e) { continue; }
   }
 
-  // إرسال تنبيه واحد فقط لتوفير الموارد
+  // إرسال تنبيه تليجرام إذا وجدنا شيئاً
   if (alerts.length > 0) {
-    await fetch('https://trading-bot-fs3fqgv36-fares1040s-projects.vercel.app/api/telegram', {
+    await fetch('https://trading-bot-r7vbxm7kj-fares1040s-projects.vercel.app/api/telegram', {
       method: 'POST',
-      body: JSON.stringify({ type: 'NEW_TRADE', data: alerts[0] })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: alerts[0] })
     });
   }
+
   return NextResponse.json({ alerts });
 }
