@@ -9,7 +9,9 @@ export async function GET(req) {
     const gainersRes = await fetch(`https://api.massive.com/v3/stocks/gainers?limit=20&apiKey=${API_KEY}`);
     const gainersData = await gainersRes.json();
     
-    if (!gainersData?.results) throw new Error("تعذر جلب البيانات");
+    if (!gainersData?.results) {
+      return NextResponse.json({ alerts: [] });
+    }
 
     const symbols = gainersData.results.map(s => s.ticker);
     let alerts = [];
@@ -17,7 +19,7 @@ export async function GET(req) {
     for (const symbol of symbols) {
       const res = await fetch(`https://api.massive.com/v3/stocks/${symbol}/daily?apiKey=${API_KEY}`);
       const data = await res.json();
-      if (!data.results || data.results.length < 50) continue;
+      if (!data?.results || data.results.length < 50) continue;
 
       const latest = data.results[0];
       const history = data.results.slice(1, 51);
@@ -29,12 +31,12 @@ export async function GET(req) {
         await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: CHAT_ID, text: `🚀 فرصة: ${symbol} بسعر $${latest.c}` })
+            body: JSON.stringify({ chat_id: CHAT_ID, text: `🚀 فرصة: ${symbol}` })
         });
       }
     }
-    return NextResponse.json({ alerts });
+    return NextResponse.json({ alerts: alerts });
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ alerts: [], error: e.message });
   }
 }
