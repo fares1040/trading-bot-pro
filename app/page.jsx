@@ -2,46 +2,47 @@
 import { useState, useEffect } from 'react';
 
 export default function Home() {
-  const [data, setData] = useState({ entries: [] });
-  const [loading, setLoading] = useState(false);
+  const [watchlist, setWatchlist] = useState(['PPSI', 'ANVS', 'BYRN', 'KULR', 'HURA']);
+  const [input, setInput] = useState('');
+  const [alerts, setAlerts] = useState([]);
 
-  const runScanner = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/stocks');
-      const json = await res.json();
-      setData({ entries: json.alerts || [] });
-    } catch (e) {
-      console.error("خطأ في المسح:", e);
+  const addStock = () => {
+    if (input && !watchlist.includes(input.toUpperCase())) {
+      setWatchlist([...watchlist, input.toUpperCase()]);
+      setInput('');
     }
-    setLoading(false);
   };
 
-  // هذا السطر سيجعل المسح يبدأ تلقائياً عند فتح الموقع
-  useEffect(() => {
-    runScanner();
-  }, []);
+  const runScanner = async () => {
+    // نرسل القائمة المحدثة للمسح
+    const res = await fetch(`/api/stocks?symbols=${watchlist.join(',')}`);
+    const json = await res.json();
+    setAlerts(json.alerts || []);
+  };
 
   return (
-    <main style={{ backgroundColor: '#000', color: '#D4AF37', minHeight: '100vh', padding: '20px', fontFamily: 'sans-serif' }}>
-      <h1 style={{ textAlign: 'center', color: '#FFD700' }}>📊 رادار السنايبر الذكي</h1>
+    <main style={{ backgroundColor: '#000', color: '#D4AF37', minHeight: '100vh', padding: '20px' }}>
+      <h1 style={{ textAlign: 'center', color: '#FFD700' }}>📊 لوحة تحكم السنايبر</h1>
       
+      {/* قسم البحث والإضافة */}
       <div style={{ textAlign: 'center', margin: '20px' }}>
-        <button 
-          style={{ background: '#D4AF37', padding: '15px 30px', fontWeight: 'bold', cursor: 'pointer', border: 'none' }} 
-          onClick={runScanner}
-          disabled={loading}
-        >
-          {loading ? 'جاري المسح...' : 'إعادة مسح السوق'}
-        </button>
+        <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="أضف سهم للقائمة..." style={{ padding: '10px', color: '#000' }} />
+        <button onClick={addStock} style={{ padding: '10px 20px', background: '#D4AF37', border: 'none', cursor: 'pointer', marginLeft: '10px' }}>إضافة</button>
       </div>
 
-      <div style={{ maxWidth: '800px', margin: '0 auto', border: '1px solid #D4AF37', padding: '20px', borderRadius: '8px' }}>
-        <h2 style={{ color: '#FFD700' }}>🚀 الفرص المرصودة:</h2>
-        {loading ? <p>جاري البحث في الأسهم...</p> : 
-         data.entries.length > 0 ? data.entries.map((s, i) => (
-            <p key={i} style={{ color: '#fff', borderBottom: '1px solid #333', padding: '10px' }}>{s.symbol}: {s.msg}</p>
-        )) : <p>لا توجد فرص في الوقت الحالي.</p>}
+      <div style={{ display: 'flex', gap: '20px', maxWidth: '1000px', margin: '0 auto' }}>
+        {/* قسم المتابعة */}
+        <div style={{ flex: 1, border: '1px solid #D4AF37', padding: '15px' }}>
+          <h3>📋 قائمة المتابعة</h3>
+          {watchlist.map(s => <span key={s} style={{ display: 'block', padding: '5px' }}>{s}</span>)}
+        </div>
+
+        {/* قسم الفرص */}
+        <div style={{ flex: 2, border: '1px solid #D4AF37', padding: '15px' }}>
+          <h3>🚀 الفرص المرصودة</h3>
+          <button onClick={runScanner} style={{ background: '#FFD700', padding: '5px' }}>مسح القائمة الحالية</button>
+          {alerts.map((a, i) => <p key={i} style={{ color: '#fff' }}>{a.symbol}: {a.msg}</p>)}
+        </div>
       </div>
     </main>
   );
