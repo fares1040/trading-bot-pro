@@ -10,15 +10,14 @@ export async function GET(req) {
     const gainersRes = await fetch(`https://api.massive.com/v3/stocks/gainers?limit=20&apiKey=${API_KEY}`);
     const gainersData = await gainersRes.json();
     
-    // التأكد من وصول البيانات
     if (!gainersData || !gainersData.results) {
-        throw new Error("فشل في جلب قائمة الترندات من Massive");
+      return NextResponse.json({ error: 'تعذر جلب البيانات من المنصة' }, { status: 500 });
     }
 
     const symbols = gainersData.results.map(s => s.ticker);
     let alerts = [];
 
-    // 2. تحليل الأسهم
+    // 2. تحليل كل سهم
     for (const symbol of symbols) {
       const res = await fetch(`https://api.massive.com/v3/stocks/${symbol}/daily?apiKey=${API_KEY}`);
       const data = await res.json();
@@ -41,7 +40,7 @@ export async function GET(req) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 chat_id: CHAT_ID, 
-                text: `🚀 رادار السنايبر الآلي:\nالسهم: ${symbol}\nالسعر: $${price}\nالتحليل: ترند صاعد + فوليوم انفجاري` 
+                text: `🚀 رادار السنايبر الآلي:\nالسهم: ${symbol}\nالسعر: $${price}\nالحالة: انفجار فوليوم + اتجاه صاعد` 
             })
         });
       }
