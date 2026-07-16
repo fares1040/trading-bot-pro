@@ -6,16 +6,19 @@ export async function GET(req) {
   const CHAT_ID = '896028407';
 
   try {
-    // 1. جلب قائمة الـ 20 سهم الأكثر ارتفاعاً تلقائياً
+    // 1. جلب قائمة الـ 20 سهم الأكثر ارتفاعاً (الترند) من Massive
     const gainersRes = await fetch(`https://api.massive.com/v3/stocks/gainers?limit=20&apiKey=${API_KEY}`);
     const gainersData = await gainersRes.json();
     
-    if (!gainersData.results) throw new Error("فشل في جلب قائمة الأسهم");
+    // التأكد من وصول البيانات
+    if (!gainersData || !gainersData.results) {
+        throw new Error("فشل في جلب قائمة الترندات من Massive");
+    }
 
     const symbols = gainersData.results.map(s => s.ticker);
     let alerts = [];
 
-    // 2. فحص الأسهم
+    // 2. تحليل الأسهم
     for (const symbol of symbols) {
       const res = await fetch(`https://api.massive.com/v3/stocks/${symbol}/daily?apiKey=${API_KEY}`);
       const data = await res.json();
@@ -30,7 +33,7 @@ export async function GET(req) {
       const avgVol = history.reduce((a, b) => a + b.v, 0) / 50;
       const sma50 = history.reduce((a, b) => a + b.c, 0) / 50;
 
-      // 3. شروط السنايبر
+      // 3. فلترة السنايبر
       if (price > sma50 && vol > (avgVol * 1.5)) {
         alerts.push(symbol);
         await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
@@ -38,7 +41,7 @@ export async function GET(req) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 chat_id: CHAT_ID, 
-                text: `🔥 رادار السنايبر الآلي:\nالسهم: ${symbol}\nالسعر: $${price}\nالتحليل: ترند صاعد + فوليوم انفجاري` 
+                text: `🚀 رادار السنايبر الآلي:\nالسهم: ${symbol}\nالسعر: $${price}\nالتحليل: ترند صاعد + فوليوم انفجاري` 
             })
         });
       }
