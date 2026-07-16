@@ -6,44 +6,55 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [myStocks, setMyStocks] = useState([]);
 
-  const loadData = async (symbols) => {
+  const refreshMarket = async (symbols) => {
+    // 1. حفظ القائمة الجديدة
     localStorage.setItem('myStocks', symbols);
     setMyStocks(symbols.split(','));
-    const res = await fetch(`/api/stocks?symbols=${symbols}`);
-    const json = await res.json();
-    setData(json);
+    
+    // 2. تحديث الرادار (إرسال القائمة للـ API)
+    try {
+      const res = await fetch(`/api/stocks?symbols=${symbols}`);
+      const json = await res.json();
+      setData(json);
+    } catch (e) {
+      console.error("فشل الاتصال بالخادم");
+    }
   };
 
   useEffect(() => {
+    // تحميل القائمة المحفوظة عند فتح الصفحة لأول مرة
     const saved = localStorage.getItem('myStocks') || 'PPSI,ANVS,BYRN,KULR,HURA';
-    loadData(saved);
+    setInput(saved); // وضع الأسهم في الحقل تلقائياً
+    refreshMarket(saved);
   }, []);
 
   return (
-    // هنا فرضنا اللون الأسود كخلفية مطلقة
-    <main style={{ backgroundColor: '#000000', minHeight: '100vh', padding: '2rem', color: '#D4AF37', fontFamily: 'sans-serif' }}>
+    <main style={{ backgroundColor: '#000000', minHeight: '100vh', padding: '20px', color: '#D4AF37' }}>
+      <h1 style={{ textAlign: 'center', color: '#FFD700', marginBottom: '20px' }}>📊 رادار الأسهم الذهبي</h1>
       
-      <h1 style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#FFD700', borderBottom: '2px solid #D4AF37', paddingBottom: '1rem', marginBottom: '2rem', textAlign: 'center' }}>
-        📊 رادار الأسهم الذهبي
-      </h1>
-      
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '2rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxWidth: '400px', margin: '0 auto' }}>
         <input 
-          style={{ padding: '12px', backgroundColor: '#1a1a1a', border: '1px solid #D4AF37', color: '#FFF', width: '100%', borderRadius: '5px' }}
-          value={input} onChange={(e) => setInput(e.target.value)} placeholder="أضف رموز الأسهم (مثال: AAPL,TSLA)" 
+          style={{ padding: '12px', background: '#111', border: '1px solid #D4AF37', color: '#FFF' }}
+          value={input} 
+          onChange={(e) => setInput(e.target.value)} 
+          placeholder="مثال: AAPL,TSLA,PPSI" 
         />
         <button 
-          style={{ backgroundColor: '#D4AF37', color: '#000', padding: '10px 20px', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer' }}
-          onClick={() => loadData(input)}>حفظ ومتابعة</button>
+          style={{ background: '#D4AF37', color: '#000', padding: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+          onClick={() => refreshMarket(input)}>
+          تحديث ومراقبة هذه الأسهم
+        </button>
       </div>
 
-      <div style={{ display: 'grid', gap: '15px' }}>
+      <div style={{ marginTop: '30px', textAlign: 'center' }}>
+        <p style={{ color: '#8B7355' }}>يتم مراقبة {myStocks.length} أسهم حالياً.</p>
+        
         {data.alerts.length > 0 ? data.alerts.map((s, i) => (
-          <div key={i} style={{ padding: '20px', borderLeft: '5px solid ' + (s.msg.includes('خطر') ? '#FF0000' : '#D4AF37'), backgroundColor: '#0f0f0f', borderRadius: '10px', boxShadow: '0 4px 6px rgba(0,0,0,0.5)' }}>
-            <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#FFD700', display: 'block' }}>{s.symbol}</span>
-            <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: s.msg.includes('خطر') ? '#FF4444' : '#FFF' }}>{s.msg}</span>
+          <div key={i} style={{ padding: '15px', border: '1px solid #D4AF37', marginTop: '10px', background: '#0a0a0a' }}>
+            <h2 style={{ color: '#FFD700' }}>{s.symbol}</h2>
+            <p style={{ color: s.msg.includes('خطر') ? 'red' : 'white' }}>{s.msg}</p>
           </div>
-        )) : <p style={{ color: '#8B7355', fontStyle: 'italic', textAlign: 'center' }}>يتم مراقبة {myStocks.length} أسهم... السوق في حالة انتظار.</p>}
+        )) : <p style={{ color: '#555' }}>السوق هادئ.. لم يتم رصد اختراقات في قائمتك.</p>}
       </div>
     </main>
   );
