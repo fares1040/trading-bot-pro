@@ -1,18 +1,16 @@
 import { NextResponse } from 'next/server';
 
 export async function GET(req) {
-  // القائمة المحدثة بالكامل بناءً على طلبك
-  const marketList = [
-    'PPSI', 'ANVS', 'BYRN', 'KULR', 'HURA', 'BIDX', 'OPI', 'MRAM', 
-    'SPSC', 'PODC', 'NOK', 'ERNA', 'PRFX', 'VMAR', 'CETX', 'GSIT'
-  ];
+  const { searchParams } = new URL(req.url);
+  // يستقبل الأسهم من الرابط، وإذا لم توجد يستخدم القائمة الافتراضية
+  const symbols = searchParams.get('symbols') ? searchParams.get('symbols').split(',') : ['PPSI', 'ANVS', 'BYRN'];
   
   const API_KEY = 'QE3ODUMP7UQR22T8';
   const BOT_TOKEN = '8822034470:AAEbooViT3tdkkQqt2lx86GZBWipYUq0MgA';
   const CHAT_ID = '896028407';
   let alerts = [];
 
-  for (const symbol of marketList) {
+  for (const symbol of symbols) {
     try {
       const res = await fetch(`https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${API_KEY}`);
       const data = await res.json();
@@ -24,18 +22,12 @@ export async function GET(req) {
       const vol = parseFloat(dailyData[0]['5. volume']);
       const avgVol = dailyData.slice(1, 11).reduce((a, b) => a + parseFloat(b['5. volume']), 0) / 10;
 
-      // منطق الاختراق (سنايبر)
       if (price > prevPrice * 1.02 && vol > avgVol * 1.5) {
-        alerts.push({ symbol, msg: '🚀 فرصة دخول: اختراق بفوليوم' });
-        
-        // إرسال تنبيه تليجرام تلقائي
+        alerts.push({ symbol, msg: '🚀 اختراق بفوليوم' });
         await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                chat_id: CHAT_ID, 
-                text: `رادار السنايبر: فرصة في ${symbol}\nالسعر: ${price}\nالحالة: اختراق بفوليوم` 
-            })
+            body: JSON.stringify({ chat_id: CHAT_ID, text: `رادار السنايبر: فرصة في ${symbol} بسعر ${price}` })
         });
       }
     } catch (e) { continue; }
