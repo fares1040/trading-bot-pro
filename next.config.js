@@ -1,10 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-}
-module.exports = nextConfig
+  reactStrictMode: true,
+  // هذا الإعداد يساعد في تجنب مشاكل الـ Static Generation
+  output: 'standalone', 
+};
+
+module.exports = nextConfig;
