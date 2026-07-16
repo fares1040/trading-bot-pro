@@ -15,13 +15,11 @@ export default function Home() {
   }, []);
 
   return (
-    <main style={{ padding: '20px', fontFamily: 'sans-serif' }}>
+    <main>
       <h1>Trading Radar</h1>
       <ul>
         {stocks.map((s, index) => (
-          <li key={index}>
-            {s.symbol}: {s.price} - {s.trend}
-          </li>
+          <li key={index}>{s.symbol}: {s.price}</li>
         ))}
       </ul>
     </main>
