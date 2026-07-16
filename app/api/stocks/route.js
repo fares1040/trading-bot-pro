@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 
 export async function GET(req) {
-  // قائمة الأسهم التي يمسحها الرادار تلقائياً
-  const marketList = ['AAPL', 'TSLA', 'PPSI', 'ANVS', 'BYRN', 'LCID', 'NVDA', 'AMD', 'RHI', 'TGHL'];
+  // القائمة المحدثة بالكامل بناءً على طلبك
+  const marketList = [
+    'PPSI', 'ANVS', 'BYRN', 'KULR', 'HURA', 'BIDX', 'OPI', 'MRAM', 
+    'SPSC', 'PODC', 'NOK', 'ERNA', 'PRFX', 'VMAR', 'CETX', 'GSIT'
+  ];
+  
   const API_KEY = 'QE3ODUMP7UQR22T8';
-  // تم تحديث التوكن الجديد هنا
   const BOT_TOKEN = '8822034470:AAEbooViT3tdkkQqt2lx86GZBWipYUq0MgA';
   const CHAT_ID = '896028407';
   let alerts = [];
