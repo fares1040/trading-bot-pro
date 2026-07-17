@@ -4,34 +4,27 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const symbol = searchParams.get('symbol');
   
+  if (!symbol) return NextResponse.json({ error: "الرجاء إدخال الرمز" });
+
   try {
-    const res = await fetch(`https://api.massive.com/v3/reference/tickers?ticker=${symbol}&apiKey=QE3ODUMP7UQR22T8`);
+    // جلب البيانات من ياهو فاينانس
+    const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1m`);
     const data = await res.json();
     
-    // هذا السطر يبحث عن السعر في أي مكان محتمل في البيانات
-    const currentPrice = data.price || data.last || data.lastPrice || data.close || (data.results && data.results[0]?.price) || 0.78;
+    // استخراج السعر
+    const price = data.chart.result[0].meta.regularMarketPrice;
 
+    // المنطق الخاص بك
     const support = 0.60; 
     const resistance = 0.90;
-    
-    let signal = "مراقبة: السعر طبيعي";
-    let statusColor = "#ffd700";
-
-    if (currentPrice <= support) {
-      signal = "تحذير: السعر كسر الدعم (خطر)!";
-      statusColor = "#ff0000";
-    } else if (currentPrice >= resistance) {
-      signal = "اختراق ناجح: السعر فوق المقاومة (شراء)!";
-      statusColor = "#00ff41";
-    }
 
     return NextResponse.json({
       symbol: symbol.toUpperCase(),
-      currentPrice,
-      analysis: signal,
-      status: statusColor
+      currentPrice: price,
+      analysis: price <= support ? "فرصة دخول" : (price >= resistance ? "فرصة خروج" : "مراقبة"),
+      status: price <= support ? "green" : (price >= resistance ? "red" : "yellow")
     });
   } catch (error) {
-    return NextResponse.json({ error: "فشل الاتصال" }, { status: 500 });
+    return NextResponse.json({ error: "تعذر جلب السعر - تأكد من رمز السهم" }, { status: 500 });
   }
 }
