@@ -11,7 +11,8 @@ export async function GET(request) {
     const data = await res.json();
     
     // استخراج السعر (تأكد أن مسار البيانات هو .price)
-    const currentPrice = data.price || 0.78; 
+// نجرب مسار آخر للسعر، وأضفنا طباعة لنعرف ما الذي يصلنا
+const currentPrice = data.results && data.results[0] ? data.results[0].lastPrice : (data.price || 0.78);
     const support = 0.60; 
     const resistance = 0.90;
 
