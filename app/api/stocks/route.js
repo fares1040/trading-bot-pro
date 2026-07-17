@@ -12,7 +12,7 @@ export async function GET() {
 
   try {
     const response = await fetch(apiUrl);
-    const data = await response.json();
+    const data = await response.json(); 
     
     // دالة إرسال رسالة تيليجرام
     const sendTelegramMessage = async (message) => {
