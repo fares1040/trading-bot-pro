@@ -1,8 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // هذا الإعداد يساعد في تجنب مشاكل الـ Static Generation
-  output: 'standalone', 
+  output: 'standalone',
+  env: {
+    MASSIVE_API_KEY: process.env.MASSIVE_API_KEY,
+  },
 };
 
 module.exports = nextConfig;
