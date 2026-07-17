@@ -1,21 +1,21 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  const apiKey = 'Fc_0SgzQR4F9fDxI22VYMu7K0izaBBfn'; 
+  // الرابط الكامل الذي استخرجته مع كافة الإعدادات
+  const apiUrl = "https://api.massive.com/v3/reference/tickers?market=stocks&active=true&order=asc&limit=100&sort=ticker&apiKey=txQ1pePWvQR7McsjPfZWBCYeDgNYNef8";
 
   try {
-    const response = await fetch('https://api.massive.com/v1/keys', { // جربت تغيير المسار لشيء قياسي
+    const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
-        'x-api-key': apiKey,
         'Content-Type': 'application/json',
       },
     });
 
-    const text = await response.text(); // نستخدم .text() بدلاً من .json() لتجنب خطأ التنسيق
-    return NextResponse.json({ rawData: text }); // سيعرض لنا بالضبط ماذا أرسلت المنصة
+    const data = await response.json();
+    return NextResponse.json(data);
     
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'خطأ في الاتصال: ' + error.message }, { status: 500 });
   }
 }
