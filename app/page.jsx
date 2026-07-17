@@ -7,11 +7,12 @@ export default function Home() {
 
   const checkStock = async () => {
     try {
-      const res = await fetch(`/api/stocks?symbol=${ticker}`);
+      // تم التعديل ليوجه الطلب للمحلل الذكي مباشرة
+      const res = await fetch(`/api/analyze?symbol=${ticker}`);
       const data = await res.json();
       setResult(data);
     } catch (error) {
-      console.error("خطأ في الاتصال:", error);
+      console.error("خطأ:", error);
     }
   };
 
@@ -26,13 +27,16 @@ export default function Home() {
           style={{ width: '100%', padding: '10px', backgroundColor: '#1e1e1e', color: '#fff' }}
         />
         <button onClick={checkStock} style={{ width: '100%', marginTop: '10px', padding: '10px', backgroundColor: '#00ff41', color: '#000', fontWeight: 'bold' }}>
-          تحليل السهم
+          تحليل السهم (القنص الذكي)
         </button>
       </div>
 
       {result && (
-        <div style={{ padding: '10px', border: '1px solid #00ff41', color: '#fff' }}>
-          <pre>{JSON.stringify(result, null, 2)}</pre>
+        <div style={{ padding: '15px', border: `2px solid ${result.status === 'green' ? '#00ff41' : result.status === 'red' ? '#ff0000' : 'yellow'}`, color: '#fff' }}>
+          <h3>نتائج التحليل:</h3>
+          <p>السهم: {result.symbol}</p>
+          <p>السعر الحالي: {result.currentPrice}</p>
+          <p style={{ fontWeight: 'bold' }}>القرار: {result.analysis}</p>
         </div>
       )}
     </div>
