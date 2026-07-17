@@ -1,31 +1,21 @@
 'use client';
-import { useState } from 'react';
-
 export default function Home() {
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  const fetchStocks = async () => {
-    setLoading(true);
+  const testConnection = async () => {
     try {
       const res = await fetch('/api/stocks');
       const data = await res.json();
-      setResult(data);
-    } catch (err) {
-      setResult({ error: 'حدث خطأ في الاتصال' });
+      alert('النتيجة: ' + JSON.stringify(data));
+    } catch (error) {
+      alert('خطأ في الاتصال: ' + error.message);
     }
-    setLoading(false);
   };
 
   return (
-    <main style={{ padding: '40px', fontFamily: 'sans-serif' }}>
-      <h1>نظام رادار الأسهم 🚀</h1>
-      <button onClick={fetchStocks} disabled={loading}>
-        {loading ? 'جاري المسح...' : 'بدء مسح السوق'}
+    <div style={{ padding: '40px', textAlign: 'center' }}>
+      <h1>نظام السنايبر</h1>
+      <button onClick={testConnection} style={{ padding: '10px 20px', cursor: 'pointer' }}>
+        Test Connection
       </button>
-      <pre style={{ marginTop: '20px', background: '#f4f4f4', padding: '15px' }}>
-        {JSON.stringify(result, null, 2)}
-      </pre>
-    </main>
+    </div>
   );
 }
