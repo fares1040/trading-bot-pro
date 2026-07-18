@@ -5,21 +5,26 @@ export async function GET(request) {
   const symbol = searchParams.get('symbol');
 
   try {
-    // نستخدم الرابط الأكثر عمومية للتأكد من وصول البيانات
-    const url = `https://api.massive.com/v3/reference/tickers/${symbol.toUpperCase()}?apiKey=${process.env.MASSIVE_API_KEY}`;
-    
-    const response = await fetch(url);
-    const data = await response.json();
+    // نستخدم الـ Header لإرسال المفتاح (هذا هو الأسلوب الصحيح)
+    const response = await fetch(`https://api.massive.com/v3/reference/tickers/${symbol.toUpperCase()}`, {
+      headers: {
+        'Authorization': `Bearer ${process.env.MASSIVE_API_KEY}`
+      }
+    });
 
-    // بدلاً من السعر، سنعرض حالة البيانات مباشرة
+    const data = await response.json();
+    
+    // إذا كان هناك خطأ، سنعرفه من خلال رسالة الموقع نفسه
+    if (!response.ok) {
+        return NextResponse.json({ error: data.message || "فشل الوصول" }, { status: 500 });
+    }
+
     return NextResponse.json({
       symbol: symbol.toUpperCase(),
-      // إذا كان هناك خطأ، سيظهر هنا بدلاً من 0.00
-      currentPrice: data.status === "OK" ? "موجودة" : data.status || "خطأ/لا يوجد",
-      analysis: data.results ? "تم العثور" : "فارغ",
-      status: data.results ? "#00ff41" : "#ff4444"
+      currentPrice: data.results?.price || "0.00",
+      analysis: "تم الاتصال"
     });
   } catch (error) {
-    return NextResponse.json({ error: "خطأ بالاتصال" }, { status: 500 });
+    return NextResponse.json({ error: "خطأ برمجي" }, { status: 500 });
   }
 }
