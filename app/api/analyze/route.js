@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 
+// ذاكرة مؤقتة لمنع تكرار التنبيهات
+const lastAlerts = {}; 
+
 export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const symbol = searchParams.get('symbol');
@@ -18,17 +21,17 @@ export async function GET(request) {
         const prevClose = meta.chartPreviousClose;
         const volume = meta.regularMarketVolume || 0;
 
-        // الحسابات الفنية (كما هي في كودك)
+        // الحسابات الفنية
         const ma20 = quotes.slice(-20).reduce((a, b) => a + b, 0) / 20;
         const stdDev = Math.sqrt(quotes.slice(-20).map(x => Math.pow(x - ma20, 2)).reduce((a, b) => a + b) / 20);
         const upperBand = ma20 + (2 * stdDev);
 
-        // الفلاتر الستة (كما هي في كودك)
-        const isGoodPrice = price >= 1 && price <= 50;
-        const isLowGap = Math.abs((price / prevClose) - 1) < 0.05;
-        const isAboveMA = price > ma20;
-        const isNotOverbought = price < upperBand;
-        const isNotTooVolatile = (stdDev / ma20) < 0.1;
+        // الفلاتر الستة
+        const isGoodPrice = price >= 1 && price <= 50; 
+        const isLowGap = Math.abs((price / prevClose) - 1) < 0.05; 
+        const isAboveMA = price > ma20; 
+        const isNotOverbought = price < upperBand; 
+        const isNotTooVolatile = (stdDev / ma20) < 0.1; 
         const isHighVolume = volume > 100000;
 
         // النتيجة النهائية
@@ -43,11 +46,19 @@ export async function GET(request) {
 التذبذب: ${isNotTooVolatile ? "مستقر ✅" : "عالي ⚠️"}
 القرار النهائي: ${isEntrySuitable ? "مناسب للدخول ✅" : (isExitSuitable ? "تنبيه خروج 🔴" : "انتظر الفرصة ❌")}`;
 
-        // إرسال التنبيه للتليجرام
-        if (isEntrySuitable) {
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(`🟢 دخول مناسب لـ ${symbol.toUpperCase()}\nالسعر: ${price.toFixed(2)}`)}`);
-        } else if (isExitSuitable) {
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(`🔴 تنبيه خروج لـ ${symbol.toUpperCase()}\nالسعر: ${price.toFixed(2)}`)}`);
+        // تحديد الحالة الحالية لمنع التكرار
+        const currentState = isEntrySuitable ? 'ENTRY' : (isExitSuitable ? 'EXIT' : 'NONE');
+
+        // إرسال التنبيه فقط عند تغير الحالة
+        if (currentState !== 'NONE' && lastAlerts[symbol] !== currentState) {
+            const message = currentState === 'ENTRY' 
+                ? `🟢 دخول مناسب لـ ${symbol.toUpperCase()}\nالسعر: ${price.toFixed(2)}` 
+                : `🔴 تنبيه خروج لـ ${symbol.toUpperCase()}\nالسعر: ${price.toFixed(2)}`;
+            
+            await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(message)}`);
+            
+            // تحديث الذاكرة
+            lastAlerts[symbol] = currentState;
         }
 
         return NextResponse.json({
