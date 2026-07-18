@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 
 export default function Home() {
+  const [ticker, setTicker] = useState('');
   const [newTicker, setNewTicker] = useState('');
   const [watchData, setWatchData] = useState([]);
   const [watchlist, setWatchlist] = useState(() => {
@@ -22,27 +23,40 @@ export default function Home() {
         try {
           const res = await fetch(`/api/analyze?symbol=${s}`);
           const json = await res.json();
-          return { ...json };
-        } catch { return { symbol: s, currentPrice: '---', isSuitable: false }; }
+          return json;
+        } catch { return { symbol: s, currentPrice: '---', isSuitable: false, analysis: 'خطأ' }; }
       }));
       setWatchData(data);
     };
     fetchWatchlist();
   }, [watchlist]);
 
+  const handleSearch = async () => {
+    if(!ticker) return;
+    const res = await fetch(`/api/analyze?symbol=${ticker.toUpperCase()}`);
+    const data = await res.json();
+    alert(data.analysis);
+  };
+
   return (
     <div style={{ backgroundColor: '#121212', color: '#fff', padding: '20px', fontFamily: 'monospace' }}>
-      <h1 style={{ textAlign: 'center', color: '#00ff41' }}>غرفة العمليات - نظام السنايبر</h1>
+      <h1 style={{ textAlign: 'center', color: '#00ff41' }}>غرفة العمليات - نظام السنايبر المطور</h1>
       
+      {/* خانات البحث والإضافة */}
       <div style={{ marginBottom: '20px' }}>
-        <input onChange={(e) => setNewTicker(e.target.value)} value={newTicker} placeholder="إضافة سهم..." style={{ padding: '8px', width: '80%', color: '#000' }} />
-        <button onClick={() => { if(newTicker) { setWatchlist([...new Set([...watchlist, newTicker.toUpperCase()])]); setNewTicker(''); } }} style={{ padding: '8px', width: '19%', marginLeft: '1%', cursor: 'pointer', background: '#00ff41' }}>إضافة</button>
+        <input onChange={(e) => setTicker(e.target.value)} placeholder="بحث عن سهم..." style={{ width: '80%', padding: '10px', color: '#000' }} />
+        <button onClick={handleSearch} style={{ width: '19%', marginLeft: '1%', padding: '10px', background: '#00ff41', cursor: 'pointer', fontWeight: 'bold' }}>بحث</button>
+      </div>
+
+      <div style={{ marginBottom: '20px' }}>
+        <input onChange={(e) => setNewTicker(e.target.value)} value={newTicker} placeholder="إضافة سهم للقائمة..." style={{ padding: '10px', width: '80%', color: '#000' }} />
+        <button onClick={() => { if(newTicker) { setWatchlist([...new Set([...watchlist, newTicker.toUpperCase()])]); setNewTicker(''); } }} style={{ padding: '10px', width: '19%', marginLeft: '1%', cursor: 'pointer', background: '#00ff41' }}>إضافة</button>
       </div>
 
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr style={{ color: '#888', borderBottom: '2px solid #333' }}>
-            <th>السهم</th><th>السعر</th><th>حالة الدخول</th><th>التحليل</th><th>تحكم</th>
+            <th>السهم</th><th>السعر</th><th>حالة الدخول</th><th>التحليل الفني</th><th>تحكم</th>
           </tr>
         </thead>
         <tbody>
