@@ -1,32 +1,43 @@
 import { NextResponse } from 'next/server';
 
 export async function GET(request) {
-  const watchList = ['HURA', 'KULR', 'BYRN', 'BJSX', 'PODC', 'SPSC', 'MRAM', 'NOK', 'OPI'];
   const BOT_TOKEN = '8822034470:AAEBooViT3tdkkQqt2lX86GZBWipYUq0MgA';
   const CHAT_ID = '896028407';
+  const MIN_VOLUME = 100000;
 
-  for (const symbol of watchList) {
+  // 1. قائمتك الثابتة + أسهم ترند من ياهو (Most Active)
+  // هذا الرابط يعطيك الأسهم الأكثر نشاطاً حالياً كبيانات منظمة
+  const resTrending = await fetch('https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=false&scrIds=most_actives&count=5');
+  const dataTrending = await resTrending.json();
+  const trendingSymbols = dataTrending.finance.result[0].quotes.map(q => q.symbol);
+  
+  const myWatchList = ['HURA', 'KULR', 'BYRN', 'BJSX', 'PODC', 'SPSC', 'MRAM', 'NOK', 'OPI'];
+  const fullList = [...new Set([...myWatchList, ...trendingSymbols])];
+
+  // 2. فحص القائمة المدمجة
+  for (const symbol of fullList) {
     try {
-      // 1. جلب السعر اللحظي
       const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1m`);
       const data = await res.json();
-      const price = data.chart.result[0].meta.regularMarketPrice;
+      const meta = data.chart.result[0].meta;
+      const price = meta.regularMarketPrice;
+      const volume = meta.regularMarketVolume || 0;
 
-      // 2. حساب الأهداف "الطماعة"
+      if (volume < MIN_VOLUME) continue;
+
       const t1 = (price * 1.03).toFixed(2);
       const t2 = (price * 1.05).toFixed(2);
       const t3 = (price * 1.08).toFixed(2);
+      const stopLoss = (price * 0.98).toFixed(2);
 
-      // 3. صياغة رسالة الصيد
-      const message = `🚨 صيد جديد! سهم ${symbol} يحقق شروط الدخول\n💰 السعر: ${price}\n🎯 الأهداف:\nهدف 1: ${t1}\nهدف 2: ${t2}\nهدف 3: ${t3}`;
+      const message = `🚨 صيد ذكي: ${symbol}\n💰 السعر: ${price}\n📊 الفوليوم: ${volume.toLocaleString()}\n🎯 الأهداف: ${t1} | ${t2} | ${t3}\n🛑 وقف الخسارة: ${stopLoss}`;
 
-      // 4. الإرسال للتلجرام
       await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(message)}`);
       
     } catch (error) {
-      console.error(`Error processing ${symbol}:`, error);
+      continue; // إذا سهم واحد فشل، كمل الباقي ولا توقف
     }
   }
 
-  return NextResponse.json({ status: "Scanner Active & Targets Calculated" });
+  return NextResponse.json({ status: "Scanner Active", processedCount: fullList.length });
 }
