@@ -1,4 +1,3 @@
-import yahooFinance from 'yahoo-finance2';
 import { NextResponse } from 'next/server';
 
 export async function GET(request) {
@@ -6,16 +5,18 @@ export async function GET(request) {
   const symbol = searchParams.get('symbol');
 
   try {
-    // جلب بيانات السهم مباشرة بدون الحاجة لمفتاح API
-    const quote = await yahooFinance.quote(symbol.toUpperCase());
+    // نستخدم API عام ومجاني لا يحتاج مكتبات ولا مفاتيح
+    const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol.toUpperCase()}?interval=1m`);
+    const data = await res.json();
     
+    const price = data.chart.result[0].meta.regularMarketPrice;
+
     return NextResponse.json({
       symbol: symbol.toUpperCase(),
-      currentPrice: quote.regularMarketPrice,
-      analysis: quote.regularMarketChangePercent > 0 ? "صعود" : "هبوط",
-      status: quote.regularMarketChangePercent > 0 ? "#00ff41" : "#ff4444"
+      currentPrice: price,
+      analysis: price > 0 ? "سعر نشط" : "غير متاح"
     });
   } catch (error) {
-    return NextResponse.json({ error: "فشل في جلب البيانات" }, { status: 500 });
+    return NextResponse.json({ error: "لا توجد بيانات" }, { status: 500 });
   }
 }
