@@ -11,7 +11,7 @@ export default function Home() {
       const data = await Promise.all(watchlist.map(async (s) => {
         const res = await fetch(`/api/analyze?symbol=${s}`);
         const json = await res.json();
-        return { ...json, stopLoss: (json.currentPrice * 0.97).toFixed(2) }; // حساب SL ديناميكياً
+        return { ...json, stopLoss: (json.currentPrice * 0.97).toFixed(2) }; 
       }));
       setWatchData(data);
     };
