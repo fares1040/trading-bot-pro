@@ -1,15 +1,21 @@
 import { NextResponse } from 'next/server';
 
-// ذاكرة مؤقتة لمنع تكرار التنبيهات
 const lastAlerts = {}; 
 
 export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const symbol = searchParams.get('symbol');
 
-    // بيانات التليجرام
     const TELEGRAM_TOKEN = '8822034470:AAEbooViT3tdkkQqt2lx86GZBWipYUq0MgA';
     const CHAT_ID = '896028407';
+
+    // فلتر وقت التداول (السوق الأمريكي: 16:30 - 23:00 بتوقيت السعودية)
+    const now = new Date();
+    const saudiTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Riyadh"}));
+    const hours = saudiTime.getHours();
+    const minutes = saudiTime.getMinutes();
+    const currentTime = hours + minutes / 60;
+    const isMarketOpen = currentTime >= 16.5 && currentTime <= 23.0;
 
     try {
         const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol.toUpperCase()}?interval=1d&range=30d`);
@@ -21,51 +27,34 @@ export async function GET(request) {
         const prevClose = meta.chartPreviousClose;
         const volume = meta.regularMarketVolume || 0;
 
-        // الحسابات الفنية
         const ma20 = quotes.slice(-20).reduce((a, b) => a + b, 0) / 20;
         const stdDev = Math.sqrt(quotes.slice(-20).map(x => Math.pow(x - ma20, 2)).reduce((a, b) => a + b) / 20);
         const upperBand = ma20 + (2 * stdDev);
 
-        // الفلاتر الستة
-        const isGoodPrice = price >= 1 && price <= 50; 
-        const isLowGap = Math.abs((price / prevClose) - 1) < 0.05; 
-        const isAboveMA = price > ma20; 
-        const isNotOverbought = price < upperBand; 
-        const isNotTooVolatile = (stdDev / ma20) < 0.1; 
-        const isHighVolume = volume > 100000;
+        // حساب الأهداف (وقف الخسارة المتحرك سيكون مرتبطاً بـ ma20 ديناميكياً)
+        const targetPrice = upperBand; 
+        const stopLoss = ma20; 
 
-        // النتيجة النهائية
-        const isEntrySuitable = isGoodPrice && isLowGap && isAboveMA && isNotOverbought && isNotTooVolatile && isHighVolume;
+        const isEntrySuitable = (price >= 1 && price <= 50) && Math.abs((price / prevClose) - 1) < 0.05 && price > ma20 && price < upperBand && volume > 100000;
         const isExitSuitable = !isEntrySuitable && (price > upperBand || price < ma20);
 
-        const analysisText = `تحليل سهم ${symbol.toUpperCase()}:
-السعر: ${price.toFixed(2)} | الفوليوم: ${(volume/1000).toFixed(1)}K
-الاتجاه: ${isAboveMA ? "صاعد ✅" : "هابط ❌"}
-الفجوة: ${isLowGap ? "طبيعية ✅" : "كبيرة ⚠️"}
-البولنجر: ${isNotOverbought ? "مناسب ✅" : "متشبع شراء ⚠️"}
-التذبذب: ${isNotTooVolatile ? "مستقر ✅" : "عالي ⚠️"}
-القرار النهائي: ${isEntrySuitable ? "مناسب للدخول ✅" : (isExitSuitable ? "تنبيه خروج 🔴" : "انتظر الفرصة ❌")}`;
-
-        // تحديد الحالة الحالية لمنع التكرار
         const currentState = isEntrySuitable ? 'ENTRY' : (isExitSuitable ? 'EXIT' : 'NONE');
 
-        // إرسال التنبيه فقط عند تغير الحالة
-        if (currentState !== 'NONE' && lastAlerts[symbol] !== currentState) {
+        // إرسال التنبيه فقط إذا كان السوق مفتوحاً وتغيرت الحالة
+        if (isMarketOpen && currentState !== 'NONE' && lastAlerts[symbol] !== currentState) {
             const message = currentState === 'ENTRY' 
-                ? `🟢 دخول مناسب لـ ${symbol.toUpperCase()}\nالسعر: ${price.toFixed(2)}` 
+                ? `🟢 دخول مناسب لـ ${symbol.toUpperCase()}\nالسعر: ${price.toFixed(2)}\nالهدف: ${targetPrice.toFixed(2)} 🎯\nوقف الخسارة: ${stopLoss.toFixed(2)} 🛑` 
                 : `🔴 تنبيه خروج لـ ${symbol.toUpperCase()}\nالسعر: ${price.toFixed(2)}`;
             
             await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(message)}`);
-            
-            // تحديث الذاكرة
             lastAlerts[symbol] = currentState;
         }
 
         return NextResponse.json({
             symbol: symbol.toUpperCase(),
             currentPrice: price.toFixed(2),
-            analysis: analysisText,
-            isSuitable: isEntrySuitable
+            isEntry: isEntrySuitable,
+            marketOpen: isMarketOpen
         });
 
     } catch (error) {
