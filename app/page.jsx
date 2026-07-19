@@ -37,54 +37,45 @@ export default function Home() {
   }, [symbols]);
 
   return (
-    <div className="min-h-screen bg-black text-green-400 font-mono p-4 md:p-6">
-      <h1 className="text-center text-2xl font-bold mb-6 text-green-500 tracking-widest border-b border-green-900 pb-4">
-        غرفة العمليات - نظام السنايبر المطور
-      </h1>
-      
-      <div className="flex gap-2 mb-8 justify-center">
+    <div className="min-h-screen bg-black text-green-500 font-mono p-4">
+      <h1 className="text-center text-xl mb-6 border-b border-green-900 pb-2">غرفة العمليات - نظام السنايبر المطور</h1>
+
+      {/* منطقة البحث والإضافة */}
+      <div className="flex flex-col gap-2 mb-6 max-w-2xl mx-auto">
         <input 
-          className="bg-black border border-green-600 p-2 text-green-500 focus:outline-none focus:border-green-400 w-48"
+          className="bg-black border border-green-700 p-2 text-white w-full"
           value={newSymbol}
           onChange={(e) => setNewSymbol(e.target.value)}
-          placeholder="رمز السهم..."
+          placeholder="ابحث عن سهم"
         />
-        <button 
-          onClick={addSymbol} 
-          className="bg-green-900 text-green-500 px-6 py-2 font-bold border border-green-600 hover:bg-green-600 hover:text-black transition-all"
-        >
+        <button onClick={addSymbol} className="bg-green-700 text-black font-bold p-2 hover:bg-green-500">
           إضافة
         </button>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="border-b border-green-900 text-green-700">
-              <th className="p-3">السهم</th>
-              <th className="p-3">السعر</th>
-              <th className="p-3">الحالة</th>
+      {/* الجدول الاحترافي */}
+      <table className="w-full text-left border-collapse border border-green-900">
+        <thead>
+          <tr className="border-b border-green-900 text-green-600">
+            <th className="p-3">السهم</th>
+            <th className="p-3">السعر</th>
+            <th className="p-3">حالة الدخول</th>
+            <th className="p-3">التحليل الفني</th>
+          </tr>
+        </thead>
+        <tbody>
+          {symbols.map(symbol => (
+            <tr key={symbol} className="border-b border-green-900 hover:bg-green-900/20">
+              <td className="p-3 font-bold">{symbol}</td>
+              <td className="p-3">{data[symbol]?.price ? data[symbol].price.toFixed(2) : '---'}</td>
+              <td className={`p-3 font-bold ${data[symbol]?.isEntrySuitable ? 'text-red-500' : 'text-green-500'}`}>
+                {data[symbol]?.isEntrySuitable ? 'انظر ❌' : 'مستقر ✅'}
+              </td>
+              <td className="p-3 text-green-700">عرض ❌</td>
             </tr>
-          </thead>
-          <tbody>
-            {symbols.map(symbol => {
-              const isEntry = data[symbol]?.isEntrySuitable;
-              return (
-                <tr 
-                  key={symbol} 
-                  className={`border-b border-green-900 transition-colors ${isEntry ? 'bg-red-900/20' : 'hover:bg-green-900/10'}`}
-                >
-                  <td className={`p-3 font-bold ${isEntry ? 'text-red-400' : 'text-green-500'}`}>{symbol}</td>
-                  <td className="p-3 text-white">{data[symbol]?.price ? data[symbol].price.toFixed(2) : '---'}</td>
-                  <td className={`p-3 font-bold ${isEntry ? 'text-red-500' : 'text-green-500'}`}>
-                    {isEntry ? 'انظر 🎯' : 'مستقر 🟢'}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
