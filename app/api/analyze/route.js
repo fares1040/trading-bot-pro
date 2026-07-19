@@ -2,20 +2,16 @@ import { NextResponse } from 'next/server';
 
 const lastAlerts = {}; 
 
-export async function GET(request) {
-    const { searchParams } = new URL(request.url);
-    const symbol = searchParams.get('symbol');
-
+// هذه الدالة الموحدة تشغل GET (للموقع) و POST (للتريدنج فيو)
+async function handleAnalysis(symbol) {
     const TELEGRAM_TOKEN = '8822034470:AAEbooViT3tdkkQqt2lx86GZBWipYUq0MgA';
     const CHAT_ID = '896028407';
 
-    // فلتر وقت التداول (السوق الأمريكي: 16:30 - 23:00 بتوقيت السعودية)
-    const now = new Date();
-    const saudiTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Riyadh"}));
+    // فلتر الوقت
+    const saudiTime = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Riyadh"}));
     const hours = saudiTime.getHours();
     const minutes = saudiTime.getMinutes();
-    const currentTime = hours + minutes / 60;
-    const isMarketOpen = currentTime >= 16.5 && currentTime <= 23.0;
+    const isMarketOpen = (hours + minutes / 60) >= 16.5 && (hours + minutes / 60) <= 23.0;
 
     try {
         const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol.toUpperCase()}?interval=1d&range=30d`);
@@ -31,33 +27,45 @@ export async function GET(request) {
         const stdDev = Math.sqrt(quotes.slice(-20).map(x => Math.pow(x - ma20, 2)).reduce((a, b) => a + b) / 20);
         const upperBand = ma20 + (2 * stdDev);
 
-        // حساب الأهداف (وقف الخسارة المتحرك سيكون مرتبطاً بـ ma20 ديناميكياً)
-        const targetPrice = upperBand; 
-        const stopLoss = ma20; 
-
         const isEntrySuitable = (price >= 1 && price <= 50) && Math.abs((price / prevClose) - 1) < 0.05 && price > ma20 && price < upperBand && volume > 100000;
         const isExitSuitable = !isEntrySuitable && (price > upperBand || price < ma20);
 
+        const analysisText = `تحليل ${symbol.toUpperCase()}:
+السعر الحالي: ${price.toFixed(2)}
+الهدف (Target): ${upperBand.toFixed(2)} 🎯
+وقف الخسارة (SL): ${ma20.toFixed(2)} 🛑
+القرار: ${isEntrySuitable ? "مناسب للدخول ✅" : (isExitSuitable ? "تنبيه خروج 🔴" : "انتظر الفرصة ❌")}`;
+
         const currentState = isEntrySuitable ? 'ENTRY' : (isExitSuitable ? 'EXIT' : 'NONE');
 
-        // إرسال التنبيه فقط إذا كان السوق مفتوحاً وتغيرت الحالة
         if (isMarketOpen && currentState !== 'NONE' && lastAlerts[symbol] !== currentState) {
             const message = currentState === 'ENTRY' 
-                ? `🟢 دخول مناسب لـ ${symbol.toUpperCase()}\nالسعر: ${price.toFixed(2)}\nالهدف: ${targetPrice.toFixed(2)} 🎯\nوقف الخسارة: ${stopLoss.toFixed(2)} 🛑` 
+                ? `🟢 دخول مناسب لـ ${symbol.toUpperCase()}\nالسعر: ${price.toFixed(2)}\nالهدف: ${upperBand.toFixed(2)} 🎯\nوقف الخسارة: ${ma20.toFixed(2)} 🛑` 
                 : `🔴 تنبيه خروج لـ ${symbol.toUpperCase()}\nالسعر: ${price.toFixed(2)}`;
             
             await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(message)}`);
             lastAlerts[symbol] = currentState;
         }
 
-        return NextResponse.json({
-            symbol: symbol.toUpperCase(),
-            currentPrice: price.toFixed(2),
-            isEntry: isEntrySuitable,
-            marketOpen: isMarketOpen
-        });
+        return { analysisText, isEntrySuitable, price };
 
     } catch (error) {
-        return NextResponse.json({ error: "فشل التحليل" }, { status: 500 });
+        return null;
     }
+}
+
+// 1. للمراقبة من الموقع
+export async function GET(request) {
+    const { searchParams } = new URL(request.url);
+    const symbol = searchParams.get('symbol');
+    const result = await handleAnalysis(symbol);
+    return NextResponse.json({ ...result, symbol: symbol.toUpperCase() });
+}
+
+// 2. لاستقبال إشارة TradingView (Webhook)
+export async function POST(request) {
+    const body = await request.json();
+    const symbol = body.symbol;
+    await handleAnalysis(symbol);
+    return NextResponse.json({ status: "received" });
 }
