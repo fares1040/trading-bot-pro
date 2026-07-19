@@ -2,19 +2,24 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
-    // استخدم المسار النسبي فقط (بدون الرابط الطويل)
-    const stocksRes = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'https://' + process.env.VERCEL_URL}/api/stocks`);
+    // نستخدم الرابط مباشرة إذا كان موجوداً، أو نعطي رابطاً افتراضياً
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://trading-bot-pro-fwy4.vercel.app';
+    
+    // جلب البيانات مع إضافة خطوة للتحقق من الاستجابة
+    const stocksRes = await fetch(`${baseUrl}/api/stocks`);
+    if (!stocksRes.ok) throw new Error(`Stocks API failed: ${stocksRes.status}`);
+    
     const stocksData = await stocksRes.json();
-
     const symbols = stocksData.data.map(item => item.ticker);
 
+    // تنفيذ المهام
     for (const s of symbols) {
-      // استخدم المسار النسبي هنا أيضاً
-      await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'https://' + process.env.VERCEL_URL}/api/analyze?symbol=${s}`);
+      await fetch(`${baseUrl}/api/analyze?symbol=${s}`);
     }
 
-    return NextResponse.json({ status: "all scanned", count: symbols.length, symbols });
+    return NextResponse.json({ status: "success", count: symbols.length });
   } catch (error) {
-    return NextResponse.json({ status: "error", message: error.message }, { status: 500 });
+    // نرجع تفاصيل الخطأ عشان نعرف وين المشكلة بالضبط
+    return NextResponse.json({ status: "error", message: error.toString() }, { status: 500 });
   }
 }
