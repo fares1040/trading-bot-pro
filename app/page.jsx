@@ -1,13 +1,26 @@
 'use client';
-import useSWR from 'swr';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { useState, useEffect } from 'react';
 
 export default function Home() {
+  const [data, setData] = useState({});
   const symbols = ['HURA', 'KULR', 'BYRN', 'BJSX', 'PODC', 'SPSC', 'MRAM', 'NOK', 'OPI'];
-  
-  // دمج التوازي: جلب بيانات كل الأسهم في الخلفية
-  const { data } = useSWR('/api/stocks-all', fetcher, { refreshInterval: 5000 });
+
+  const fetchData = async () => {
+    // جلب البيانات لكل سهم
+    for (const symbol of symbols) {
+      try {
+        const res = await fetch(`/api/analyze?symbol=${symbol}`);
+        const result = await res.json();
+        setData(prev => ({ ...prev, [symbol]: result }));
+      } catch (e) { console.error(e); }
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 10000); // تحديث كل 10 ثواني
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="p-4 bg-black text-green-500 font-mono">
@@ -20,9 +33,9 @@ export default function Home() {
           {symbols.map(symbol => (
             <tr key={symbol}>
               <td>{symbol}</td>
-              <td>{data?.[symbol]?.price || '---'}</td>
-              <td className={data?.[symbol]?.isEntrySuitable ? 'text-red-500' : 'text-green-500'}>
-                {data?.[symbol]?.isEntrySuitable ? 'انظر' : 'مستقر'}
+              <td>{data[symbol]?.price ? data[symbol].price.toFixed(2) : '---'}</td>
+              <td className={data[symbol]?.isEntrySuitable ? 'text-red-500' : 'text-green-500'}>
+                {data[symbol]?.isEntrySuitable ? 'انظر' : 'مستقر'}
               </td>
             </tr>
           ))}
