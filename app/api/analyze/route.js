@@ -51,15 +51,26 @@ async function handleAnalysis(symbol) {
 }
 
 export async function GET(request) {
-    const { searchParams } = new URL(request.url);
-    const symbol = searchParams.get('symbol');
+  const { searchParams } = new URL(request.url);
+  const symbol = searchParams.get('symbol');
+
+  // إذا أرسلت سهم، يحلل سهم واحد فقط
+  if (symbol) {
     const result = await handleAnalysis(symbol);
+    return NextResponse.json({ ...result, symbol: symbol.toUpperCase() });
+  } else {
+    // إذا لم ترسل سهم، يجلب القائمة ويحللها كاملة
+    const baseUrl = new URL(request.url).origin;
+    const stocksRes = await fetch(`${baseUrl}/api/stocks`);
+    const stocksData = await stocksRes.json();
     
-    return NextResponse.json({ ...result, symbol: symbol.toUpperCase() }, {
-        headers: {
-            'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30',
-        },
-    });
+    // استخراج الرموز وتحليلها
+    const symbols = stocksData.data.map(item => item.ticker);
+    for (const s of symbols) {
+      await handleAnalysis(s);
+    }
+    return NextResponse.json({ status: "done", scanned: symbols });
+  }
 }
 
 export async function POST(request) {
