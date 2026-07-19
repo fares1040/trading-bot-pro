@@ -37,24 +37,20 @@ export default function Home() {
   }, [symbols]);
 
   return (
-    <div className="min-h-screen bg-black text-green-500 font-mono p-4">
-      <h1 className="text-center text-xl mb-6 border-b border-green-900 pb-2">غرفة العمليات - نظام السنايبر المطور</h1>
+    <div className="min-h-screen bg-black text-green-500 font-mono p-4" dir="rtl">
+      <h1 className="text-center text-2xl font-bold mb-6 border-b border-green-900 pb-2">غرفة العمليات - نظام السنايبر المطور</h1>
 
-      {/* منطقة البحث والإضافة */}
-      <div className="flex flex-col gap-2 mb-6 max-w-2xl mx-auto">
+      <div className="flex gap-2 mb-6 justify-center">
         <input 
-          className="bg-black border border-green-700 p-2 text-white w-full"
+          className="bg-black border border-green-700 p-2 text-white"
           value={newSymbol}
           onChange={(e) => setNewSymbol(e.target.value)}
-          placeholder="ابحث عن سهم"
+          placeholder="أدخل رمز السهم"
         />
-        <button onClick={addSymbol} className="bg-green-700 text-black font-bold p-2 hover:bg-green-500">
-          إضافة
-        </button>
+        <button onClick={addSymbol} className="bg-green-700 text-black font-bold px-4 py-2 hover:bg-green-500">إضافة</button>
       </div>
 
-      {/* الجدول الاحترافي */}
-      <table className="w-full text-left border-collapse border border-green-900">
+      <table className="w-full text-right border-collapse border border-green-900">
         <thead>
           <tr className="border-b border-green-900 text-green-600">
             <th className="p-3">السهم</th>
@@ -68,10 +64,10 @@ export default function Home() {
             <tr key={symbol} className="border-b border-green-900 hover:bg-green-900/20">
               <td className="p-3 font-bold">{symbol}</td>
               <td className="p-3">{data[symbol]?.price ? data[symbol].price.toFixed(2) : '---'}</td>
-              <td className={`p-3 font-bold ${data[symbol]?.isEntrySuitable ? 'text-red-500' : 'text-green-500'}`}>
+              <td className={`p-3 ${data[symbol]?.isEntrySuitable ? 'text-red-500' : 'text-green-500'}`}>
                 {data[symbol]?.isEntrySuitable ? 'انظر ❌' : 'مستقر ✅'}
               </td>
-              <td className="p-3 text-green-700">عرض ❌</td>
+              <td className="p-3 text-red-500">عرض ❌</td>
             </tr>
           ))}
         </tbody>
