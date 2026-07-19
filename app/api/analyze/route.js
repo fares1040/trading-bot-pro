@@ -26,14 +26,23 @@ async function handleAnalysis(symbol) {
     const ma20 = quotes.slice(-20).reduce((a, b) => a + b, 0) / 20;
     const stdDev = Math.sqrt(quotes.slice(-20).map(x => Math.pow(x - ma20, 2)).reduce((a, b) => a + b, 0) / 20);
     const upperBand = ma20 + (2 * stdDev);
+    // حساب RSI
+    let gains = 0, losses = 0;
+    for (let i = quotes.length - 14; i < quotes.length; i++) {
+        let diff = quotes[i] - quotes[i-1];
+        if (diff >= 0) gains += diff; else losses -= diff;
+    }
+    let rs = (gains / 14) / (losses / 14);
+    let rsi = 100 - (100 / (1 + rs));
 
-    const isEntrySuitable = (price >= 1 && price <= 50 && Math.abs((price / prevClose) - 1) < 0.05 && price > ma20 && price < upperBand);
+
+const isEntrySuitable = (price >= 1 && price <= 50 && Math.abs((price / prevClose) - 1) < 0.05 && price > ma20 && price < upperBand && volume >= 10000 && rsi < 70) ? 'ENTRY' : 'NONE';
 
     const analysisText = `تحليل ${symbol.toUpperCase()}: السعر الحالي: ${price.toFixed(2)}`;
     const currentState = isEntrySuitable ? 'ENTRY' : 'NONE';
 
     if (isMarketOpen && currentState === 'ENTRY' && lastAlerts[symbol] !== currentState) {
-      const message = `سهم جديد 🚀: ${symbol.toUpperCase()}\nالسعر: ${price.toFixed(2)}\nالهدف: ${upperBand.toFixed(2)}\nوقف الخسارة: ${ma20.toFixed(2)}`;
+const message = `🚀 سهم محتمل: ${symbol.toUpperCase()}\nالسعر: ${price.toFixed(2)}\nRSI: ${rsi.toFixed(2)}\nVolume: ${volume}`;
       await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(message)}`);
       lastAlerts[symbol] = currentState;
     }
