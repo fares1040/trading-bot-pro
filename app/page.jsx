@@ -22,7 +22,7 @@ export default function Home() {
         try {
           const res = await fetch(`/api/analyze?symbol=${s}`);
           return await res.json();
-        } catch { return { symbol: s, currentPrice: '---', isSuitable: false, analysis: 'خطأ في الاتصال' }; }
+        } catch { return { symbol: s, currentPrice: '---', isSuitable: false, analysis: 'السوق مغلق أو لا توجد بيانات حالياً' }; }
       }));
       setWatchData(data);
     };
@@ -36,7 +36,7 @@ export default function Home() {
     if(!ticker) return;
     const res = await fetch(`/api/analyze?symbol=${ticker.toUpperCase()}`);
     const data = await res.json();
-    alert(data.analysis || "لا يوجد تحليل");
+    alert(data.analysis || "السوق مغلق حالياً - لا يوجد تحليل متاح");
   };
 
   return (
@@ -79,7 +79,12 @@ export default function Home() {
                 {s.isSuitable ? "مناسب ✅" : "انتظر ⏳"}
               </td>
               <td style={{ padding: '10px' }}>
-                <button onClick={() => alert(s.analysis)} style={{ color: '#00ff41', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>عرض</button>
+                <button 
+                  onClick={() => alert(s.analysis || "السوق مغلق حالياً - لا يوجد تحليل")} 
+                  style={{ color: '#00ff41', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                >
+                  عرض
+                </button>
               </td>
               <td style={{ padding: '10px' }}>
                 <button onClick={() => setWatchlist(watchlist.filter(item => item !== s.symbol))} style={{ color: '#ff4444', background: 'none', border: 'none', cursor: 'pointer' }}>حذف</button>
