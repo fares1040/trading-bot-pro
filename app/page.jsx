@@ -20,14 +20,17 @@ const [watchData, setWatchData] = useState([]);
   }, [watchlist]);
 
   useEffect(() => {
-    const fetchData = async () => {
+   const fetchData = async () => {
       const data = await Promise.all(watchlist.map(async (s) => {
         try {
           const res = await fetch(`/api/analyze?symbol=${s}`);
           return await res.json();
-
-}) catch { return { symbol: s, currentPrice: '---', isSuitable: false, analysis: 'Loading...' } }
-
+        } catch (err) {
+          return { symbol: s, currentPrice: '---', isSuitable: false, analysis: 'Loading...' };
+        }
+      }));
+      setWatchData(data);
+    };
 
     fetchData();
     const interval = setInterval(fetchData, 10000);
@@ -82,7 +85,7 @@ alert(data.analysis || "Analysis in progress...");
               </td>
               <td style={{ padding: '10px' }}>
                 <button 
-                  onClick={() => alert(s.analysis || "السوق مغلق حالياً - لا يوجد تحليل")} 
+                onClick={() => alert(s.analysis || "No data available")}
                   style={{ color: '#00ff41', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
                 >
                   عرض
