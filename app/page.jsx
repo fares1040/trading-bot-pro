@@ -5,7 +5,7 @@ export default function Home() {
   const [ticker, setTicker] = useState('');
   const [newTicker, setNewTicker] = useState('');
   const [watchData, setWatchData] = useState([]);
-  const [watchlist, setWatchlist] = useState(['HURA', 'KULR', 'BYRN', 'BJSX', 'PODC', 'SPSC', 'MRAM', 'NOK', 'OPI']);
+  const [watchlist, setWatchlist] = useState([]);
 
   useEffect(() => {
     const saved = localStorage.getItem('myWatchlist');
