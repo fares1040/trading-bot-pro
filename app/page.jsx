@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 export default function Home() {
   const [ticker, setTicker] = useState('');
   const [newTicker, setNewTicker] = useState('');
-  const [watchData, setWatchData] = useState([]);
+const [watchlist, setWatchlist] = useState(['LNZA', 'HURA', 'KULR', 'BYRN', 'BJDX', 'MRAM', 'NOK', 'OPI', 'VMAR', 'CETX', 'GSIT', 'PRFX', 'ERNA', 'ANVS', 'PPSI', 'TOVX', 'NIO', 'LOT', 'OLB', 'OCG', 'QUCY', 'PLUG']);
   const [watchlist, setWatchlist] = useState([]);
 
   useEffect(() => {
