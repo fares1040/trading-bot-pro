@@ -6,9 +6,7 @@ async function handleAnalysis(symbol) {
   const TELEGRAM_TOKEN = '8822034470:AAEBoovIt3tdkkQqt21X86GZBwipYUq6MgA';
   const CHAT_ID = '896028407';
 
-  const saudiTime = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Riyadh" }));
-  const hours = saudiTime.getHours();
-  const minutes = saudiTime.getMinutes();
+  
 const isMarketOpen = true;
 
   try {
