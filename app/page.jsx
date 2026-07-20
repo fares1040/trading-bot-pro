@@ -8,6 +8,7 @@ export default function Home() {
 const [watchlist, setWatchlist] = useState(['LNZA', 'HURA', 'KULR', 'BYRN', 'BJDX', 'MRAM', 'NOK', 'OPI', 'VMAR', 'CETX', 'GSIT', 'PRFX', 'ERNA', 'ANVS', 'PPSI', 'TOVX', 'NIO', 'LOT', 'OLB', 'OCG', 'QUCY', 'PLUG']);
 
 // احذف السطر 8 نهائياً!
+const [watchData, setWatchData] = useState([]);
 
   useEffect(() => {
     const saved = localStorage.getItem('myWatchlist');
