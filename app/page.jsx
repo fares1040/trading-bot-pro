@@ -40,8 +40,8 @@ const [watchData, setWatchData] = useState([]);
     if(!ticker) return;
     const res = await fetch(`/api/analyze?symbol=${ticker.toUpperCase()}`);
     const data = await res.json();
-alert(data.analysis || "جاري التحليل...");
-  };
+alert(data.analysis || "Analysis in progress...");
+
 
   return (
     <div style={{ backgroundColor: '#121212', color: '#fff', padding: '20px', fontFamily: 'monospace', minHeight: '100vh' }}>
