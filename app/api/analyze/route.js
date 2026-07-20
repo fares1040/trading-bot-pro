@@ -34,10 +34,11 @@ const isMarketOpen = true;
     let rsi = 100 - (100 / (1 + rs));
 
 
-const isEntrySuitable = (price >= 1 && price <= 50 && Math.abs((price / prevClose) - 1) < 0.05 && price > ma20 && price < upperBand && volume >= 10000 && rsi < 70) ? 'ENTRY' : 'NONE';
+const isEntrySuitable = (price >= 1 && price <= 50 && Math.abs((price / prevClose) - 1) < 0.05 && price > ma20 && price < upperBand && volume >= 10000 && rsi < 70);
 
-    const analysisText = `تحليل ${symbol.toUpperCase()}: السعر الحالي: ${price.toFixed(2)}`;
-    const currentState = isEntrySuitable ? 'ENTRY' : 'NONE';
+const analysisText = `تحليل ${symbol.toUpperCase()}: السعر الحالي: ${price.toFixed(2)} | RSI: ${rsi.toFixed(2)} | الفوليوم: ${volume}`;
+
+const currentState = isEntrySuitable ? 'ENTRY' : 'NONE';
 
     if (isMarketOpen && currentState === 'ENTRY' && lastAlerts[symbol] !== currentState) {
 const message = `🚀 سهم محتمل: ${symbol.toUpperCase()}\nالسعر: ${price.toFixed(2)}\nRSI: ${rsi.toFixed(2)}\nVolume: ${volume}`;
