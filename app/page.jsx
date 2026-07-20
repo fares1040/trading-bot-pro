@@ -25,8 +25,9 @@ const [watchData, setWatchData] = useState([]);
         try {
           const res = await fetch(`/api/analyze?symbol=${s}`);
           return await res.json();
-        } catch { return { symbol: s, currentPrice: '---', isSuitable: false, analysis: 'السوق مغلق أو لا توجد بيانات حالياً' }; }
-      }));
+
+          } catch { return { symbol: s, currentPrice: '---', isSuitable: false, analysis: 'جاري التحليل...' } }
+
       setWatchData(data);
     };
 
@@ -39,7 +40,7 @@ const [watchData, setWatchData] = useState([]);
     if(!ticker) return;
     const res = await fetch(`/api/analyze?symbol=${ticker.toUpperCase()}`);
     const data = await res.json();
-    alert(data.analysis || "السوق مغلق حالياً - لا يوجد تحليل متاح");
+alert(data.analysis || "جاري التحليل...");
   };
 
   return (
