@@ -9,7 +9,7 @@ async function handleAnalysis(symbol) {
   const saudiTime = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Riyadh" }));
   const hours = saudiTime.getHours();
   const minutes = saudiTime.getMinutes();
-  const isMarketOpen = (hours + minutes / 60) >= 16.5 && (hours + minutes / 60) <= 23.0;
+const isMarketOpen = true;
 
   try {
     const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol.toUpperCase()}?interval=1d&range=30d`);
