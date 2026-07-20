@@ -1,72 +1,61 @@
 import { NextResponse } from 'next/server';
 
-const lastAlerts = {};
-
-async function handleAnalysis(symbol) {
-  const TELEGRAM_TOKEN = '8822034470:AAEBoovIt3tdkkQqt21X86GZBwipYUq6MgA';
-  const CHAT_ID = '896028407';
-
-  
-const isMarketOpen = true;
-
-  try {
-    const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol.toUpperCase()}?interval=1d&range=30d`);
-    const data = await res.json();
-
-    if (!data.chart || !data.chart.result) return null;
-
-    const meta = data.chart.result[0].meta;
-    const quotes = data.chart.result[0].indicators.quote[0].close;
-    const price = meta.regularMarketPrice;
-    const prevClose = meta.chartPreviousClose;
-    const volume = meta.regularMarketVolume || 0;
-
-    const ma20 = quotes.slice(-20).reduce((a, b) => a + b, 0) / 20;
-    const stdDev = Math.sqrt(quotes.slice(-20).map(x => Math.pow(x - ma20, 2)).reduce((a, b) => a + b, 0) / 20);
-    const upperBand = ma20 + (2 * stdDev);
-    // حساب RSI
-    let gains = 0, losses = 0;
-    for (let i = quotes.length - 14; i < quotes.length; i++) {
-        let diff = quotes[i] - quotes[i-1];
-        if (diff >= 0) gains += diff; else losses -= diff;
-    }
-    let rs = (gains / 14) / (losses / 14);
-    let rsi = 100 - (100 / (1 + rs));
-
-
-const isEntrySuitable = (price >= 1 && price <= 50 && Math.abs((price / prevClose) - 1) < 0.05 && price > ma20 && price < upperBand && volume >= 10000 && rsi < 70);
-
-const analysisText = `تحليل ${symbol.toUpperCase()}: السعر الحالي: ${price.toFixed(2)} | RSI: ${rsi.toFixed(2)} | الفوليوم: ${volume}`;
-
-const currentState = isEntrySuitable ? 'ENTRY' : 'NONE';
-
-    if (isMarketOpen && currentState === 'ENTRY' && lastAlerts[symbol] !== currentState) {
-const message = `🚀 سهم محتمل: ${symbol.toUpperCase()}\nالسعر: ${price.toFixed(2)}\nRSI: ${rsi.toFixed(2)}\nVolume: ${volume}`;
-      await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(message)}`);
-      lastAlerts[symbol] = currentState;
-    }
-
-    return { analysisText, isEntrySuitable, price, upperBand, ma20 };
-  } catch (error) {
-    return null;
-  }
-}
-
 export async function GET(request) {
-  const { searchParams } = new URL(request.url);
-  const symbol = searchParams.get('symbol');
-  const result = await handleAnalysis(symbol);
+    const { searchParams } = new URL(request.url);
+    const symbol = searchParams.get('symbol');
 
-  return NextResponse.json({ ...result, symbol: symbol.toUpperCase() }, {
-    headers: {
-      'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30',
-    },
-  });
+    if (!symbol) {
+        return NextResponse.json({ error: "رمز السهم مفقود" }, { status: 400 });
+    }
+
+    try {
+        const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol.toUpperCase()}?interval=1d&range=30d`);
+        const data = await res.json();
+        
+        // سطر الحماية لضمان استقرار الاتصال
+        if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
+            return NextResponse.json({ error: "الرمز غير موجود أو لا توجد بيانات" }, { status: 404 });
+        }
+
+        const meta = data.chart.result[0].meta;
+        const quotes = data.chart.result[0].indicators.quote[0].close;
+        
+        const price = meta.regularMarketPrice;
+        const prevClose = meta.chartPreviousClose;
+        const volume = meta.regularMarketVolume || 0;
+
+        // الحسابات الفنية
+        const ma20 = quotes.slice(-20).reduce((a, b) => a + b, 0) / 20;
+        const stdDev = Math.sqrt(quotes.slice(-20).map(x => Math.pow(x - ma20, 2)).reduce((a, b) => a + b) / 20);
+        const upperBand = ma20 + (2 * stdDev);
+
+        // الفلاتر
+        const isGoodPrice = price >= 1 && price <= 50;
+        const isLowGap = Math.abs((price / prevClose) - 1) < 0.05;
+        const isAboveMA = price > ma20;
+        const isNotOverbought = price < upperBand;
+        const isNotTooVolatile = (stdDev / ma20) < 0.1;
+        const isHighVolume = volume > 100000;
+
+        // النتيجة النهائية
+        const isEntrySuitable = isGoodPrice && isLowGap && isAboveMA && isNotOverbought && isNotTooVolatile && isHighVolume;
+
+        const analysisText = `تحليل سهم ${symbol.toUpperCase()}:
+السعر: ${price.toFixed(2)} | الفوليوم: ${(volume/1000).toFixed(1)}K
+الاتجاه: ${isAboveMA ? "صاعد ✅" : "هابط ❌"}
+الفجوة: ${isLowGap ? "طبيعية ✅" : "كبيرة ⚠️"}
+البولنجر: ${isNotOverbought ? "مناسب ✅" : "متشبع شراء ⚠️"}
+التذبذب: ${isNotTooVolatile ? "مستقر ✅" : "عالي ⚠️"}
+القرار النهائي: ${isEntrySuitable ? "مناسب للدخول ✅" : "انتظر الفرصة ❌"}`;
+
+        return NextResponse.json({
+            symbol: symbol.toUpperCase(),
+            currentPrice: price.toFixed(2),
+            analysis: analysisText,
+            isSuitable: isEntrySuitable
+        });
+
+    } catch (error) {
+        return NextResponse.json({ error: "فشل التحليل" }, { status: 500 });
+    }
 }
-
-export async function POST(request) {
-  const body = await request.json();
-  await handleAnalysis(body.symbol);
-  return NextResponse.json({ status: "received" });
-}
-
