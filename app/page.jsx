@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react';
 export default function Home() {
   const [ticker, setTicker] = useState('');
   const [newTicker, setNewTicker] = useState('');
+// السطر 7 (اجعله يحتوي على القائمة الجديدة):
 const [watchlist, setWatchlist] = useState(['LNZA', 'HURA', 'KULR', 'BYRN', 'BJDX', 'MRAM', 'NOK', 'OPI', 'VMAR', 'CETX', 'GSIT', 'PRFX', 'ERNA', 'ANVS', 'PPSI', 'TOVX', 'NIO', 'LOT', 'OLB', 'OCG', 'QUCY', 'PLUG']);
-  const [watchlist, setWatchlist] = useState([]);
+
+// احذف السطر 8 نهائياً!
 
   useEffect(() => {
     const saved = localStorage.getItem('myWatchlist');
