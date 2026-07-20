@@ -4,7 +4,11 @@ import { useState, useEffect } from 'react';
 export default function Home() {
   const [ticker, setTicker] = useState('');
   const [newTicker, setNewTicker] = useState('');
-  const [watchlist, setWatchlist] = useState(['LNZA', 'HURA', 'KULR', 'BYRN', 'BJDX', 'MRAM', 'NOK', 'OPI', 'VMAR']);
+  const [watchlist, setWatchlist] = useState([
+    'TOVX', 'NIO', 'LOT', 'HURA', 'KULR', 'BYRN', 'OLB', 'OCG', 
+    'LNZA', 'PPSI', 'QUCY', 'PLUG', 'ERNA', 'BJDX', 'MRAM', 'NOK', 
+    'SPSC', 'PODC', 'OPI', 'ANVS', 'VMAR', 'CETX', 'GSIT', 'PRFX'
+  ]);
   const [watchData, setWatchData] = useState([]);
 
   useEffect(() => {
@@ -49,7 +53,7 @@ export default function Home() {
       </div>
       <div style={{ marginBottom: '30px', textAlign: 'center' }}>
         <input onChange={(e) => setNewTicker(e.target.value)} value={newTicker} placeholder="أضف سهم جديد..." style={{ padding: '10px' }} />
-        <button onClick={() => { if (newTicker) setWatchlist([...new Set([...watchlist, newTicker.toUpperCase()])]); setNewTicker(''); }}>إضافة</button>
+        <button onClick={() => { if (newTicker) setWatchlist([...new Set([...watchlist, newTicker.toUpperCase()])]); setNewTicker(''); }} style={{ padding: '10px 15px', background: '#00ff41', color: '#000', cursor: 'pointer', fontWeight: 'bold' }}>إضافة</button>
       </div>
       <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
         <thead>
