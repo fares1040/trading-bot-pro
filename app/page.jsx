@@ -26,7 +26,7 @@ const [watchData, setWatchData] = useState([]);
           const res = await fetch(`/api/analyze?symbol=${s}`);
           return await res.json();
 
-          } catch { return { symbol: s, currentPrice: '---', isSuitable: false, analysis: 'جاري التحليل...' } }
+} catch { return { symbol: s, currentPrice: '---', isSuitable: false, analysis: 'Loading...' } }
 
       setWatchData(data);
     };
