@@ -2,87 +2,143 @@
 import { useState, useEffect } from 'react';
 
 export default function Home() {
-  const [ticker, setTicker] = useState('');
-  const [newTicker, setNewTicker] = useState('');
-  const [watchlist, setWatchlist] = useState([
-    'TOVX', 'NIO', 'LOT', 'HURA', 'KULR', 'BYRN', 'OLB', 'OCG', 
-    'LNZA', 'PPSI', 'QUCY', 'PLUG', 'ERNA', 'BJDX', 'MRAM', 'NOK', 
-    'SPSC', 'PODC', 'OPI', 'ANVS', 'VMAR', 'CETX', 'GSIT', 'PRFX'
-  ]);
-  const [watchData, setWatchData] = useState([]);
+  const [symbols, setSymbols] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sniper_symbols');
+      if (saved) {
+        try { return JSON.parse(saved); } catch (e) {}
+      }
+    }
+    // القائمة الافتراضية محدثة بالأسهم الجديدة والسابقة
+    return [
+      'VMAR', 'CETX', 'GSIT', 'PRFX', 'BYRN', 'ERNA', 
+      'LNZA', 'HURA', 'KULR', 'ANVS', 'PPSI', 'BJDX', 
+      'MRAM', 'NOK', 'SPSC', 'PODC', 'OPI', 'TOVX', 
+      'NIO', 'LOT', 'OLB', 'OCG', 'QUCY', 'PLUG'
+    ];
+  });
+
+  const [newSymbol, setNewSymbol] = useState('');
+  const [results, setResults] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [scanning, setScanning] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem('myWatchlist');
-    if (saved) setWatchlist(JSON.parse(saved));
-  }, []);
+    localStorage.setItem('sniper_symbols', JSON.stringify(symbols));
+  }, [symbols]);
 
-  useEffect(() => {
-    localStorage.setItem('myWatchlist', JSON.stringify(watchlist));
-  }, [watchlist]);
+  // فحص الأسهم المضافة
+  const runAnalysis = async () => {
+    setLoading(true);
+    const newResults = {};
+    for (let sym of symbols) {
+      try {
+        const res = await fetch(`/api/analyze?symbol=${sym}`);
+        const data = await res.json();
+        newResults[sym] = data;
+      } catch (err) {
+        newResults[sym] = { error: "فشل الاتصال" };
+      }
+    }
+    setResults(newResults);
+    setLoading(false);
+  };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const data = await Promise.all(watchlist.map(async (s) => {
-        try {
-          const res = await fetch(`/api/analyze?symbol=${s}`);
-          return await res.json();
-        } catch (err) {
-          return { symbol: s, currentPrice: '---', isSuitable: false, analysis: 'جاري التحليل...' };
-        }
-      }));
-      setWatchData(data);
-    };
-    fetchData();
-    const interval = setInterval(fetchData, 10000);
-    return () => clearInterval(interval);
-  }, [watchlist]);
+  // البحث التلقائي عن الأسهم المطابقة للشروط في السوق
+  const scanMarketForMatches = async () => {
+    setScanning(true);
+    try {
+      const res = await fetch(`/api/analyze?scan=true`);
+      const data = await res.json();
+      if (data.matched && data.matched.length > 0) {
+        const merged = Array.from(new Set([...symbols, ...data.matched]));
+        setSymbols(merged);
+        alert(`تم العثور وإضافة ${data.matched.length} سهم مطابق لشروط الكلاستر بنجاح! 🎯`);
+      } else {
+        alert('لم يتم العثور على أسهم تطابق الشروط بدقة في هذه اللحظة.');
+      }
+    } catch (e) {
+      alert('حدث خطأ أثناء البحث التلقائي.');
+    }
+    setScanning(false);
+  };
 
-  const handleSearch = async () => {
-    if (!ticker) return;
-    const res = await fetch(`/api/analyze?symbol=${ticker.toUpperCase()}`);
-    const data = await res.json();
-    alert(data.analysis || "جاري التحليل...");
+  const addSymbol = (e) => {
+    e.preventDefault();
+    if (!newSymbol.trim()) return;
+    const upper = newSymbol.toUpperCase().trim();
+    if (!symbols.includes(upper)) setSymbols([...symbols, upper]);
+    setNewSymbol('');
+  };
+
+  const removeSymbol = (symToRemove) => {
+    setSymbols(symbols.filter(s => s !== symToRemove));
   };
 
   return (
-    <div style={{ backgroundColor: '#121212', color: '#fff', padding: '20px', fontFamily: 'monospace', minHeight: '100vh', direction: 'rtl' }}>
-      <h1 style={{ textAlign: 'center', color: '#00ff41', marginBottom: '30px' }}>نظام السنايبر</h1>
-      <div style={{ marginBottom: '20px', textAlign: 'center' }}>
-        <input onChange={(e) => setTicker(e.target.value)} placeholder="ابحث عن سهم..." style={{ width: '60%', padding: '10px' }} />
-        <button onClick={handleSearch} style={{ width: '15%', marginLeft: '1%', padding: '10px', background: '#00ff41', cursor: 'pointer' }}>بحث</button>
+    <main style={{ padding: '20px', direction: 'rtl', fontFamily: 'Tahoma, sans-serif', background: '#0f172a', color: '#fff', minHeight: '100vh' }}>
+      <h1 style={{ textAlign: 'center', color: '#38bdf8' }}>🎯 نظام السنايبر - الفحص الذكي للشروط</h1>
+      
+      {/* الأزرار وأدوات البحث */}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '20px', flexWrap: 'wrap' }}>
+        <form onSubmit={addSymbol} style={{ display: 'flex', gap: '10px' }}>
+          <input 
+            type="text" 
+            placeholder="أدخل رمز السهم" 
+            value={newSymbol}
+            onChange={(e) => setNewSymbol(e.target.value)}
+            style={{ padding: '10px', borderRadius: '5px', border: '1px solid #475569', background: '#1e293b', color: '#fff' }}
+          />
+          <button type="submit" style={{ padding: '10px 15px', background: '#0284c7', color: '#fff', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>إضافة</button>
+        </form>
+
+        <button 
+          onClick={scanMarketForMatches} 
+          disabled={scanning}
+          style={{ padding: '10px 20px', background: scanning ? '#64748b' : '#9333ea', color: '#fff', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}
+        >
+          {scanning ? '🔄 جاري الفحص بالشروط...' : '🎯 بحث تلقائي (مطابق لشروطنا)'}
+        </button>
       </div>
-      <div style={{ marginBottom: '30px', textAlign: 'center' }}>
-        <input onChange={(e) => setNewTicker(e.target.value)} value={newTicker} placeholder="أضف سهم جديد..." style={{ padding: '10px' }} />
-        <button onClick={() => { if (newTicker) setWatchlist([...new Set([...watchlist, newTicker.toUpperCase()])]); setNewTicker(''); }} style={{ padding: '10px 15px', background: '#00ff41', color: '#000', cursor: 'pointer', fontWeight: 'bold' }}>إضافة</button>
+
+      <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+        <button 
+          onClick={runAnalysis} 
+          disabled={loading}
+          style={{ padding: '12px 30px', background: loading ? '#64748b' : '#16a34a', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '16px', cursor: 'pointer', fontWeight: 'bold' }}
+        >
+          {loading ? 'جاري فحص القائمة...' : '🚀 فحص وتحليل الأسهم الحالية'}
+        </button>
       </div>
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
-        <thead>
-          <tr style={{ color: '#888', borderBottom: '2px solid #333' }}>
-            <th style={{ padding: '10px' }}>السهم</th>
-            <th style={{ padding: '10px' }}>السعر</th>
-            <th style={{ padding: '10px' }}>حالة الدخول</th>
-            <th style={{ padding: '10px' }}>التحليل الفني</th>
-            <th style={{ padding: '10px' }}>تحكم</th>
-          </tr>
-        </thead>
-        <tbody>
-          {watchData.map((s, i) => (
-            <tr key={i} style={{ borderBottom: '1px solid #222', backgroundColor: s.isSuitable ? 'rgba(0, 255, 65, 0.1)' : 'transparent' }}>
-              <td style={{ padding: '10px', fontWeight: 'bold' }}>{s.symbol}</td>
-              <td style={{ padding: '10px' }}>{s.currentPrice}</td>
-              <td style={{ padding: '10px', color: s.isSuitable ? '#00ff41' : '#ff4444', fontWeight: 'bold' }}>
-                {s.isSuitable ? "مناسب ✅" : "انتظر ⏳"}
-              </td>
-              <td style={{ padding: '10px' }}>
-                <button onClick={() => alert(s.analysis || "لا يوجد تحليل")} style={{ color: '#00ff41', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>عرض</button>
-              </td>
-              <td style={{ padding: '10px' }}>
-                <button onClick={() => setWatchlist(watchlist.filter(item => item !== s.symbol))} style={{ color: '#ff4444', background: 'none', border: 'none', cursor: 'pointer' }}>حذف</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+        {symbols.map((sym) => {
+          const data = results[sym];
+          return (
+            <div key={sym} style={{ background: '#1e293b', padding: '15px', borderRadius: '10px', border: '1px solid #334155', position: 'relative' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <h3 style={{ margin: 0, color: '#facc15' }}>{sym}</h3>
+                <button onClick={() => removeSymbol(sym)} style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontSize: '12px' }}>حذف</button>
+              </div>
+
+              {data ? (
+                <div>
+                  <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '13px', color: '#e2e8f0', background: '#0f172a', padding: '10px', borderRadius: '5px' }}>
+                    {data.analysis || data.error}
+                  </pre>
+                  {data.isSuitable && (
+                    <div style={{ marginTop: '10px', background: '#14532d', color: '#4ade80', padding: '5px', textAlign: 'center', borderRadius: '5px', fontSize: '13px', fontWeight: 'bold' }}>
+                      طابق شروط الكلاستر وأُرسل للتيليجرام ✅
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p style={{ color: '#94a3b8', fontSize: '13px', textAlign: 'center' }}>في انتظار الفحص...</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </main>
   );
 }
