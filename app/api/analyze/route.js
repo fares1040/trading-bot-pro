@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 global.lastAlerts = global.lastAlerts || {};
-global.activeTrades = global.activeTrades || {}; // لتتبع الصفقات المفتوحة وإرسال تنبيهات الأهداف
+global.activeTrades = global.activeTrades || {};
 let cachedMarketPool = [];
 let lastFetchTime = 0;
 
@@ -160,7 +160,6 @@ export async function GET(request) {
 
         const isEntrySuitable = (price >= 1 && price <= 100 && price <= (ma20 - (stdDev * 0.3)) && isMomentumValid && isTrendPositive && isVolumeStrong && isRiskRewardValid);
 
-        // نظام تتبع الصفقات وإرسال تنبيهات الأهداف لو السهم مسجل كصفقة مفتوحة
         if (global.activeTrades[cleanSymbol]) {
             const trade = global.activeTrades[cleanSymbol];
             if (!trade.tp1Hit && price >= trade.tp1) {
@@ -175,7 +174,6 @@ export async function GET(request) {
                                   `🚀 السعر وصل للهدف الثاني بنجاح وسجل: ${price.toFixed(2)}`;
                 await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(updateMsg)}`).catch(() => {});
             } else if (price <= trade.sl) {
-                // لو ضرب وقف الخسارة نحذفه من التتبع
                 delete global.activeTrades[cleanSymbol];
             }
         }
@@ -198,7 +196,6 @@ export async function GET(request) {
             if (now - lastAlertTime > cooldownTime) {
                 global.lastAlerts[cleanSymbol] = now; 
 
-                // تسجيل الصفقة في نظام التتبع لمتابعة أهدافها لاحقاً
                 global.activeTrades[cleanSymbol] = {
                     entryPrice: price.toFixed(2),
                     tp1: Number(takeProfit1),
@@ -227,4 +224,4 @@ export async function GET(request) {
     } catch (error) {
         return NextResponse.json({ error: "فشل التحليل" }, { status: 500 });
     }
-} ‏<تم تعديل هذه الرسالة>
+}
