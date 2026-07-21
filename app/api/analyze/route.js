@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 global.lastAlerts = global.lastAlerts || {};
+global.activeTrades = global.activeTrades || {}; // لتتبع الصفقات المفتوحة وإرسال تنبيهات الأهداف
 let cachedMarketPool = [];
 let lastFetchTime = 0;
 
@@ -8,7 +9,6 @@ async function getDynamicMarketPool(customList = []) {
     const now = Date.now();
     let dynamicSymbols = [];
 
-    // جلب الأسهم النشطة كل 30 دقيقة لحماية السيرفر من الحظر
     if (cachedMarketPool.length > 0 && (now - lastFetchTime < 30 * 60 * 1000)) {
         dynamicSymbols = cachedMarketPool;
     } else {
@@ -32,7 +32,6 @@ async function getDynamicMarketPool(customList = []) {
         }
     }
 
-    // دمج أسهم قائمة المتابعة الخاصة بك مع أسهم الترند النشطة، وإزالة التكرار
     const combinedPool = Array.from(new Set([...customList, ...dynamicSymbols]));
     return combinedPool;
 }
@@ -41,34 +40,31 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const symbol = searchParams.get('symbol');
     const scanMode = searchParams.get('scan');
-    const customSymbolsParam = searchParams.get('symbols'); // استقبال قائمة المتابعة من الواجهة إن وجدت
+    const customSymbolsParam = searchParams.get('symbols');
 
     const TELEGRAM_TOKEN = '8822034470:AAEbooViT3tdkkQqt2lx86GZBWipYUq0MgA';
     const CHAT_ID = '896028407';
 
     if (scanMode === 'true') {
         let matchedSymbols = [];
-        
-        // استخراج قائمة المتابعة المرسلة من الواجهة (لو تم ارسالها) وتحويلها لمصفوفة
         let userWatchlist = [];
         if (customSymbolsParam) {
             userWatchlist = customSymbolsParam.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
         }
 
-        // دمج القائمتين معاً (قائمتك + الأسهم النشطة بالسوق)
         const marketPool = await getDynamicMarketPool(userWatchlist);
 
         for (let sym of marketPool) {
             try {
-                const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=60d`);
+                const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=60m&range=60d`);
                 const data = await res.json();
                 if (!data.chart || !data.chart.result) continue;
 
                 const meta = data.chart.result[0].meta;
-                const quotes = data.chart.result[0].indicators.quote[0].close;
-                const volumes = data.chart.result[0].indicators.quote[0].volume;
+                const quotes = data.chart.result[0].indicators.quote[0].close.filter(v => v != null);
+                const volumes = data.chart.result[0].indicators.quote[0].volume.filter(v => v != null);
                 const price = meta.regularMarketPrice;
-                const volume = meta.regularMarketVolume || 0;
+                const volume = volumes[volumes.length - 1] || 0;
 
                 if (!quotes || quotes.length < 50) continue;
 
@@ -90,7 +86,16 @@ export async function GET(request) {
 
                 const isTrendPositive = price >= ma50; 
                 const isVolumeStrong = volume >= (avgVolume20 * 1.5); 
-                const isMatch = (price >= 1 && price <= 100 && price <= (ma20 - (stdDev * 0.3)) && rsi < 40 && isTrendPositive && isVolumeStrong);
+                const isMomentumValid = rsi < 45; 
+                
+                const stopLoss = price * 0.97;
+                const takeProfit1 = price * 1.04;
+                const risk = price - stopLoss;
+                const reward = takeProfit1 - price;
+                const riskRewardRatio = reward / (risk === 0 ? 1 : risk);
+                const isRiskRewardValid = riskRewardRatio >= 1.5;
+
+                const isMatch = (price >= 1 && price <= 100 && price <= (ma20 - (stdDev * 0.3)) && isMomentumValid && isTrendPositive && isVolumeStrong && isRiskRewardValid);
 
                 if (isMatch) {
                     matchedSymbols.push(sym);
@@ -104,7 +109,7 @@ export async function GET(request) {
     const cleanSymbol = symbol.toUpperCase().trim();
 
     try {
-        const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${cleanSymbol}?interval=1d&range=60d`);
+        const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${cleanSymbol}?interval=60m&range=60d`);
         const data = await res.json();
         
         if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
@@ -112,10 +117,10 @@ export async function GET(request) {
         }
 
         const meta = data.chart.result[0].meta;
-        const quotes = data.chart.result[0].indicators.quote[0].close;
-        const volumes = data.chart.result[0].indicators.quote[0].volume;
+        const quotes = data.chart.result[0].indicators.quote[0].close.filter(v => v != null);
+        const volumes = data.chart.result[0].indicators.quote[0].volume.filter(v => v != null);
         const price = meta.regularMarketPrice;
-        const volume = meta.regularMarketVolume || 0;
+        const volume = volumes[volumes.length - 1] || 0;
 
         const ma20 = quotes.slice(-20).reduce((a, b) => a + b, 0) / 20;
         const ma50 = quotes.slice(-50).reduce((a, b) => a + b, 0) / 50;
@@ -136,18 +141,51 @@ export async function GET(request) {
 
         const isTrendPositive = price >= ma50;
         const isVolumeStrong = volume >= (avgVolume20 * 1.5);
-        const isEntrySuitable = (price >= 1 && price <= 100 && price <= (ma20 - (stdDev * 0.3)) && rsi < 40 && isTrendPositive && isVolumeStrong);
+        const isMomentumValid = rsi < 45;
 
-        const stopLoss = (price * 0.97).toFixed(2);
-        const takeProfit1 = (price * 1.04).toFixed(2);
-        const takeProfit2 = (price * 1.08).toFixed(2);
-        const takeProfit3 = (price * 1.12).toFixed(2);
+        const stopLossVal = price * 0.97;
+        const takeProfit1Val = price * 1.04;
+        const takeProfit2Val = price * 1.08;
+        const takeProfit3Val = price * 1.12;
 
-        const analysisText = `تحليل سهم ${cleanSymbol} (نموذج الارتداد):
-السعر: ${price.toFixed(2)} | RSI: ${rsi.toFixed(1)} | الفوليوم: ${(volume/1000).toFixed(1)}K
+        const risk = price - stopLossVal;
+        const reward = takeProfit1Val - price;
+        const riskRewardRatio = reward / (risk === 0 ? 1 : risk);
+        const isRiskRewardValid = riskRewardRatio >= 1.5;
+
+        const stopLoss = stopLossVal.toFixed(2);
+        const takeProfit1 = takeProfit1Val.toFixed(2);
+        const takeProfit2 = takeProfit2Val.toFixed(2);
+        const takeProfit3 = takeProfit3Val.toFixed(2);
+
+        const isEntrySuitable = (price >= 1 && price <= 100 && price <= (ma20 - (stdDev * 0.3)) && isMomentumValid && isTrendPositive && isVolumeStrong && isRiskRewardValid);
+
+        // نظام تتبع الصفقات وإرسال تنبيهات الأهداف لو السهم مسجل كصفقة مفتوحة
+        if (global.activeTrades[cleanSymbol]) {
+            const trade = global.activeTrades[cleanSymbol];
+            if (!trade.tp1Hit && price >= trade.tp1) {
+                trade.tp1Hit = true;
+                const updateMsg = `🎯 تحديث صفقة سنايبر (${cleanSymbol})\n` +
+                                  `✅ السعر اخترق الهدف الأول بنجاح وسجل: ${price.toFixed(2)}\n` +
+                                  `🛡️ الإجراء المطلوب: ارفع وقف الخسارة إلى نقطة الدخول (${trade.entryPrice}) لتأمين الصفقة!`;
+                await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(updateMsg)}`).catch(() => {});
+            } else if (trade.tp1Hit && !trade.tp2Hit && price >= trade.tp2) {
+                trade.tp2Hit = true;
+                const updateMsg = `🎯🎯 تحديث صفقة سنايبر (${cleanSymbol})\n` +
+                                  `🚀 السعر وصل للهدف الثاني بنجاح وسجل: ${price.toFixed(2)}`;
+                await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(updateMsg)}`).catch(() => {});
+            } else if (price <= trade.sl) {
+                // لو ضرب وقف الخسارة نحذفه من التتبع
+                delete global.activeTrades[cleanSymbol];
+            }
+        }
+
+        const analysisText = `تحليل سهم ${cleanSymbol} (فريم 4 ساعات - نموذج الارتداد):
+السعر: ${price.toFixed(2)} | RSI (الزخم): ${rsi.toFixed(1)} | الفوليوم: ${(volume/1000).toFixed(1)}K (متوسط 20: ${(avgVolume20/1000).toFixed(1)}K)
 الترند (MA50): ${isTrendPositive ? "إيجابي صاعد ✅" : "تحت المتوسط ⚠️"}
-الفوليوم: ${isVolumeStrong ? "عالي وقوي 🚀" : "متوسط/ضعيف ⚠️"}
+الفوليوم (MA Volume): ${isVolumeStrong ? "عالي وقوي 🚀" : "متوسط/ضعيف ⚠️"}
 منطقة الكلاستر: ${price <= lowerBand ? "عند الدعم السفلي ✅" : "قريب من الدعم ⚠️"}
+إدارة المخاطر (R:R): ${riskRewardRatio.toFixed(2)} (${isRiskRewardValid ? "مقبولة ✅" : "غير مجزية ⚠️"})
 وقف الخسارة: ${stopLoss} (يُرفع لنقطة الدخول بعد الهدف 1)
 الهدف 1: ${takeProfit1} | الهدف 2: ${takeProfit2} | الهدف 3: ${takeProfit3}
 القرار النهائي: ${isEntrySuitable ? "فرصة ارتداد مناسبة للدخول ✅" : "انتظر اكتمال النموذج ❌"}`;
@@ -160,16 +198,26 @@ export async function GET(request) {
             if (now - lastAlertTime > cooldownTime) {
                 global.lastAlerts[cleanSymbol] = now; 
 
-                const message = `🎯 فرصة ارتداد كلاستر (مدمج ومفلتر): ${cleanSymbol}\n` +
+                // تسجيل الصفقة في نظام التتبع لمتابعة أهدافها لاحقاً
+                global.activeTrades[cleanSymbol] = {
+                    entryPrice: price.toFixed(2),
+                    tp1: Number(takeProfit1),
+                    tp2: Number(takeProfit2),
+                    sl: Number(stopLoss),
+                    tp1Hit: false,
+                    tp2Hit: false
+                };
+
+                const message = `🎯 فرصة ارتداد كلاستر (فريم 4 ساعات): ${cleanSymbol}\n` +
                                 `💰 سعر الدخول: ${price.toFixed(2)}\n` +
-                                `📉 مؤشر RSI: ${rsi.toFixed(1)}\n` +
-                                `📈 الترند والفوليوم: مطابق للشروط بنجاح ✅\n` +
+                                `📉 مؤشر RSI والزخم: ${rsi.toFixed(1)}\n` +
+                                `📈 الترند والفوليوم (MA Vol): مطابق للشروط بنجاح ✅\n` +
+                                `⚖️ نسبة العائد للمخاطرة (R:R): ${riskRewardRatio.toFixed(2)}\n` +
                                 `🛑 وقف الخسارة الأولي: ${stopLoss}\n` +
                                 `🛡️ قاعدة الحماية: يُرفع الوقف لسعر الدخول فور بلوغ الهدف 1\n` +
                                 `🎯 الهدف الأول: ${takeProfit1}\n` +
                                 `🎯 الهدف الثاني: ${takeProfit2}\n` +
-                                `🎯 الهدف الثالث: ${takeProfit3}\n` +
-                                `📊 الفوليوم: ${(volume/1000).toFixed(1)}K`;
+                                `🎯 الهدف الثالث: ${takeProfit3}`;
 
                 await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(message)}`).catch(() => {});
             }
@@ -179,4 +227,4 @@ export async function GET(request) {
     } catch (error) {
         return NextResponse.json({ error: "فشل التحليل" }, { status: 500 });
     }
-}
+} ‏<تم تعديل هذه الرسالة>
