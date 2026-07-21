@@ -104,11 +104,10 @@ export default function Home() {
       speakAlert(`تنبيه رادار السنايبر. تم رصد هدف ذهبي مطابقة للشروط على السهم ${sym}`);
       sendWebhookAlert(sym, analysisText);
       
-      // تسجيل الهدف في سجل العمليات الحربية تلقائياً
       const timeNow = new Date().toLocaleTimeString('ar-SA');
       setMissionHistory(prev => [
         { id: Date.now(), symbol: sym, time: timeNow, details: analysisText },
-        ...prev.slice(0, 49) // الاحتفاظ بآخر 50 عملية فقط
+        ...prev.slice(0, 49)
       ]);
     } else {
       speakAlert("تنبيه عسكري. تم رصد فرص جديدة في السوق");
@@ -210,7 +209,6 @@ export default function Home() {
     alert('📋 تم نسخ بيانات التوصية للذاكرة بنجاح!');
   };
 
-  // نسخ تقرير العمليات الاستخباراتي الشامل لكل الفرص المتاحة
   const copyAllIntelBriefing = () => {
     const suitableSymbols = symbols.filter(sym => results[sym] && results[sym].isSuitable);
     if (suitableSymbols.length === 0) {
@@ -245,7 +243,6 @@ export default function Home() {
   return (
     <main style={{ padding: '25px', direction: 'rtl', fontFamily: 'Tahoma, sans-serif', background: '#030712', color: '#f8fafc', minHeight: '100vh', position: 'relative', overflowX: 'hidden' }}>
       
-      {/* 🌟 تأثير خط الليزر الراداري المتحرك */}
       <style jsx global>{`
         @keyframes scanline {
           0% { transform: translateY(-100%); }
@@ -267,12 +264,10 @@ export default function Home() {
       `}</style>
       <div className="radar-laser"></div>
 
-      {/* خلفية تفاعلية نيون */}
       <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', background: 'radial-gradient(circle at 50% 0%, rgba(14, 165, 233, 0.1) 0%, transparent 60%)', zIndex: 0 }}></div>
 
       <div style={{ position: 'relative', zIndex: 1, maxWidth: '1400px', margin: '0 auto' }}>
         
-        {/* العنوان */}
         <div style={{ textAlign: 'center', marginBottom: '20px' }}>
           <h1 style={{ color: '#38bdf8', fontSize: '32px', fontWeight: '900', margin: '0 0 8px 0', textShadow: '0 0 20px rgba(56, 189, 248, 0.5)' }}>
             🎯 نظام السنايبر العسكري الذكي
@@ -280,7 +275,6 @@ export default function Home() {
           <p style={{ color: '#94a3b8', fontSize: '14px', margin: 0 }}>منصة القيادة والتحكم الآلي لتحليل وفحص أسهم السوق على فريم 4 ساعات</p>
         </div>
 
-        {/* 🌋 مؤشر نبض السيولة العالمي (Market Pulse Bar) */}
         <div style={{ background: 'linear-gradient(90deg, #1e1b4b, #0f172a, #064e3b)', border: '1px solid #059669', borderRadius: '12px', padding: '12px 20px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontSize: '18px' }}>🌋</span>
@@ -304,7 +298,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* لوحة إعدادات الويب هوك */}
         {showWebhookSettings && (
           <div style={{ background: '#0f172a', border: '1px solid #38bdf8', borderRadius: '12px', padding: '15px', marginBottom: '20px' }}>
             <label style={{ display: 'block', fontSize: '12px', color: '#38bdf8', marginBottom: '6px', fontWeight: 'bold' }}>رابط قناة الويب هوك للبث المباشر (Discord / Telegram Bot Webhook):</label>
@@ -319,7 +312,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* مودال سجل العمليات الحربية الأرشيفية */}
         {showHistoryModal && (
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(3, 7, 18, 0.85)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
             <div style={{ background: '#0f172a', border: '1px solid #b45309', borderRadius: '16px', width: '100%', maxWidth: '700px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', padding: '20px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)' }}>
@@ -349,7 +341,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* شريط القيادة العلوي */}
         <div style={{ background: 'linear-gradient(135deg, #0f172a 100%, #1e1b4b 0%)', border: '1px solid #312e81', borderRadius: '14px', padding: '18px 22px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ width: '12px', height: '12px', background: suitableCount > 0 ? '#22c55e' : '#eab308', borderRadius: '50%', display: 'inline-block', boxShadow: suitableCount > 0 ? '0 0 10px #22c55e' : '0 0 10px #eab308' }}></span>
@@ -376,7 +367,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 📊 شريط إحصائيات الأداء السريع (تفاعلي بالكامل) */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px', marginBottom: '25px' }}>
           <div onClick={() => setFilterOnlySuitable(false)} style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '15px', textAlign: 'center', cursor: 'pointer', transition: '0.2s' }}>
             <div style={{ color: '#94a3b8', fontSize: '12px', marginBottom: '5px' }}>إجمالي الأسهم تحت المراقبة (عرض الكل)</div>
@@ -396,7 +386,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* أدوات الإضافة، مسح السوق، ونسخ التقرير الشامل */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '20px', flexWrap: 'wrap' }}>
           <form onSubmit={addSymbol} style={{ display: 'flex', gap: '10px' }}>
             <input 
@@ -419,7 +408,7 @@ export default function Home() {
 
           <button 
             onClick={copyAllIntelBriefing}
-            style={{ padding: '11px 24px', background: '#0369a1', color: '#fff', border: '1px solid '#38bdf8', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', boxShadow: '0 0 15px rgba(56, 189, 248, 0.3)' }}
+            style={{ padding: '11px 24px', background: '#0369a1', color: '#fff', border: '1px solid #38bdf8', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', boxShadow: '0 0 15px rgba(56, 189, 248, 0.3)' }}
           >
             📑 نسخ تقرير العمليات الشامل
           </button>
@@ -435,7 +424,6 @@ export default function Home() {
           </button>
         </div>
 
-        {/* شبكة البطاقات (Grid Cards) */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '22px' }}>
           {displayedSymbols.map((sym) => {
             const data = results[sym];
@@ -455,7 +443,6 @@ export default function Home() {
                   transition: 'all 0.3s ease'
                 }}
               >
-                {/* رأس الكارد */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #1e293b', paddingBottom: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <h3 style={{ margin: 0, color: '#facc15', fontSize: '22px', fontWeight: '800', letterSpacing: '0.5px' }}>{sym}</h3>
@@ -483,7 +470,6 @@ export default function Home() {
                       </pre>
                     </div>
 
-                    {/* حاسبة رأس المال الفورية */}
                     <div style={{ background: '#030712', padding: '12px', borderRadius: '10px', marginBottom: '14px', border: '1px solid #1e293b' }}>
                       <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', marginBottom: '6px', fontWeight: 'bold' }}>حاسبة إدارة المخاطر ورأس المال ($):</label>
                       <input 
