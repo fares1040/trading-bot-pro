@@ -9,7 +9,6 @@ export default function Home() {
         try { return JSON.parse(saved); } catch (e) {}
       }
     }
-    // القائمة الافتراضية محدثة بالأسهم الجديدة والسابقة
     return [
       'VMAR', 'CETX', 'GSIT', 'PRFX', 'BYRN', 'ERNA', 
       'LNZA', 'HURA', 'KULR', 'ANVS', 'PPSI', 'BJDX', 
@@ -77,7 +76,7 @@ export default function Home() {
 
   return (
     <main style={{ padding: '20px', direction: 'rtl', fontFamily: 'Tahoma, sans-serif', background: '#0f172a', color: '#fff', minHeight: '100vh' }}>
-      <h1 style={{ textAlign: 'center', color: '#38bdf8' }}>🎯 نظام السنايبر - الفحص الذكي للشروط</h1>
+      <h1 style={{ textAlign: 'center', color: '#38bdf8', marginBottom: '25px' }}>🎯 نظام السنايبر المطور - فريم 4 ساعات</h1>
       
       {/* الأزرار وأدوات البحث */}
       <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '20px', flexWrap: 'wrap' }}>
@@ -111,39 +110,46 @@ export default function Home() {
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
         {symbols.map((sym) => {
           const data = results[sym];
           return (
-            <div key={sym} style={{ background: '#1e293b', padding: '15px', borderRadius: '10px', border: '1px solid #334155', position: 'relative' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <h3 style={{ margin: 0, color: '#facc15' }}>{sym}</h3>
-                <button onClick={() => removeSymbol(sym)} style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontSize: '12px' }}>حذف</button>
+            <div key={sym} style={{ background: '#1e293b', padding: '18px', borderRadius: '12px', border: '1px solid #334155', position: 'relative', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #334155', paddingBottom: '8px' }}>
+                <h3 style={{ margin: 0, color: '#facc15', fontSize: '18px' }}>{sym}</h3>
+                <button onClick={() => removeSymbol(sym)} style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 10px', cursor: 'pointer', fontSize: '12px' }}>حذف</button>
               </div>
 
               {data ? (
                 <div>
-                  <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '13px', color: '#e2e8f0', background: '#0f172a', padding: '10px', borderRadius: '5px' }}>
-                    {data.analysis || data.error}
-                  </pre>
-                  {data.isSuitable && (
-                    <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <div style={{ background: '#14532d', color: '#4ade80', padding: '6px', textAlign: 'center', borderRadius: '5px', fontSize: '13px', fontWeight: 'bold' }}>
-                        طابق شروط الكلاستر وأُرسل للتيليجرام ✅
+                  <div style={{ background: '#0f172a', padding: '12px', borderRadius: '8px', border: '1px solid #1e293b', marginBottom: '12px' }}>
+                    <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '12.5px', color: '#e2e8f0', margin: 0, lineHeight: '1.6' }}>
+                      {data.analysis || data.error}
+                    </pre>
+                  </div>
+
+                  {data.isSuitable ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ background: '#14532d', color: '#4ade80', padding: '8px', textAlign: 'center', borderRadius: '6px', fontSize: '12.5px', fontWeight: 'bold', border: '1px solid #166534' }}>
+                        🎯 مطابق لشروط السنايبر ومرسل للتيليجرام ✅
                       </div>
                       <a 
                         href={`https://www.tradingview.com/chart/?symbol=${sym}`} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        style={{ display: 'block', background: '#0284c7', color: '#fff', padding: '8px', textAlign: 'center', borderRadius: '5px', fontSize: '13px', textDecoration: 'none', fontWeight: 'bold' }}
+                        style={{ display: 'block', background: '#0284c7', color: '#fff', padding: '8px', textAlign: 'center', borderRadius: '6px', fontSize: '13px', textDecoration: 'none', fontWeight: 'bold' }}
                       >
                         📈 فتح الشارت على TradingView
                       </a>
                     </div>
+                  ) : (
+                    <div style={{ background: '#451a03', color: '#fdba74', padding: '6px', textAlign: 'center', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', border: '1px solid #7c2d12' }}>
+                      انتظر اكتمال النموذج أو عدم مطابقة الشروط ❌
+                    </div>
                   )}
                 </div>
               ) : (
-                <p style={{ color: '#94a3b8', fontSize: '13px', textAlign: 'center' }}>في انتظار الفحص...</p>
+                <p style={{ color: '#94a3b8', fontSize: '13px', textAlign: 'center', margin: '20px 0' }}>في انتظار الفحص والتحديث...</p>
               )}
             </div>
           );
