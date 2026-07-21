@@ -1,20 +1,53 @@
 import { NextResponse } from 'next/server';
 
 global.lastAlerts = global.lastAlerts || {};
+let cachedMarketPool = [];
+let lastFetchTime = 0;
+
+async function getDynamicMarketPool() {
+    const now = Date.now();
+    // تحديث قائمة الأسهم النشطة كل 30 دقيقة لضمان عدم حدوث حظر (Rate Limit) وحماية السيرفر
+    if (cachedMarketPool.length > 0 && (now - lastFetchTime < 30 * 60 * 1000)) {
+        return cachedMarketPool;
+    }
+
+    try {
+        // جلب الأسهم الأكثر نشاطاً وحركة في السوق حالياً كمصدر أساسي للترند
+        const res = await fetch('https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=most_actives');
+        const data = await res.json();
+        const quotes = data?.finance?.result?.[0]?.quotes || [];
+        
+        let symbols = quotes.map(q => q.symbol).filter(sym => typeof sym === 'string' && !sym.includes('=') && !sym.includes('-'));
+        
+        // لو جاب قائمة صالحة نعتمدها، وإلا نرجع لقائمة أساسية قوية كاحتياط
+        if (symbols.length > 0) {
+            cachedMarketPool = Array.from(new Set(symbols)).slice(0, 30); // أخذ أول 30 سهم الأكثر نشاطاً لضمان السرعة والأمان
+        } else {
+            cachedMarketPool = ['AAPL', 'TSLA', 'NVDA', 'AMZN', 'MSFT', 'AMD', 'META', 'GOOGL', 'CETX', 'GSIT', 'PRFX', 'HURA', 'KULR', 'PPSI'];
+        }
+        
+        lastFetchTime = now;
+    } catch (e) {
+        if (cachedMarketPool.length === 0) {
+            cachedMarketPool = ['AAPL', 'TSLA', 'NVDA', 'AMZN', 'MSFT', 'AMD', 'CETX', 'GSIT', 'PRFX', 'HURA', 'KULR'];
+        }
+    }
+
+    return cachedMarketPool;
+}
 
 export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const symbol = searchParams.get('symbol');
-    const scanMode = searchParams.get('scan'); // وضع البحث التلقائي
+    const scanMode = searchParams.get('scan');
 
     const TELEGRAM_TOKEN = '8822034470:AAEbooViT3tdkkQqt2lx86GZBWipYUq0MgA';
     const CHAT_ID = '896028407';
 
-    // قائمة أسهم مقترحة للفحص التلقائي بالسوق
-    const marketPool = ['AAPL', 'TSLA', 'NVDA', 'AMZN', 'MSFT', 'RDGT', 'RIVN', 'VMAR', 'CETX', 'GSIT', 'PRFX', 'BYRN', 'ERNA', 'HURA', 'KULR', 'ANVS', 'PPSI', 'BJDX', 'MRAM', 'NOK', 'PLUG'];
-
     if (scanMode === 'true') {
         let matchedSymbols = [];
+        const marketPool = await getDynamicMarketPool();
+
         for (let sym of marketPool) {
             try {
                 const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=60d`);
@@ -27,16 +60,14 @@ export async function GET(request) {
                 const price = meta.regularMarketPrice;
                 const volume = meta.regularMarketVolume || 0;
 
-                if (quotes.length < 50) continue;
+                if (!quotes || quotes.length < 50) continue;
 
-                // المتوسطات الحسابية للترند والفوليوم
                 const ma20 = quotes.slice(-20).reduce((a, b) => a + b, 0) / 20;
-                const ma50 = quotes.slice(-50).reduce((a, b) => a + b, 0) / 50; // فلتر الترند العام
-                const avgVolume20 = volumes.slice(-20).reduce((a, b) => a + b, 0) / 20; // متوسط الفوليوم
+                const ma50 = quotes.slice(-50).reduce((a, b) => a + b, 0) / 50; 
+                const avgVolume20 = volumes.slice(-20).reduce((a, b) => a + b, 0) / 20; 
                 
                 const stdDev = Math.sqrt(quotes.slice(-20).map(x => Math.pow(x - ma20, 2)).reduce((a, b) => a + b) / 20);
 
-                // حساب الـ RSI
                 const rsiPeriod = 14;
                 let gains = 0, losses = 0;
                 for (let i = quotes.length - rsiPeriod; i < quotes.length; i++) {
@@ -47,10 +78,9 @@ export async function GET(request) {
                 const rs = (gains / rsiPeriod) / ((losses / rsiPeriod) === 0 ? 1 : (losses / rsiPeriod));
                 const rsi = 100 - (100 / (1 + rs));
 
-                // الشروط المطورة: سعر مناسب، تحت أو قرب الدعم، RSI منخفض، وفوق المتوسط 50 (ترند إيجابي)، وفوليوم أعلى من المتوسط بـ 1.5 مرة
-                const isTrendPositive = price >= ma50; // شرط الترند: السعر فوق متوسط 50
-                const isVolumeStrong = volume >= (avgVolume20 * 1.5); // شرط الفوليوم القوي
-                const isMatch = (price >= 1 && price <= 50 && price <= (ma20 - (stdDev * 0.3)) && rsi < 40 && isTrendPositive && isVolumeStrong);
+                const isTrendPositive = price >= ma50; 
+                const isVolumeStrong = volume >= (avgVolume20 * 1.5); 
+                const isMatch = (price >= 1 && price <= 100 && price <= (ma20 - (stdDev * 0.3)) && rsi < 40 && isTrendPositive && isVolumeStrong);
 
                 if (isMatch) {
                     matchedSymbols.push(sym);
@@ -94,10 +124,9 @@ export async function GET(request) {
         const rs = (gains / rsiPeriod) / ((losses / rsiPeriod) === 0 ? 1 : (losses / rsiPeriod));
         const rsi = 100 - (100 / (1 + rs));
 
-        // تطبيق الفلاتر المطورة المتقدمة
         const isTrendPositive = price >= ma50;
         const isVolumeStrong = volume >= (avgVolume20 * 1.5);
-        const isEntrySuitable = (price >= 1 && price <= 50 && price <= (ma20 - (stdDev * 0.3)) && rsi < 40 && isTrendPositive && isVolumeStrong);
+        const isEntrySuitable = (price >= 1 && price <= 100 && price <= (ma20 - (stdDev * 0.3)) && rsi < 40 && isTrendPositive && isVolumeStrong);
 
         const stopLoss = (price * 0.97).toFixed(2);
         const takeProfit1 = (price * 1.04).toFixed(2);
@@ -121,7 +150,7 @@ export async function GET(request) {
             if (now - lastAlertTime > cooldownTime) {
                 global.lastAlerts[cleanSymbol] = now; 
 
-                const message = `🎯 فرصة ارتداد كلاستر (عالي الدقة ومفلتر): ${cleanSymbol}\n` +
+                const message = `🎯 فرصة ارتداد كلاستر (ديناميكي ومفلتر): ${cleanSymbol}\n` +
                                 `💰 سعر الدخول: ${price.toFixed(2)}\n` +
                                 `📉 مؤشر RSI: ${rsi.toFixed(1)}\n` +
                                 `📈 الترند والفوليوم: مطابق للشروط بنجاح ✅\n` +
