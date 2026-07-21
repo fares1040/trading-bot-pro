@@ -88,12 +88,13 @@ export async function GET(request) {
                 const isVolumeStrong = volume >= (avgVolume20 * 1.5); 
                 const isMomentumValid = rsi < 45; 
                 
+                // تعديل إدارة المخاطر: توسيع الأهداف وخفض الحد الأدنى لـ R:R إلى 1.2
                 const stopLoss = price * 0.97;
-                const takeProfit1 = price * 1.04;
+                const takeProfit1 = price * 1.06; // الهدف الأول 6%
                 const risk = price - stopLoss;
                 const reward = takeProfit1 - price;
                 const riskRewardRatio = reward / (risk === 0 ? 1 : risk);
-                const isRiskRewardValid = riskRewardRatio >= 1.5;
+                const isRiskRewardValid = riskRewardRatio >= 1.2;
 
                 const isMatch = (price >= 1 && price <= 100 && price <= (ma20 - (stdDev * 0.3)) && isMomentumValid && isTrendPositive && isVolumeStrong && isRiskRewardValid);
 
@@ -143,15 +144,16 @@ export async function GET(request) {
         const isVolumeStrong = volume >= (avgVolume20 * 1.5);
         const isMomentumValid = rsi < 45;
 
+        // الأهداف الواسعة الجديدة
         const stopLossVal = price * 0.97;
-        const takeProfit1Val = price * 1.04;
-        const takeProfit2Val = price * 1.08;
-        const takeProfit3Val = price * 1.12;
+        const takeProfit1Val = price * 1.06; // الهدف 1: 6%
+        const takeProfit2Val = price * 1.12; // الهدف 2: 12%
+        const takeProfit3Val = price * 1.18; // الهدف 3: 18%
 
         const risk = price - stopLossVal;
         const reward = takeProfit1Val - price;
         const riskRewardRatio = reward / (risk === 0 ? 1 : risk);
-        const isRiskRewardValid = riskRewardRatio >= 1.5;
+        const isRiskRewardValid = riskRewardRatio >= 1.2; // قبول العائد إذا كان 1.2 فأكثر
 
         const stopLoss = stopLossVal.toFixed(2);
         const takeProfit1 = takeProfit1Val.toFixed(2);
