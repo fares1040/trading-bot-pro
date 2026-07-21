@@ -4,49 +4,59 @@ global.lastAlerts = global.lastAlerts || {};
 let cachedMarketPool = [];
 let lastFetchTime = 0;
 
-async function getDynamicMarketPool() {
+async function getDynamicMarketPool(customList = []) {
     const now = Date.now();
-    // تحديث قائمة الأسهم النشطة كل 30 دقيقة لضمان عدم حدوث حظر (Rate Limit) وحماية السيرفر
+    let dynamicSymbols = [];
+
+    // جلب الأسهم النشطة كل 30 دقيقة لحماية السيرفر من الحظر
     if (cachedMarketPool.length > 0 && (now - lastFetchTime < 30 * 60 * 1000)) {
-        return cachedMarketPool;
-    }
-
-    try {
-        // جلب الأسهم الأكثر نشاطاً وحركة في السوق حالياً كمصدر أساسي للترند
-        const res = await fetch('https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=most_actives');
-        const data = await res.json();
-        const quotes = data?.finance?.result?.[0]?.quotes || [];
-        
-        let symbols = quotes.map(q => q.symbol).filter(sym => typeof sym === 'string' && !sym.includes('=') && !sym.includes('-'));
-        
-        // لو جاب قائمة صالحة نعتمدها، وإلا نرجع لقائمة أساسية قوية كاحتياط
-        if (symbols.length > 0) {
-            cachedMarketPool = Array.from(new Set(symbols)).slice(0, 30); // أخذ أول 30 سهم الأكثر نشاطاً لضمان السرعة والأمان
-        } else {
-            cachedMarketPool = ['AAPL', 'TSLA', 'NVDA', 'AMZN', 'MSFT', 'AMD', 'META', 'GOOGL', 'CETX', 'GSIT', 'PRFX', 'HURA', 'KULR', 'PPSI'];
-        }
-        
-        lastFetchTime = now;
-    } catch (e) {
-        if (cachedMarketPool.length === 0) {
-            cachedMarketPool = ['AAPL', 'TSLA', 'NVDA', 'AMZN', 'MSFT', 'AMD', 'CETX', 'GSIT', 'PRFX', 'HURA', 'KULR'];
+        dynamicSymbols = cachedMarketPool;
+    } else {
+        try {
+            const res = await fetch('https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=most_actives');
+            const data = await res.json();
+            const quotes = data?.finance?.result?.[0]?.quotes || [];
+            
+            let symbols = quotes.map(q => q.symbol).filter(sym => typeof sym === 'string' && !sym.includes('=') && !sym.includes('-'));
+            
+            if (symbols.length > 0) {
+                cachedMarketPool = Array.from(new Set(symbols)).slice(0, 30);
+            } else {
+                cachedMarketPool = ['AAPL', 'TSLA', 'NVDA', 'AMZN', 'MSFT', 'AMD', 'CETX', 'GSIT', 'PRFX', 'HURA', 'KULR'];
+            }
+            
+            lastFetchTime = now;
+            dynamicSymbols = cachedMarketPool;
+        } catch (e) {
+            dynamicSymbols = cachedMarketPool.length > 0 ? cachedMarketPool : ['AAPL', 'TSLA', 'NVDA', 'AMZN', 'MSFT', 'CETX', 'GSIT', 'PRFX'];
         }
     }
 
-    return cachedMarketPool;
+    // دمج أسهم قائمة المتابعة الخاصة بك مع أسهم الترند النشطة، وإزالة التكرار
+    const combinedPool = Array.from(new Set([...customList, ...dynamicSymbols]));
+    return combinedPool;
 }
 
 export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const symbol = searchParams.get('symbol');
     const scanMode = searchParams.get('scan');
+    const customSymbolsParam = searchParams.get('symbols'); // استقبال قائمة المتابعة من الواجهة إن وجدت
 
     const TELEGRAM_TOKEN = '8822034470:AAEbooViT3tdkkQqt2lx86GZBWipYUq0MgA';
     const CHAT_ID = '896028407';
 
     if (scanMode === 'true') {
         let matchedSymbols = [];
-        const marketPool = await getDynamicMarketPool();
+        
+        // استخراج قائمة المتابعة المرسلة من الواجهة (لو تم ارسالها) وتحويلها لمصفوفة
+        let userWatchlist = [];
+        if (customSymbolsParam) {
+            userWatchlist = customSymbolsParam.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+        }
+
+        // دمج القائمتين معاً (قائمتك + الأسهم النشطة بالسوق)
+        const marketPool = await getDynamicMarketPool(userWatchlist);
 
         for (let sym of marketPool) {
             try {
@@ -150,7 +160,7 @@ export async function GET(request) {
             if (now - lastAlertTime > cooldownTime) {
                 global.lastAlerts[cleanSymbol] = now; 
 
-                const message = `🎯 فرصة ارتداد كلاستر (ديناميكي ومفلتر): ${cleanSymbol}\n` +
+                const message = `🎯 فرصة ارتداد كلاستر (مدمج ومفلتر): ${cleanSymbol}\n` +
                                 `💰 سعر الدخول: ${price.toFixed(2)}\n` +
                                 `📉 مؤشر RSI: ${rsi.toFixed(1)}\n` +
                                 `📈 الترند والفوليوم: مطابق للشروط بنجاح ✅\n` +
