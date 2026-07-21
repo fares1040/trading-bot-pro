@@ -127,8 +127,18 @@ export default function Home() {
                     {data.analysis || data.error}
                   </pre>
                   {data.isSuitable && (
-                    <div style={{ marginTop: '10px', background: '#14532d', color: '#4ade80', padding: '5px', textAlign: 'center', borderRadius: '5px', fontSize: '13px', fontWeight: 'bold' }}>
-                      طابق شروط الكلاستر وأُرسل للتيليجرام ✅
+                    <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ background: '#14532d', color: '#4ade80', padding: '6px', textAlign: 'center', borderRadius: '5px', fontSize: '13px', fontWeight: 'bold' }}>
+                        طابق شروط الكلاستر وأُرسل للتيليجرام ✅
+                      </div>
+                      <a 
+                        href={`https://www.tradingview.com/chart/?symbol=${sym}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ display: 'block', background: '#0284c7', color: '#fff', padding: '8px', textAlign: 'center', borderRadius: '5px', fontSize: '13px', textDecoration: 'none', fontWeight: 'bold' }}
+                      >
+                        📈 فتح الشارت على TradingView
+                      </a>
                     </div>
                   )}
                 </div>
