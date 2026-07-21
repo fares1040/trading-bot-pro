@@ -10,24 +10,30 @@ export async function GET(request) {
     const TELEGRAM_TOKEN = '8822034470:AAEbooViT3tdkkQqt2lx86GZBWipYUq0MgA';
     const CHAT_ID = '896028407';
 
-    // قائمة أسهم مقترحة للفحص التلقائي بالسوق (تستطيع توسيعها قدر ما تشاء)
+    // قائمة أسهم مقترحة للفحص التلقائي بالسوق
     const marketPool = ['AAPL', 'TSLA', 'NVDA', 'AMZN', 'MSFT', 'RDGT', 'RIVN', 'VMAR', 'CETX', 'GSIT', 'PRFX', 'BYRN', 'ERNA', 'HURA', 'KULR', 'ANVS', 'PPSI', 'BJDX', 'MRAM', 'NOK', 'PLUG'];
 
     if (scanMode === 'true') {
         let matchedSymbols = [];
         for (let sym of marketPool) {
             try {
-                const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=30d`);
+                const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=60d`);
                 const data = await res.json();
                 if (!data.chart || !data.chart.result) continue;
 
                 const meta = data.chart.result[0].meta;
                 const quotes = data.chart.result[0].indicators.quote[0].close;
+                const volumes = data.chart.result[0].indicators.quote[0].volume;
                 const price = meta.regularMarketPrice;
-                const prevClose = meta.chartPreviousClose;
                 const volume = meta.regularMarketVolume || 0;
 
+                if (quotes.length < 50) continue;
+
+                // المتوسطات الحسابية للترند والفوليوم
                 const ma20 = quotes.slice(-20).reduce((a, b) => a + b, 0) / 20;
+                const ma50 = quotes.slice(-50).reduce((a, b) => a + b, 0) / 50; // فلتر الترند العام
+                const avgVolume20 = volumes.slice(-20).reduce((a, b) => a + b, 0) / 20; // متوسط الفوليوم
+                
                 const stdDev = Math.sqrt(quotes.slice(-20).map(x => Math.pow(x - ma20, 2)).reduce((a, b) => a + b) / 20);
 
                 // حساب الـ RSI
@@ -41,8 +47,10 @@ export async function GET(request) {
                 const rs = (gains / rsiPeriod) / ((losses / rsiPeriod) === 0 ? 1 : (losses / rsiPeriod));
                 const rsi = 100 - (100 / (1 + rs));
 
-                // تطبيق شروط الكلاستر الخاصة بك بدقة
-                const isMatch = (price >= 1 && price <= 50 && price <= (ma20 - (stdDev * 0.3)) && rsi < 40 && volume > 100000);
+                // الشروط المطورة: سعر مناسب، تحت أو قرب الدعم، RSI منخفض، وفوق المتوسط 50 (ترند إيجابي)، وفوليوم أعلى من المتوسط بـ 1.5 مرة
+                const isTrendPositive = price >= ma50; // شرط الترند: السعر فوق متوسط 50
+                const isVolumeStrong = volume >= (avgVolume20 * 1.5); // شرط الفوليوم القوي
+                const isMatch = (price >= 1 && price <= 50 && price <= (ma20 - (stdDev * 0.3)) && rsi < 40 && isTrendPositive && isVolumeStrong);
 
                 if (isMatch) {
                     matchedSymbols.push(sym);
@@ -56,7 +64,7 @@ export async function GET(request) {
     const cleanSymbol = symbol.toUpperCase().trim();
 
     try {
-        const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${cleanSymbol}?interval=1d&range=30d`);
+        const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${cleanSymbol}?interval=1d&range=60d`);
         const data = await res.json();
         
         if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
@@ -65,11 +73,14 @@ export async function GET(request) {
 
         const meta = data.chart.result[0].meta;
         const quotes = data.chart.result[0].indicators.quote[0].close;
+        const volumes = data.chart.result[0].indicators.quote[0].volume;
         const price = meta.regularMarketPrice;
-        const prevClose = meta.chartPreviousClose;
         const volume = meta.regularMarketVolume || 0;
 
         const ma20 = quotes.slice(-20).reduce((a, b) => a + b, 0) / 20;
+        const ma50 = quotes.slice(-50).reduce((a, b) => a + b, 0) / 50;
+        const avgVolume20 = volumes.slice(-20).reduce((a, b) => a + b, 0) / 20;
+        
         const stdDev = Math.sqrt(quotes.slice(-20).map(x => Math.pow(x - ma20, 2)).reduce((a, b) => a + b) / 20);
         const lowerBand = ma20 - (2 * stdDev);
 
@@ -83,7 +94,10 @@ export async function GET(request) {
         const rs = (gains / rsiPeriod) / ((losses / rsiPeriod) === 0 ? 1 : (losses / rsiPeriod));
         const rsi = 100 - (100 / (1 + rs));
 
-        const isEntrySuitable = (price >= 1 && price <= 50 && price <= (ma20 - (stdDev * 0.3)) && rsi < 40 && volume > 100000);
+        // تطبيق الفلاتر المطورة المتقدمة
+        const isTrendPositive = price >= ma50;
+        const isVolumeStrong = volume >= (avgVolume20 * 1.5);
+        const isEntrySuitable = (price >= 1 && price <= 50 && price <= (ma20 - (stdDev * 0.3)) && rsi < 40 && isTrendPositive && isVolumeStrong);
 
         const stopLoss = (price * 0.97).toFixed(2);
         const takeProfit1 = (price * 1.04).toFixed(2);
@@ -92,6 +106,8 @@ export async function GET(request) {
 
         const analysisText = `تحليل سهم ${cleanSymbol} (نموذج الارتداد):
 السعر: ${price.toFixed(2)} | RSI: ${rsi.toFixed(1)} | الفوليوم: ${(volume/1000).toFixed(1)}K
+الترند (MA50): ${isTrendPositive ? "إيجابي صاعد ✅" : "تحت المتوسط ⚠️"}
+الفوليوم: ${isVolumeStrong ? "عالي وقوي 🚀" : "متوسط/ضعيف ⚠️"}
 منطقة الكلاستر: ${price <= lowerBand ? "عند الدعم السفلي ✅" : "قريب من الدعم ⚠️"}
 وقف الخسارة: ${stopLoss} (يُرفع لنقطة الدخول بعد الهدف 1)
 الهدف 1: ${takeProfit1} | الهدف 2: ${takeProfit2} | الهدف 3: ${takeProfit3}
@@ -105,9 +121,10 @@ export async function GET(request) {
             if (now - lastAlertTime > cooldownTime) {
                 global.lastAlerts[cleanSymbol] = now; 
 
-                const message = `🎯 فرصة ارتداد كلاستر (عالي الدقة): ${cleanSymbol}\n` +
+                const message = `🎯 فرصة ارتداد كلاستر (عالي الدقة ومفلتر): ${cleanSymbol}\n` +
                                 `💰 سعر الدخول: ${price.toFixed(2)}\n` +
                                 `📉 مؤشر RSI: ${rsi.toFixed(1)}\n` +
+                                `📈 الترند والفوليوم: مطابق للشروط بنجاح ✅\n` +
                                 `🛑 وقف الخسارة الأولي: ${stopLoss}\n` +
                                 `🛡️ قاعدة الحماية: يُرفع الوقف لسعر الدخول فور بلوغ الهدف 1\n` +
                                 `🎯 الهدف الأول: ${takeProfit1}\n` +
