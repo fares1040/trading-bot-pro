@@ -37,7 +37,6 @@ export default function Home() {
   const [filterOnlySuitable, setFilterOnlySuitable] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [timer, setTimer] = useState(300);
-  const [capitalInputs, setCapitalInputs] = useState({});
 
   const [missionHistory, setMissionHistory] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -191,7 +190,6 @@ export default function Home() {
     if (firstMatchedSym) playRadarSound(firstMatchedSym, firstAnalysis);
   };
 
-  // رادار الصيد للاستثمار (4 ساعات)
   const scanMarketForCluster = async () => {
     setScanning(true);
     try {
@@ -212,7 +210,6 @@ export default function Home() {
     setScanning(false);
   };
 
-  // رادار الصيد للسكالبينج (ترندات لحظية)
   const scanMarketForScalp = async () => {
     setScanning(true);
     try {
@@ -294,48 +291,115 @@ export default function Home() {
     <main style={{ padding: '25px', direction: 'rtl', fontFamily: 'Tahoma, sans-serif', background: '#030712', color: '#f8fafc', minHeight: '100vh', position: 'relative' }}>
       <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
         
-        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-          <h1 style={{ color: activeTab === 'cluster' ? '#38bdf8' : '#c084fc', fontSize: '32px', fontWeight: '900', margin: '0 0 8px 0' }}>
-            {activeTab === 'cluster' ? '🎯 نظام السنايبر العسكري (الكلاستر - 4 ساعات)' : '⚡ رادار موجات الترند اللحظي (السكالبينج)'}
+        {/* العنوان الرئيسي */}
+        <div style={{ textAlign: 'center', marginBottom: '15px' }}>
+          <h1 style={{ color: '#38bdf8', fontSize: '26px', fontWeight: '900', margin: '0 0 5px 0' }}>
+            🎯 نظام السنايبر العسكري الذكي
           </h1>
-          <p style={{ color: '#94a3b8', fontSize: '14px', margin: 0 }}>
-            {activeTab === 'cluster' ? 'منصة الاستثمار والارتداد على فريم 4 ساعات' : 'منصة المضاربة السريعة واقتناص الفوليوم اللحظي'}
+          <p style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>
+            منصة القيادة والتحكم الآلي لتحليل وفحص الأسهم (استثماري ولحظي)
           </p>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '20px' }}>
+        {/* التبديل بين الأقسام */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '15px', flexWrap: 'wrap' }}>
           <button 
             onClick={() => { setActiveTab('cluster'); setFilterOnlySuitable(false); }}
-            style={{ padding: '12px 25px', background: activeTab === 'cluster' ? '#0284c7' : '#0f172a', color: '#fff', border: '1px solid #38bdf8', borderRadius: '10px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer' }}
+            style={{ padding: '10px 22px', background: activeTab === 'cluster' ? '#0284c7' : '#0f172a', color: '#fff', border: '1px solid #38bdf8', borderRadius: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
           >
-            🛡️ نظام الكلاستر والاستثمار [{symbols.length} سهم]
+            📊 نظام الكلاستر والاستثمار (4 ساعات) [{symbols.length} سهم]
           </button>
           <button 
             onClick={() => { setActiveTab('scalp'); setFilterOnlySuitable(false); }}
-            style={{ padding: '12px 25px', background: activeTab === 'scalp' ? '#9333ea' : '#0f172a', color: '#fff', border: '1px solid #c084fc', borderRadius: '10px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer' }}
+            style={{ padding: '10px 22px', background: activeTab === 'scalp' ? '#9333ea' : '#0f172a', color: '#fff', border: '1px solid #c084fc', borderRadius: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
           >
-            ⚡ رادار موجات الترند اللحظي [{scalpSymbols.length} سهم]
+            ⚡ رادار موجات الترند اللحظي (سكالبينج) [{scalpSymbols.length} سهم]
           </button>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '20px', flexWrap: 'wrap' }}>
-          <form onSubmit={addSymbol} style={{ display: 'flex', gap: '10px' }}>
+        {/* شريط الأزرار العلوية المساعدة */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0f172a', padding: '12px 18px', borderRadius: '12px', border: '1px solid #1e293b', marginBottom: '15px', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <button onClick={() => setShowHistoryModal(true)} style={{ background: '#0284c7', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
+              ⚙️ سجل العمليات الحربية ({missionHistory.length})
+            </button>
+            <button onClick={() => setShowWebhookSettings(!showWebhookSettings)} style={{ background: '#0369a1', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
+              🔗 إعدادات البث (Webhook)
+            </button>
+          </div>
+          <div style={{ fontSize: '12px', color: '#94a3b8' }}>
+            🌍 مؤشر نبض الخوف والسيولة العالمي: هدوء استباقي ومراقبة مناطق الكلاستر
+          </div>
+        </div>
+
+        {showWebhookSettings && (
+          <div style={{ background: '#0f172a', padding: '15px', borderRadius: '10px', border: '1px solid #38bdf8', marginBottom: '15px', display: 'flex', gap: '10px', alignItems: 'center' }}>
             <input 
               type="text" 
-              placeholder={activeTab === 'cluster' ? "أدخل سهم للاستثمار" : "أدخل سهم للسكالبينج"}
+              placeholder="أدخل رابط Discord Webhook URL هنا..." 
+              value={webhookUrl}
+              onChange={(e) => setWebhookUrl(e.target.value)}
+              style={{ flex: 1, padding: '8px 12px', background: '#030712', border: '1px solid #475569', borderRadius: '6px', color: '#fff', fontSize: '13px' }}
+            />
+            <button onClick={() => alert('تم حفظ رابط الويب هوك بنجاح!')} style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>حفظ</button>
+          </div>
+        )}
+
+        {/* شريط حالة الرادار والتبريد */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0f172a', padding: '12px 18px', borderRadius: '12px', border: '1px solid #1e293b', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px' }}>
+            <span style={{ color: '#22c55e', fontWeight: 'bold' }}>🟢 حالة الرادار ({activeTab === 'cluster' ? 'استثمار' : 'لحظي'}):</span>
+            <span style={{ background: '#1e293b', padding: '4px 10px', borderRadius: '6px', color: '#cbd5e1' }}>📊 رادار بانتظار رصد السيولة</span>
+            <span style={{ color: '#f59e0b', fontWeight: 'bold' }}>({suitableCount} هدف جاهز)</span>
+          </div>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <button onClick={() => setFilterOnlySuitable(!filterOnlySuitable)} style={{ background: filterOnlySuitable ? '#16a34a' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '7px 14px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}>
+              {filterOnlySuitable ? '✅ عرض المطابقة فقط' : '📊 عرض كافة القائمة'}
+            </button>
+            <button onClick={() => setAutoRefresh(!autoRefresh)} style={{ background: autoRefresh ? '#7c3aed' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '7px 14px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}>
+              {autoRefresh ? `⚡ الرادار يعمل (${Math.floor(timer/60)}:${timer%60 < 10 ? '0':''}${timer%60})` : '⚡ تشغيل الرادار التلقائي'}
+            </button>
+          </div>
+        </div>
+
+        {/* لوحات المؤشرات والعدادات (نفس التصميم القديم) */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px', marginBottom: '20px' }}>
+          <div style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #1e293b', textAlign: 'center' }}>
+            <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '5px' }}>نسبة الكفاءة والقبول الحالية</div>
+            <div style={{ fontSize: '22px', fontWeight: '900', color: '#38bdf8' }}>{successRate}%</div>
+          </div>
+          <div style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #065f46', textAlign: 'center' }}>
+            <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '5px' }}>الفرص الذهبية المطابقة ✅</div>
+            <div style={{ fontSize: '22px', fontWeight: '900', color: '#4ade80' }}>{suitableCount} فرص</div>
+          </div>
+          <div style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #1e293b', textAlign: 'center' }}>
+            <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '5px' }}>الأسهم التي تم فحصها</div>
+            <div style={{ fontSize: '22px', fontWeight: '900', color: '#facc15' }}>{totalAnalyzed} / {currentList.length}</div>
+          </div>
+          <div style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #1e293b', textAlign: 'center' }}>
+            <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '5px' }}>إجمالي الأسهم تحت المراقبة</div>
+            <div style={{ fontSize: '22px', fontWeight: '900', color: '#c084fc' }}>{currentList.length} سهم</div>
+          </div>
+        </div>
+
+        {/* أزرار الإدخال، رادار الصيد، والنسخ */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '25px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <form onSubmit={addSymbol} style={{ display: 'flex', gap: '8px' }}>
+            <input 
+              type="text" 
+              placeholder={activeTab === 'cluster' ? "أدخل رمز السهم الجديد (مثال: VMAR)" : "أدخل سهم للسكالبينج"}
               value={newSymbol}
               onChange={(e) => setNewSymbol(e.target.value)}
-              style={{ padding: '11px 16px', borderRadius: '8px', border: '1px solid #475569', background: '#0f172a', color: '#fff', outline: 'none', fontSize: '14px' }}
+              style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #475569', background: '#0f172a', color: '#fff', outline: 'none', fontSize: '13px', width: '220px' }}
             />
-            <button type="submit" style={{ padding: '11px 20px', background: activeTab === 'cluster' ? '#0284c7' : '#9333ea', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}>إضافة للقائمة</button>
+            <button type="submit" style={{ padding: '10px 18px', background: activeTab === 'cluster' ? '#0284c7' : '#9333ea', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>إضافة للقائمة</button>
           </form>
 
-          {/* زر صيد الأسهم المتوافقة يظهر الآن في القائمتين بشكل مستقل */}
           {activeTab === 'cluster' ? (
             <button 
               onClick={scanMarketForCluster} 
               disabled={scanning}
-              style={{ padding: '11px 24px', background: scanning ? '#475569' : '#059669', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}
+              style={{ padding: '10px 20px', background: scanning ? '#475569' : '#059669', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}
             >
               {scanning ? '🔄 جاري المسح...' : '🎯 رادار صيد الكلاستر والاستثمار'}
             </button>
@@ -343,7 +407,7 @@ export default function Home() {
             <button 
               onClick={scanMarketForScalp} 
               disabled={scanning}
-              style={{ padding: '11px 24px', background: scanning ? '#475569' : '#9333ea', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}
+              style={{ padding: '10px 20px', background: scanning ? '#475569' : '#9333ea', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}
             >
               {scanning ? '🔄 جاري المسح...' : '⚡ رادار صيد ترندات السكالبينج'}
             </button>
@@ -351,22 +415,24 @@ export default function Home() {
 
           <button 
             onClick={copyAllIntelBriefing}
-            style={{ padding: '11px 24px', background: '#0369a1', color: '#fff', border: '1px solid #38bdf8', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}
+            style={{ padding: '10px 20px', background: '#0369a1', color: '#fff', border: '1px solid #38bdf8', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}
           >
-            📑 نسخ التقرير الشامل
+            📑 نسخ تقرير العمليات الشامل
           </button>
         </div>
 
+        {/* زر الفحص الرئيسي */}
         <div style={{ textAlign: 'center', marginBottom: '35px' }}>
           <button 
             onClick={activeTab === 'cluster' ? runAnalysis : runScalpAnalysis} 
             disabled={isCurrentLoading}
-            style={{ padding: '14px 40px', background: isCurrentLoading ? '#475569' : (activeTab === 'cluster' ? '#16a34a' : '#9333ea'), color: '#fff', border: 'none', borderRadius: '10px', fontSize: '16px', cursor: 'pointer', fontWeight: '900' }}
+            style={{ padding: '14px 45px', background: isCurrentLoading ? '#475569' : (activeTab === 'cluster' ? '#16a34a' : '#9333ea'), color: '#fff', border: 'none', borderRadius: '12px', fontSize: '16px', cursor: 'pointer', fontWeight: '900', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
           >
-            {isCurrentLoading ? '⚡ جاري المعالجة...' : (activeTab === 'cluster' ? '🚀 بدء الفحص الشامل للاستثمار (4 ساعات)' : '⚡ بدء الفحص السريع لموجات الترند (سكالبينج)')}
+            {isCurrentLoading ? '⚡ جاري المعالجة والتحليل...' : (activeTab === 'cluster' ? '🚀 بدء الفحص الشامل للاستثمار (4 ساعات)' : '⚡ بدء الفحص السريع لموجات الترند (سكالبينج)')}
           </button>
         </div>
 
+        {/* شبكة عرض الأسهم */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '22px' }}>
           {displayedSymbols.map((sym) => {
             const data = currentRes[sym];
@@ -431,6 +497,33 @@ export default function Home() {
             );
           })}
         </div>
+
+        {/* نافذة سجل العمليات الحربية */}
+        {showHistoryModal && (
+          <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+            <div style={{ background: '#0f172a', padding: '25px', borderRadius: '16px', border: '1px solid #38bdf8', width: '90%', maxWidth: '600px', maxHeight: '80vh', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid #1e293b', paddingBottom: '10px' }}>
+                <h3 style={{ margin: 0, color: '#38bdf8', fontSize: '18px' }}>📜 سجل العمليات الحربية</h3>
+                <button onClick={() => setShowHistoryModal(false)} style={{ background: '#7f1d1d', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>إغلاق</button>
+              </div>
+              {missionHistory.length === 0 ? (
+                <p style={{ color: '#94a3b8', textAlign: 'center', padding: '20px' }}>لا توجد عمليات مسجلة حتى الآن.</p>
+              ) : (
+                missionHistory.map((item) => (
+                  <div key={item.id} style={{ background: '#030712', padding: '12px', borderRadius: '8px', border: '1px solid #1e293b', marginBottom: '10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#facc15', fontSize: '13px', fontWeight: 'bold', marginBottom: '5px' }}>
+                      <span>🎯 الهدف: {item.symbol}</span>
+                      <span style={{ color: '#94a3b8', fontSize: '11px' }}>{item.time}</span>
+                    </div>
+                    <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '11.5px', color: '#cbd5e1', margin: 0 }}>
+                      {item.details}
+                    </pre>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
 
       </div>
     </main>
