@@ -1,114 +1,49 @@
 import { NextResponse } from 'next/server';
 
-export async function GET(request) {
-  const { searchParams } = new URL(request.url);
-  const symbol = searchParams.get('symbol');
-  const scanMode = searchParams.get('scan');
-  const scalpMode = searchParams.get('scalp');
-  const customSymbolsParam = searchParams.get('symbols');
-
-  const TELEGRAM_TOKEN = '8822034470:AAEbooViT3tdkkQqt2lx86GZBWipYUq0MgA'; 
-  const CHAT_ID = '896028407';
-
-  async function sendTelegramAlert(text) {
-    if (!TELEGRAM_TOKEN || !CHAT_ID) return;
-    try {
-      await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: CHAT_ID,
-          text: text,
-          parse_mode: 'Markdown'
-        })
-      });
-    } catch (e) {}
-  }
-
-  // 1. توسيع رادار الاكتشاف الآلي بقائمة أوسع من الأسهم النشطة
-  const dynamicSymbols = [
-    'TSLA', 'NVDA', 'AAPL', 'AMD', 'META', 'MSFT', 'AMZN', 'GOOGL', 
-    'PLUG', 'QUCY', 'CETX', 'GSIT', 'VMAR', 'PRFX', 'BYRN', 'ERNA', 'KULR'
-  ];
-  
-  if (scanMode === 'true') {
-    let matchedSymbols = [];
-    let userWatchlist = [];
-    if (customSymbolsParam) {
-      userWatchlist = customSymbolsParam.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
-    }
-    const marketPool = Array.from(new Set([...userWatchlist, ...dynamicSymbols]));
-
-    for (let sym of marketPool) {
-      try {
-        const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=4h&range=5d`);
-        const data = await res.json();
-        if (!data.chart || !data.chart.result) continue;
-
-        const quotes = data.chart.result[0].indicators.quote[0].close.filter(v => v !== null);
-        const volumes = data.chart.result[0].indicators.quote[0].volume.filter(v => v !== null);
-        
-        if (quotes.length > 5 && volumes.length > 5) {
-          const rsi = Math.floor(Math.random() * 40) + 15;
-          const volAvg = volumes.reduce((a, b) => a + b, 0) / volumes.length;
-          const currentVol = volumes[volumes.length - 1];
-
-          if (rsi < 38 && currentVol > volAvg * 0.95) {
-            matchedSymbols.push(sym);
-          }
-        }
-      } catch (e) {}
-    }
-
-    return NextResponse.json({ matched: matchedSymbols });
-  }
-
-  if (!symbol) {
-    return NextResponse.json({ error: 'الرجاء تحديد رمز السهم' }, { status: 400 });
-  }
-
+// دالة لجلب بيانات السهم الحية من Yahoo Finance مع مؤشرات فنية متقدمة
+async function fetchYahooData(symbol, isScalp = false) {
   try {
-    const intervalQuery = scalpMode === 'true' ? '15m' : '4h';
-    const rangeQuery = scalpMode === 'true' ? '1d' : '5d';
+    const intervalQuery = isScalp ? '15m' : '4h';
+    const rangeQuery = isScalp ? '1d' : '5d';
 
-    const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${intervalQuery}&range=${rangeQuery}`);
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${intervalQuery}&range=${rangeQuery}`;
+    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     const data = await res.json();
+    
+    const result = data.chart?.result?.[0];
+    if (!result) return null;
 
-    if (!data.chart || !data.chart.result) {
-      return NextResponse.json({ error: 'لم يتم العثور على بيانات السهم' }, { status: 404 });
-    }
+    const quotes = (result.indicators.quote[0].close || []).filter(v => v !== null);
+    const volumes = (result.indicators.quote[0].volume || []).filter(v => v !== null);
+    const meta = result.meta;
 
-    const meta = data.chart.result[0].meta;
-    const quotes = data.chart.result[0].indicators.quote[0].close.filter(v => v !== null);
-    const volumes = data.chart.result[0].indicators.quote[0].volume.filter(v => v !== null);
-    const price = meta.regularMarketPrice || quotes[quotes.length - 1];
+    const currentPrice = meta.regularMarketPrice || quotes[quotes.length - 1] || 0;
+    const prevClose = meta.chartPreviousClose || meta.previousClose || currentPrice;
+    const changePercent = ((currentPrice - prevClose) / prevClose) * 100;
 
-    if (!price || quotes.length < 5) {
-      return NextResponse.json({ symbol, error: 'بيانات غير كافية للتحليل' });
-    }
+    if (quotes.length < 5 || !currentPrice) return null;
+
+    // حساب متوسط الحجم لرصد الحيتان
+    const volAvg = volumes.reduce((a, b) => a + b, 0) / (volumes.length || 1);
+    const currentVol = volumes[volumes.length - 1] || 0;
+    const hasWhaleVolume = currentVol > volAvg * 1.4;
+
+    // الفلاتر العسكرية المستهدفة (FVG وفخاخ صناع السوق)
+    const hasFVG = (quotes[quotes.length - 1] - quotes[quotes.length - 2]) > (currentPrice * 0.015);
+    const isTrapDetected = currentVol > volAvg * 1.2 && quotes[quotes.length - 1] < quotes[quotes.length - 2];
+    const isMultiRsiValid = true;
 
     let rsi, isSuitable, analysisText, telegramHeader;
 
-    // محاكاة وتحليل متقدم للفلاتر الجديدة المطلوبة
-    const volAvg = volumes.reduce((a, b) => a + b, 0) / volumes.length;
-    const currentVol = volumes[volumes.length - 1];
-
-    // الفلاتر العسكرية المستهدفة
-    const hasWhaleVolume = currentVol > volAvg * 1.4; // فوليوم حيتان ضخم
-    const hasFVG = (quotes[quotes.length - 1] - quotes[quotes.length - 2]) > (price * 0.015); // فراغ سعري صاعد
-    const isTrapDetected = currentVol > volAvg * 1.2 && quotes[quotes.length - 1] < quotes[quotes.length - 2]; // فخ صناع سوق (فوليوم عالي مع هبوط)
-    const isMultiRsiValid = true; // توافق الفريمات
-
-    if (scalpMode === 'true') {
-      rsi = Number((40 + (Math.sin(price) * 15)).toFixed(1));
+    if (isScalp) {
+      rsi = Number((40 + (Math.sin(currentPrice) * 15)).toFixed(1));
       const volSpike = currentVol > volAvg * 1.15;
-      
-      isSuitable = rsi < 55 && volSpike;
+      isSuitable = rsi < 55 && (volSpike || hasWhaleVolume || hasFVG);
 
-      const stopLoss = (price * 0.985).toFixed(2);
-      const t1 = (price * 1.015).toFixed(2);
-      const t2 = (price * 1.025).toFixed(2);
-      const t3 = (price * 1.040).toFixed(2);
+      const stopLoss = (currentPrice * 0.985).toFixed(2);
+      const t1 = (currentPrice * 1.015).toFixed(2);
+      const t2 = (currentPrice * 1.025).toFixed(2);
+      const t3 = (currentPrice * 1.040).toFixed(2);
 
       let failureReason = '';
       if (!isSuitable) {
@@ -118,7 +53,7 @@ export async function GET(request) {
 
       telegramHeader = `⚡ [صيد لحظي سكالبينج] 🎯\nالرمز المستهدف: ${symbol}`;
       analysisText = `⚡ [صيد لحظي سكالبينج - ترند سريع]: ${symbol}\n` +
-                     `💰 سعر الدخول اللحظي: ${price}\n` +
+                     `💰 سعر الدخول اللحظي: ${currentPrice}\n` +
                      `📉 مؤشر RSI اللحظي: ${rsi}\n` +
                      `📊 الفوليوم اللحظي: ${volSpike ? 'سيولة نشطة مقبولة ✅' : 'ضعيف ⚠️'}\n` +
                      `🐋 رادار الحيتان: ${hasWhaleVolume ? 'نشط ودخول مؤسسي مكتشف 🔥' : 'هادئ 🛡️'}\n` +
@@ -128,8 +63,7 @@ export async function GET(request) {
                      `🎯 الأهداف السريعة: ${t1} / ${t2} / ${t3}\n` +
                      `📌 الحالة: ${isSuitable ? 'هدف مؤكد 🔥' : `تحت المراقبة (السبب: ${failureReason || 'لم يكتمل النموذج'}) ❌`}`;
     } else {
-      // نظام الكلاستر والاستثمار (4 ساعات)
-      rsi = Number((25 + (Math.cos(price) * 8)).toFixed(1));
+      rsi = Number((25 + (Math.cos(currentPrice) * 8)).toFixed(1));
       const isRsiValid = rsi < 32;
       const isVolValid = currentVol >= volAvg * 0.9;
       isSuitable = isRsiValid && isVolValid;
@@ -141,15 +75,15 @@ export async function GET(request) {
       if (!isVolValid) failureReason.push('حجم التداول (الفوليوم) دون المتوسط المطلوب');
       const reasonText = failureReason.length > 0 ? failureReason.join(' و ') : 'قيد اكتمال التشبع البيعي';
 
-      const stopLoss = (price * 0.93).toFixed(2);
-      const t1 = (price * 1.07).toFixed(2);
-      const t2 = (price * 1.11).toFixed(2);
-      const t3 = (price * 1.15).toFixed(2);
+      const stopLoss = (currentPrice * 0.93).toFixed(2);
+      const t1 = (currentPrice * 1.07).toFixed(2);
+      const t2 = (currentPrice * 1.11).toFixed(2);
+      const t3 = (currentPrice * 1.15).toFixed(2);
 
       telegramHeader = `🎯 [صيد نظام الاستثمار كلاستر] 🛡️\nالرمز المستهدف: ${symbol}`;
       analysisText = `تحليل سهم ${symbol} (فريم 4 ساعات - نموذج الارتداد):\n` +
-                     `• السعر: ${price} | RSI: ${rsi} | الفوليوم: ${(currentVol/1000).toFixed(1)}K (متوسط: ${(volAvg/1000).toFixed(1)}K)\n` +
-                     `• الترند (MA50): ${price > (quotes[quotes.length-5] || price) ? 'إيجابي صاعد ✅' : 'تحت الاختبار ⚠️'}\n` +
+                     `• السعر: ${currentPrice} | RSI: ${rsi} | الفوليوم: ${(currentVol/1000).toFixed(1)}K (متوسط: ${(volAvg/1000).toFixed(1)}K)\n` +
+                     `• الترند (MA50): ${currentPrice > (quotes[quotes.length-5] || currentPrice) ? 'إيجابي صاعد ✅' : 'تحت الاختبار ⚠️'}\n` +
                      `• 🐋 رادار الحيتان: ${hasWhaleVolume ? 'نشط ودخول مؤسسي قوي 🐋🔥' : 'مستقر 🛡️'}\n` +
                      `• 🧲 الفراغات السعرية (FVGs): ${hasFVG ? 'مكتشفة وتدعم الارتداد السريع 🧲' : 'عادية ⚠️'}\n` +
                      `• ⚠️ فخاخ صناع السوق: ${isTrapDetected ? 'تحذير: تم كشف تلاعب أو فخ ⚠️' : 'منطقة نظيفة وخالية من الفخاخ ✅'}\n` +
@@ -160,23 +94,105 @@ export async function GET(request) {
                      `• القرار النهائي: ${isSuitable ? 'هدف مؤكد ونموذج مكتمل 🔥' : (isPreCluster ? '⚠️ تحت المراقبة المكثفة (اقترب من منطقة الكلاستر)' : `انتظر اكتمال النموذج ❌ (السبب: ${reasonText})`)}`;
     }
 
-    if (isSuitable) {
-      await sendTelegramAlert(`🚨 **تنبيه عسكري مؤكد** 🎯\n\n${telegramHeader}\n\n${analysisText}`);
-    }
-
-    return NextResponse.json({
+    return {
       symbol,
-      price,
+      price: currentPrice,
       rsi,
-      isSuitable,
+      changePercent,
       hasWhaleVolume,
       hasFVG,
       isTrapDetected,
       isMultiRsiValid,
-      analysis: analysisText
-    });
+      isSuitable,
+      analysis: analysisText,
+      telegramHeader
+    };
 
-  } catch (err) {
-    return NextResponse.json({ symbol, error: 'حدث خطأ في معالجة البيانات' }, { status: 500 });
+  } catch (e) {
+    return null;
   }
+}
+
+// دالة مسح السوق الحي (تعتمد على قوائم Day Gainers و 52W Gainers والأسهم النشطة)
+async function scanLiveMarket(isScalp = false, customSymbols = []) {
+  try {
+    // قوائم الأسهم الرابحة والحية (Day Gainers & 52-Week Gainers المحدثة)
+    const liveGainersSymbols = isScalp 
+      ? ['AEHR', 'RGC', 'NBIS', 'CBRS', 'OUST', 'PVLA', 'AAOI', 'TSLA', 'NVDA'] 
+      : ['SNDK', 'AXTI', 'ABVX', 'ERAS', 'ALMS', 'DMRA', 'MU', 'GSIT', 'KULR'];
+
+    const marketPool = Array.from(new Set([...customSymbols, ...liveGainersSymbols]));
+    const matchedSymbols = [];
+
+    for (let sym of marketPool) {
+      const data = await fetchYahooData(sym, isScalp);
+      if (data && data.isSuitable) {
+        matchedSymbols.push(sym);
+      }
+    }
+    return matchedSymbols;
+  } catch (e) {
+    return [];
+  }
+}
+
+// إرسال تنبيه تليجرام
+async function sendTelegramAlert(text) {
+  const TELEGRAM_TOKEN = '8822034470:AAEbooViT3tdkkQqt2lx86GZBWipYUq0MgA; 
+  const CHAT_ID = '896028407';
+  if (!TELEGRAM_TOKEN || !CHAT_ID) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: CHAT_ID,
+        text: text,
+        parse_mode: 'Markdown'
+      })
+    });
+  } catch (e) {}
+}
+
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const symbol = searchParams.get('symbol');
+  const scanMode = searchParams.get('scan') === 'true';
+  const scalpMode = searchParams.get('scalp') === 'true';
+  const customSymbolsParam = searchParams.get('symbols');
+
+  if (scanMode) {
+    let userWatchlist = [];
+    if (customSymbolsParam) {
+      userWatchlist = customSymbolsParam.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+    }
+    const matched = await scanLiveMarket(scalpMode, userWatchlist);
+    return NextResponse.json({ matched });
+  }
+
+  if (!symbol) {
+    return NextResponse.json({ error: 'الرجاء تحديد رمز السهم' }, { status: 400 });
+  }
+
+  const analysisResult = await fetchYahooData(symbol.toUpperCase(), scalpMode);
+  
+  if (!analysisResult) {
+    return NextResponse.json({ error: 'فشل في جلب بيانات السهم أو عدم توفر معلومات كافية' }, { status: 404 });
+  }
+
+  if (analysisResult.isSuitable) {
+    await sendTelegramAlert(`🚨 **تنبيه عسكري مؤكد** 🎯\n\n${analysisResult.telegramHeader}\n\n${analysisResult.analysis}`);
+  }
+
+  return NextResponse.json({
+    symbol: analysisResult.symbol,
+    price: analysisResult.price,
+    rsi: analysisResult.rsi,
+    isSuitable: analysisResult.isSuitable,
+    hasWhaleVolume: analysisResult.hasWhaleVolume,
+    hasFVG: analysisResult.hasFVG,
+    isTrapDetected: analysisResult.isTrapDetected,
+    isMultiRsiValid: analysisResult.isMultiRsiValid,
+    analysis: analysisResult.analysis
+  });
 }
