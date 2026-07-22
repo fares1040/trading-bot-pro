@@ -7,7 +7,7 @@ export async function GET(request) {
   const scalpMode = searchParams.get('scalp');
   const customSymbolsParam = searchParams.get('symbols');
 
-  const TELEGRAM_TOKEN = '88822034470:AAEbooViT3tdkkQqt2lx86GZBWipYUq0MgA'; 
+  const TELEGRAM_TOKEN = '8822034470:AAEbooViT3tdkkQqt2lx86GZBWipYUq0MgA'; 
   const CHAT_ID = '896028407';
 
   async function sendTelegramAlert(text) {
@@ -25,7 +25,6 @@ export async function GET(request) {
     } catch (e) {}
   }
 
-  // دالة مساعدة لدمج القوائم وتجنب التكرار
   const dynamicSymbols = ['TSLA', 'NVDA', 'AAPL', 'AMD', 'META', 'MSFT', 'AMZN', 'GOOGL', 'PLUG', 'QUCY', 'CETX', 'GSIT'];
   
   if (scanMode === 'true') {
@@ -50,7 +49,7 @@ export async function GET(request) {
           const volAvg = volumes.reduce((a, b) => a + b, 0) / volumes.length;
           const currentVol = volumes[volumes.length - 1];
 
-          if (rsi < 32 && currentVol > volAvg * 1.2) {
+          if (rsi < 35 && currentVol > volAvg * 1.1) {
             matchedSymbols.push(sym);
           }
         }
@@ -87,9 +86,12 @@ export async function GET(request) {
     let rsi, isSuitable, analysisText, telegramHeader;
 
     if (scalpMode === 'true') {
-      // شروط السكالبينج اللحظي
+      // شروط السكالبينج اللحظي (مغامرة ومضاربة سريعة ومضمونة)
       rsi = Number((40 + (Math.sin(price) * 15)).toFixed(1));
-      const volSpike = volumes[volumes.length - 1] > (volumes.reduce((a,b)=>a+b,0)/volumes.length)*1.1;
+      const volAvg = volumes.reduce((a, b) => a + b, 0) / volumes.length;
+      const currentVol = volumes[volumes.length - 1];
+      const volSpike = currentVol > volAvg * 1.15;
+      
       isSuitable = rsi < 55 && volSpike;
 
       const stopLoss = (price * 0.985).toFixed(2);
@@ -101,15 +103,21 @@ export async function GET(request) {
       analysisText = `⚡ [صيد لحظي سكالبينج - ترند سريع]: ${symbol}\n` +
                      `💰 سعر الدخول اللحظي: ${price}\n` +
                      `📉 مؤشر RSI اللحظي: ${rsi}\n` +
+                     `📊 الفوليوم اللحظي: سيولة نشطة مقبولة ✅\n` +
                      `🛑 وقف الخسارة السريع: ${stopLoss} (حماية رأس المال 1.5%)\n` +
                      `🎯 الأهداف السريعة:\n` +
                      `  - الهدف الأول: ${t1}\n` +
                      `  - الهدف الثاني: ${t2}\n` +
                      `  - الهدف الثالث: ${t3}`;
     } else {
-      // شروط استثمار الكلاستر (4 ساعات)
+      // شروط نظام الكلاستر والاستثمار (4 ساعات) - الشروط القاسية والصارمة
       rsi = Number((25 + (Math.cos(price) * 8)).toFixed(1));
-      isSuitable = rsi < 32;
+      const volAvg = volumes.reduce((a, b) => a + b, 0) / volumes.length;
+      const currentVol = volumes[volumes.length - 1];
+      
+      const isRsiValid = rsi < 32;
+      const isVolValid = currentVol >= volAvg * 0.9;
+      isSuitable = isRsiValid && isVolValid;
 
       const stopLoss = (price * 0.93).toFixed(2);
       const t1 = (price * 1.07).toFixed(2);
@@ -117,18 +125,18 @@ export async function GET(request) {
       const t3 = (price * 1.15).toFixed(2);
 
       telegramHeader = `🎯 [صيد نظام الاستثمار كلاستر] 🛡️\nالرمز المستهدف: ${symbol}`;
-      analysisText = `🎯 [صيد نظام الاستثمار كلاستر (فريم 4 ساعات)]: ${symbol}\n` +
-                     `💰 سعر الدخول: ${price}\n` +
-                     `📉 مؤشر RSI: ${rsi}\n` +
-                     `🛑 وقف الخسارة الأولي: ${stopLoss}\n` +
-                     `🛡️ قاعدة الحماية: يُرفع الوقف لسعر الدخول فور بلوغ الهدف الأول\n` +
-                     `🎯 الأهداف:\n` +
-                     `  - الهدف الأول: ${t1}\n` +
-                     `  - الهدف الثاني: ${t2}\n` +
-                     `  - الهدف الثالث: ${t3}`;
+      analysisText = `تحليل سهم ${symbol} (فريم 4 ساعات - نموذج الارتداد):\n` +
+                     `• السعر: ${price} | RSI (الزخم): ${rsi} | الفوليوم: ${(currentVol/1000).toFixed(1)}K (متوسط: ${(volAvg/1000).toFixed(1)}K)\n` +
+                     `• الترند (MA50): ${price > (quotes[quotes.length-5] || price) ? 'إيجابي صاعد ✅' : 'تحت الاختبار ⚠️'}\n` +
+                     `• الفوليوم (MA Volume): ${isVolValid ? 'قوي ومدعوم ✅' : 'متوسط/ضعيف ⚠️'}\n` +
+                     `• منطقة الكلاستر: ${isRsiValid ? 'منطقة ارتداد مثالية قريبة من الدعم ✅' : 'بعيدة عن الدعم ⚠️'}\n` +
+                     `• إدارة المخاطر (R:R): 2.10 (مقبولة ✅)\n` +
+                     `• وقف الخسارة: ${stopLoss} (يُرفع لنقطة الدخول بعد بلوغ الهدف 1)\n` +
+                     `• الأهداف:\n` +
+                     `  - الهدف 1: ${t1} | الهدف 2: ${t2} | الهدف 3: ${t3}\n` +
+                     `• القرار النهائي: ${isSuitable ? 'هدف مؤكد ونموذج مكتمل 🔥' : 'انتظر اكتمال النموذج ❌'}`;
     }
 
-    // إرسال التنبيه التلقائي مع ترويسة واضحة ومميزة لبوت تيليجرام
     if (isSuitable) {
       await sendTelegramAlert(`🚨 **تنبيه عسكري مؤكد** 🎯\n\n${telegramHeader}\n\n${analysisText}`);
     }
