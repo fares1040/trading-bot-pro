@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 
-// دالة لجلب بيانات السهم الحية من Yahoo Finance مع مؤشرات فنية متقدمة
 async function fetchYahooData(symbol, isScalp = false) {
   try {
     const intervalQuery = isScalp ? '15m' : '4h';
@@ -23,12 +22,10 @@ async function fetchYahooData(symbol, isScalp = false) {
 
     if (quotes.length < 5 || !currentPrice) return null;
 
-    // حساب متوسط الحجم لرصد الحيتان
     const volAvg = volumes.reduce((a, b) => a + b, 0) / (volumes.length || 1);
     const currentVol = volumes[volumes.length - 1] || 0;
     const hasWhaleVolume = currentVol > volAvg * 1.4;
 
-    // الفلاتر العسكرية المستهدفة (FVG وفخاخ صناع السوق)
     const hasFVG = (quotes[quotes.length - 1] - quotes[quotes.length - 2]) > (currentPrice * 0.015);
     const isTrapDetected = currentVol > volAvg * 1.2 && quotes[quotes.length - 1] < quotes[quotes.length - 2];
     const isMultiRsiValid = true;
@@ -113,10 +110,8 @@ async function fetchYahooData(symbol, isScalp = false) {
   }
 }
 
-// دالة مسح السوق الحي (تعتمد على قوائم Day Gainers و 52W Gainers والأسهم النشطة)
 async function scanLiveMarket(isScalp = false, customSymbols = []) {
   try {
-    // قوائم الأسهم الرابحة والحية (Day Gainers & 52-Week Gainers المحدثة)
     const liveGainersSymbols = isScalp 
       ? ['AEHR', 'RGC', 'NBIS', 'CBRS', 'OUST', 'PVLA', 'AAOI', 'TSLA', 'NVDA'] 
       : ['SNDK', 'AXTI', 'ABVX', 'ERAS', 'ALMS', 'DMRA', 'MU', 'GSIT', 'KULR'];
@@ -136,9 +131,8 @@ async function scanLiveMarket(isScalp = false, customSymbols = []) {
   }
 }
 
-// إرسال تنبيه تليجرام
 async function sendTelegramAlert(text) {
-  const TELEGRAM_TOKEN = '8822034470:AAEbooViT3tdkkQqt2lx86GZBWipYUq0MgA; 
+  const TELEGRAM_TOKEN = '8822034470:AAEbooViT3tdkkQqt2lx86GZBWipYUq0MgA'; 
   const CHAT_ID = '896028407';
   if (!TELEGRAM_TOKEN || !CHAT_ID) return;
   try {
