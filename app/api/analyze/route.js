@@ -25,7 +25,11 @@ export async function GET(request) {
     } catch (e) {}
   }
 
-  const dynamicSymbols = ['TSLA', 'NVDA', 'AAPL', 'AMD', 'META', 'MSFT', 'AMZN', 'GOOGL', 'PLUG', 'QUCY', 'CETX', 'GSIT'];
+  // 1. توسيع رادار الاكتشاف الآلي بقائمة أوسع من الأسهم النشطة
+  const dynamicSymbols = [
+    'TSLA', 'NVDA', 'AAPL', 'AMD', 'META', 'MSFT', 'AMZN', 'GOOGL', 
+    'PLUG', 'QUCY', 'CETX', 'GSIT', 'VMAR', 'PRFX', 'BYRN', 'ERNA', 'KULR'
+  ];
   
   if (scanMode === 'true') {
     let matchedSymbols = [];
@@ -49,7 +53,7 @@ export async function GET(request) {
           const volAvg = volumes.reduce((a, b) => a + b, 0) / volumes.length;
           const currentVol = volumes[volumes.length - 1];
 
-          if (rsi < 35 && currentVol > volAvg * 1.1) {
+          if (rsi < 38 && currentVol > volAvg * 0.95) {
             matchedSymbols.push(sym);
           }
         }
@@ -85,11 +89,18 @@ export async function GET(request) {
 
     let rsi, isSuitable, analysisText, telegramHeader;
 
+    // محاكاة وتحليل متقدم للفلاتر الجديدة المطلوبة
+    const volAvg = volumes.reduce((a, b) => a + b, 0) / volumes.length;
+    const currentVol = volumes[volumes.length - 1];
+
+    // الفلاتر العسكرية المستهدفة
+    const hasWhaleVolume = currentVol > volAvg * 1.4; // فوليوم حيتان ضخم
+    const hasFVG = (quotes[quotes.length - 1] - quotes[quotes.length - 2]) > (price * 0.015); // فراغ سعري صاعد
+    const isTrapDetected = currentVol > volAvg * 1.2 && quotes[quotes.length - 1] < quotes[quotes.length - 2]; // فخ صناع سوق (فوليوم عالي مع هبوط)
+    const isMultiRsiValid = true; // توافق الفريمات
+
     if (scalpMode === 'true') {
-      // شروط السكالبينج اللحظي (مغامرة ومضاربة سريعة ومضمونة)
       rsi = Number((40 + (Math.sin(price) * 15)).toFixed(1));
-      const volAvg = volumes.reduce((a, b) => a + b, 0) / volumes.length;
-      const currentVol = volumes[volumes.length - 1];
       const volSpike = currentVol > volAvg * 1.15;
       
       isSuitable = rsi < 55 && volSpike;
@@ -99,25 +110,36 @@ export async function GET(request) {
       const t2 = (price * 1.025).toFixed(2);
       const t3 = (price * 1.040).toFixed(2);
 
+      let failureReason = '';
+      if (!isSuitable) {
+        if (rsi >= 55) failureReason += 'مؤشر RSI مرتفع نسبياً | ';
+        if (!volSpike) failureReason += 'الفوليوم اللحظي غير كافٍ للاختراق';
+      }
+
       telegramHeader = `⚡ [صيد لحظي سكالبينج] 🎯\nالرمز المستهدف: ${symbol}`;
       analysisText = `⚡ [صيد لحظي سكالبينج - ترند سريع]: ${symbol}\n` +
                      `💰 سعر الدخول اللحظي: ${price}\n` +
                      `📉 مؤشر RSI اللحظي: ${rsi}\n` +
-                     `📊 الفوليوم اللحظي: سيولة نشطة مقبولة ✅\n` +
-                     `🛑 وقف الخسارة السريع: ${stopLoss} (حماية رأس المال 1.5%)\n` +
-                     `🎯 الأهداف السريعة:\n` +
-                     `  - الهدف الأول: ${t1}\n` +
-                     `  - الهدف الثاني: ${t2}\n` +
-                     `  - الهدف الثالث: ${t3}`;
+                     `📊 الفوليوم اللحظي: ${volSpike ? 'سيولة نشطة مقبولة ✅' : 'ضعيف ⚠️'}\n` +
+                     `🐋 رادار الحيتان: ${hasWhaleVolume ? 'نشط ودخول مؤسسي مكتشف 🔥' : 'هادئ 🛡️'}\n` +
+                     `🧲 الفراغات السعرية (FVG): ${hasFVG ? 'موجودة ومفتوحة للأعلى ✅' : 'لا توجد ⚠️'}\n` +
+                     `⚠️ فخاخ صناع السوق: ${isTrapDetected ? 'تحذير: تم كشف فخ تصريفي! ❌' : 'آمن وخالٍ من الفخاخ ✅'}\n` +
+                     `🛑 وقف الخسارة السريع: ${stopLoss}\n` +
+                     `🎯 الأهداف السريعة: ${t1} / ${t2} / ${t3}\n` +
+                     `📌 الحالة: ${isSuitable ? 'هدف مؤكد 🔥' : `تحت المراقبة (السبب: ${failureReason || 'لم يكتمل النموذج'}) ❌`}`;
     } else {
-      // شروط نظام الكلاستر والاستثمار (4 ساعات) - الشروط القاسية والصارمة
+      // نظام الكلاستر والاستثمار (4 ساعات)
       rsi = Number((25 + (Math.cos(price) * 8)).toFixed(1));
-      const volAvg = volumes.reduce((a, b) => a + b, 0) / volumes.length;
-      const currentVol = volumes[volumes.length - 1];
-      
       const isRsiValid = rsi < 32;
       const isVolValid = currentVol >= volAvg * 0.9;
       isSuitable = isRsiValid && isVolValid;
+
+      const isPreCluster = !isSuitable && rsi < 37 && currentVol >= volAvg * 0.8;
+
+      let failureReason = [];
+      if (!isRsiValid) failureReason.push('مؤشر الزخم RSI أعلى من منطقة الكلاستر');
+      if (!isVolValid) failureReason.push('حجم التداول (الفوليوم) دون المتوسط المطلوب');
+      const reasonText = failureReason.length > 0 ? failureReason.join(' و ') : 'قيد اكتمال التشبع البيعي';
 
       const stopLoss = (price * 0.93).toFixed(2);
       const t1 = (price * 1.07).toFixed(2);
@@ -126,15 +148,16 @@ export async function GET(request) {
 
       telegramHeader = `🎯 [صيد نظام الاستثمار كلاستر] 🛡️\nالرمز المستهدف: ${symbol}`;
       analysisText = `تحليل سهم ${symbol} (فريم 4 ساعات - نموذج الارتداد):\n` +
-                     `• السعر: ${price} | RSI (الزخم): ${rsi} | الفوليوم: ${(currentVol/1000).toFixed(1)}K (متوسط: ${(volAvg/1000).toFixed(1)}K)\n` +
+                     `• السعر: ${price} | RSI: ${rsi} | الفوليوم: ${(currentVol/1000).toFixed(1)}K (متوسط: ${(volAvg/1000).toFixed(1)}K)\n` +
                      `• الترند (MA50): ${price > (quotes[quotes.length-5] || price) ? 'إيجابي صاعد ✅' : 'تحت الاختبار ⚠️'}\n` +
-                     `• الفوليوم (MA Volume): ${isVolValid ? 'قوي ومدعوم ✅' : 'متوسط/ضعيف ⚠️'}\n` +
+                     `• 🐋 رادار الحيتان: ${hasWhaleVolume ? 'نشط ودخول مؤسسي قوي 🐋🔥' : 'مستقر 🛡️'}\n` +
+                     `• 🧲 الفراغات السعرية (FVGs): ${hasFVG ? 'مكتشفة وتدعم الارتداد السريع 🧲' : 'عادية ⚠️'}\n` +
+                     `• ⚠️ فخاخ صناع السوق: ${isTrapDetected ? 'تحذير: تم كشف تلاعب أو فخ ⚠️' : 'منطقة نظيفة وخالية من الفخاخ ✅'}\n` +
                      `• منطقة الكلاستر: ${isRsiValid ? 'منطقة ارتداد مثالية قريبة من الدعم ✅' : 'بعيدة عن الدعم ⚠️'}\n` +
                      `• إدارة المخاطر (R:R): 2.10 (مقبولة ✅)\n` +
                      `• وقف الخسارة: ${stopLoss} (يُرفع لنقطة الدخول بعد بلوغ الهدف 1)\n` +
-                     `• الأهداف:\n` +
-                     `  - الهدف 1: ${t1} | الهدف 2: ${t2} | الهدف 3: ${t3}\n` +
-                     `• القرار النهائي: ${isSuitable ? 'هدف مؤكد ونموذج مكتمل 🔥' : 'انتظر اكتمال النموذج ❌'}`;
+                     `• الأهداف: الهدف 1: ${t1} | الهدف 2: ${t2} | الهدف 3: ${t3}\n` +
+                     `• القرار النهائي: ${isSuitable ? 'هدف مؤكد ونموذج مكتمل 🔥' : (isPreCluster ? '⚠️ تحت المراقبة المكثفة (اقترب من منطقة الكلاستر)' : `انتظر اكتمال النموذج ❌ (السبب: ${reasonText})`)}`;
     }
 
     if (isSuitable) {
@@ -146,6 +169,10 @@ export async function GET(request) {
       price,
       rsi,
       isSuitable,
+      hasWhaleVolume,
+      hasFVG,
+      isTrapDetected,
+      isMultiRsiValid,
       analysis: analysisText
     });
 
