@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 
-// 🧠 ذاكرة عسكرية مؤقتة لمنع تكرار تنبيهات التليجرام لنفس السهم
 const alertCooldowns = new Map();
 
 async function fetchYahooData(symbol, isScalp = false) {
@@ -33,12 +32,10 @@ async function fetchYahooData(symbol, isScalp = false) {
     const isTrapDetected = currentVol > volAvg * 1.5 && quotes[quotes.length - 1] < quotes[quotes.length - 2];
     const isMultiRsiValid = true;
 
-    // 🔥 1. معدل الاختراق والزخم اللحظي
     const priceDiff = quotes[quotes.length - 1] - quotes[quotes.length - 2];
     const momentumRate = Number(((priceDiff / currentPrice) * 100).toFixed(2));
     const volumeMultiplier = Number((currentVol / (volAvg || 1)).toFixed(2));
 
-    // 🔥 2. شريط مؤشر الاختراق اللحظي (Live Breakout Status Bar)
     let breakoutTape = '⚪ مسار جانبي ميت';
     if (momentumRate > 0.15 && volumeMultiplier > 1.2) {
       breakoutTape = '🚀 [اختراق صاروخي هجومي مكتمل 🔥]';
@@ -48,7 +45,6 @@ async function fetchYahooData(symbol, isScalp = false) {
       breakoutTape = '⚠️ [فخ تصريفي / مصيدة صانع سوق ❌]';
     }
 
-    // 🔥 3. 🔮 نظام "التنبؤ الانعكاسي التراجعي بطاقة الثقة التنبؤية"
     let confidenceScore = 50;
     if (hasWhaleVolume) confidenceScore += 20;
     if (hasFVG) confidenceScore += 15;
@@ -68,13 +64,6 @@ async function fetchYahooData(symbol, isScalp = false) {
       const t2 = (currentPrice * 1.025).toFixed(2);
       const t3 = (currentPrice * 1.040).toFixed(2);
 
-      let failureReason = '';
-      if (!isSuitable) {
-        if (rsi >= 55) failureReason += 'مؤشر RSI مرتفع نسبياً | ';
-        if (isTrapDetected) failureReason += 'تم كشف فخ تصريفي | ';
-        if (!volSpike) failureReason += 'الفوليوم اللحظي غير كافٍ';
-      }
-
       telegramHeader = `⚡ [صيد لحظي سكالبينج متطور] 🎯\nالرمز المستهدف: ${symbol}`;
       analysisText = `⚡ [صيد لحظي سكالبينج - ترند سريع]: ${symbol}\n` +
                      `💰 سعر الدخول اللحظي: ${currentPrice}\n` +
@@ -83,25 +72,14 @@ async function fetchYahooData(symbol, isScalp = false) {
                      `📈 معدل الاختراق والزخم: ${momentumRate}% (مضاعف الفوليوم: ${volumeMultiplier}x)\n` +
                      `🎚️ شريط الاختراق اللحظي: ${breakoutTape}\n` +
                      `🔮 بطاقة الثقة التنبؤية الانعكاسية: [ ${confidenceScore}% 🎯 ]\n` +
-                     `🐋 رادار الحيتان: ${hasWhaleVolume ? 'نشط ودخول مؤسسي مكتشف 🔥' : 'هادئ 🛡️'}\n` +
-                     `🧲 الفراغات السعرية (FVG): ${hasFVG ? 'موجودة ومفتوحة للأعلى ✅' : 'لا توجد ⚠️'}\n` +
-                     `⚠️ فخاخ صناع السوق: ${isTrapDetected ? 'تحذير: تم كشف فخ تصريفي! ❌' : 'آمن وخالٍ من الفخاخ ✅'}\n` +
                      `🛑 وقف الخسارة السريع: ${stopLoss}\n` +
                      `🎯 الأهداف السريعة: ${t1} / ${t2} / ${t3}\n` +
-                     `📌 الحالة: ${isSuitable ? 'هدف مؤكد 🔥' : `تحت المراقبة (السبب: ${failureReason || 'لم يكتمل النموذج'}) ❌`}`;
+                     `📌 الحالة: ${isSuitable ? 'هدف مؤكد 🔥' : 'تحت المراقبة ❌'}`;
     } else {
       rsi = Number((25 + (Math.cos(currentPrice) * 8)).toFixed(1));
       const isRsiValid = rsi < 32;
       const isVolValid = currentVol >= volAvg * 0.9;
       isSuitable = isRsiValid && isVolValid && !isTrapDetected;
-
-      const isPreCluster = !isSuitable && rsi < 37 && currentVol >= volAvg * 0.8;
-
-      let failureReason = [];
-      if (!isRsiValid) failureReason.push('مؤشر الزخم RSI أعلى من منطقة الكلاستر');
-      if (!isVolValid) failureReason.push('حجم التداول دون المتوسط');
-      if (isTrapDetected) failureReason.push('اكتشاف فخ تصريحي لصناع السوق');
-      const reasonText = failureReason.length > 0 ? failureReason.join(' و ') : 'قيد اكتمال التشبع البيعي';
 
       const stopLoss = (currentPrice * 0.93).toFixed(2);
       const t1 = (currentPrice * 1.07).toFixed(2);
@@ -110,19 +88,13 @@ async function fetchYahooData(symbol, isScalp = false) {
 
       telegramHeader = `🎯 [صيد نظام الاستثمار كلاستر المتقدم] 🛡️\nالرمز المستهدف: ${symbol}`;
       analysisText = `تحليل سهم ${symbol} (فريم 4 ساعات - نموذج الارتداد):\n` +
-                     `• السعر: ${currentPrice} | RSI: ${rsi} | الفوليوم: ${(currentVol/1000).toFixed(1)}K (متوسط: ${(volAvg/1000).toFixed(1)}K)\n` +
+                     `• السعر: ${currentPrice} | RSI: ${rsi} | الفوليوم: ${(currentVol/1000).toFixed(1)}K\n` +
                      `• معدل الزخم والاختراق: ${momentumRate}% | مضاعف السيولة: ${volumeMultiplier}x\n` +
                      `• 🎚️ شريط الاختراق والاتجاه: ${breakoutTape}\n` +
                      `• 🔮 بطاقة الثقة التنبؤية الانعكاسية: [ ${confidenceScore}% 🎯 ]\n` +
-                     `• الترند (MA50): ${currentPrice > (quotes[quotes.length-5] || currentPrice) ? 'إيجابي صاعد ✅' : 'تحت الاختبار ⚠️'}\n` +
-                     `• 🐋 رادار الحيتان: ${hasWhaleVolume ? 'نشط ودخول مؤسسي قوي 🐋🔥' : 'مستقر 🛡️'}\n` +
-                     `• 🧲 الفراغات السعرية (FVGs): ${hasFVG ? 'مكتشفة وتدعم الارتداد السريع 🧲' : 'عادية ⚠️'}\n` +
-                     `• ⚠️ فخاخ صناع السوق: ${isTrapDetected ? 'تحذير: تم كشف تلاعب أو فخ ⚠️' : 'منطقة نظيفة وخالية من الفخاخ ✅'}\n` +
-                     `• منطقة الكلاستر: ${isRsiValid ? 'منطقة ارتداد مثالية قريبة من الدعم ✅' : 'بعيدة عن الدعم ⚠️'}\n` +
-                     `• إدارة المخاطر (R:R): 2.10 (مقبولة ✅)\n` +
-                     `• وقف الخسارة: ${stopLoss} (يُرفع لنقطة الدخول بعد بلوغ الهدف 1)\n` +
+                     `• وقف الخسارة: ${stopLoss}\n` +
                      `• الأهداف: الهدف 1: ${t1} | الهدف 2: ${t2} | الهدف 3: ${t3}\n` +
-                     `• القرار النهائي: ${isSuitable ? 'هدف مؤكد ونموذج مكتمل 🔥' : (isPreCluster ? '⚠️ تحت المراقبة المكثفة (اقترب من منطقة الكلاستر)' : `انتظر اكتمال النموذج ❌ (السبب: ${reasonText})`)}`;
+                     `• القرار النهائي: ${isSuitable ? 'هدف مؤكد ونموذج مكتمل 🔥' : 'انتظر اكتمال النموذج ❌'}`;
     }
 
     return {
@@ -141,7 +113,6 @@ async function fetchYahooData(symbol, isScalp = false) {
       analysis: analysisText,
       telegramHeader
     };
-
   } catch (e) {
     return null;
   }
@@ -176,16 +147,46 @@ async function sendTelegramAlert(text) {
     await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: CHAT_ID,
-        text: text,
-        parse_mode: 'Markdown'
-      })
+      body: JSON.stringify({ chat_id: CHAT_ID, text: text, parse_mode: 'Markdown' })
     });
   } catch (e) {}
 }
 
-// 🟢 دعم طلبات الـ POST (التي ترسلها الواجهة لتنفيذ التحليل المفصل)
+// 🟢 معالجة طلبات GET (تخدم السكرينر والمسح الحي والبحث الفردي عبر الـ Query Params)
+export async function GET(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const symbol = searchParams.get('symbol');
+    const scanMode = searchParams.get('scan') === 'true';
+    const scalpMode = searchParams.get('scalp') === 'true';
+    const minConfidence = Number(searchParams.get('minConfidence')) || 70;
+    const customSymbolsParam = searchParams.get('symbols');
+
+    if (scanMode) {
+      let userWatchlist = [];
+      if (customSymbolsParam) {
+        userWatchlist = customSymbolsParam.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+      }
+      const matched = await scanLiveMarket(scalpMode, userWatchlist, minConfidence);
+      return NextResponse.json({ matched });
+    }
+
+    if (symbol) {
+      const symbolUpper = symbol.toUpperCase();
+      const analysisResult = await fetchYahooData(symbolUpper, scalpMode);
+      if (!analysisResult) {
+        return NextResponse.json({ error: 'فشل في جلب بيانات السهم' }, { status: 404 });
+      }
+      return NextResponse.json(analysisResult);
+    }
+
+    return NextResponse.json({ error: 'طلب غير صالح' }, { status: 400 });
+  } catch (e) {
+    return NextResponse.json({ error: 'خطأ في الخادم' }, { status: 500 });
+  }
+}
+
+// 🔵 معالجة طلبات POST (تخدم التحليل المتقدم وإرسال التنبيهات)
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -206,22 +207,16 @@ export async function POST(request) {
       const now = Date.now();
       const modeKey = scalpMode ? 'scalp' : 'cluster';
       const existingCache = alertCooldowns.get(symbolUpper);
-
       let shouldAlert = true;
       const cooldownMs = cooldownMinutes * 60 * 1000;
 
-      if (existingCache) {
-        const timePassed = now - existingCache.timestamp;
-        const sameMode = existingCache.mode === modeKey;
-
-        if (sameMode && timePassed < cooldownMs) {
-          shouldAlert = false;
-        }
+      if (existingCache && existingCache.mode === modeKey && (now - existingCache.timestamp) < cooldownMs) {
+        shouldAlert = false;
       }
 
       if (shouldAlert) {
         alertCooldowns.set(symbolUpper, { timestamp: now, mode: modeKey });
-        await sendTelegramAlert(`🚨 **تنبيه عسكري مؤكد (منظومة طماع الاحترافية)** 🎯\n\n${analysisResult.telegramHeader}\n\n${analysisResult.analysis}`);
+        await sendTelegramAlert(`🚨 **تنبيه عسكري مؤكد (منظومة طماع)** 🎯\n\n${analysisResult.telegramHeader}\n\n${analysisResult.analysis}`);
       }
     }
 
@@ -229,24 +224,4 @@ export async function POST(request) {
   } catch (e) {
     return NextResponse.json({ error: 'خطأ في معالجة الطلب' }, { status: 500 });
   }
-}
-
-// 🔵 دعم طلبات الـ GET (الخاصة بمسح السوق الحي عبر السكرينر)
-export async function GET(request) {
-  const { searchParams } = new URL(request.url);
-  const scanMode = searchParams.get('scan') === 'true';
-  const scalpMode = searchParams.get('scalp') === 'true';
-  const minConfidence = Number(searchParams.get('minConfidence')) || 70;
-  const customSymbolsParam = searchParams.get('symbols');
-
-  if (scanMode) {
-    let userWatchlist = [];
-    if (customSymbolsParam) {
-      userWatchlist = customSymbolsParam.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
-    }
-    const matched = await scanLiveMarket(scalpMode, userWatchlist, minConfidence);
-    return NextResponse.json({ matched });
-  }
-
-  return NextResponse.json({ error: 'طريقة الطلب غير صالحة' }, { status: 400 });
 }
