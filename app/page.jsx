@@ -1,608 +1,206 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
-export default function Home() {
-  const [symbols, setSymbols] = useState(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('sniper_symbols_cluster');
-        if (saved) return JSON.parse(saved);
-      } catch (e) {}
-    }
-    return ['VMAR', 'CETX', 'GSIT', 'PRFX', 'BYRN', 'ERNA', 'LNZA', 'HURA', 'KULR', 'ANVS', 'PPSI', 'BJDX'];
-  });
-
-  const [scalpSymbols, setScalpSymbols] = useState(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('sniper_symbols_scalp');
-        if (saved) return JSON.parse(saved);
-      } catch (e) {}
-    }
-    return ['TSLA', 'NVDA', 'AAPL', 'AMD', 'META', 'MSFT', 'SPY', 'QQQ'];
-  });
-
-  const [newSymbol, setNewSymbol] = useState('');
-  const [results, setResults] = useState({});
+export default function SniperDashboard() {
+  const [symbol, setSymbol] = useState('');
+  const [scalpMode, setScalpMode] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [scanning, setScanning] = useState(false);
-  const [activeTab, setActiveTab] = useState('cluster'); 
-  const [scalpResults, setScalpResults] = useState({});
-  const [loadingScalp, setLoadingScalp] = useState(false);
+  const [scanLoading, setScanLoading] = useState(false);
+  const [data, setData] = useState(null);
+  const [scanResults, setScanResults] = useState([]);
+  const [error, setError] = useState('');
 
-  // إعدادات الفلاتر والرادارات المتقدمة الجديدة
-  const [filterOnlySuitable, setFilterOnlySuitable] = useState(false);
-  const [activeRadarFilter, setActiveRadarFilter] = useState('all'); // all, whales, fvg, traps, multi_rsi
-  const [autoRefresh, setAutoRefresh] = useState(false);
-  const [timer, setTimer] = useState(300);
-
-  // نظام تتبع إحصائيات الصفقات والأداء
-  const [tradeStats, setTradeStats] = useState(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('sniper_trade_stats');
-        if (saved) return JSON.parse(saved);
-      } catch (e) {}
-    }
-    return { wins: 0, losses: 0 };
-  });
-
-  // صفقاتي المفتوحة مع الأهداف التدريجية ووقف الخسارة المتحرك
-  const [activeTrades, setActiveTrades] = useState(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('sniper_active_trades');
-        if (saved) return JSON.parse(saved);
-      } catch (e) {}
-    }
-    return [];
-  });
-  const [showTradesModal, setShowTradesModal] = useState(false);
-
-  // سجل العمليات الحربية
-  const [missionHistory, setMissionHistory] = useState(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('sniper_mission_history');
-        if (saved) return JSON.parse(saved);
-      } catch (e) {}
-    }
-    return [];
-  });
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
-
-  // إعدادات البث والتنبيهات الخارجية (Webhook)
-  const [webhookUrl, setWebhookUrl] = useState(() => {
-    if (typeof window !== 'undefined') return localStorage.getItem('sniper_webhook') || '';
-    return '';
-  });
-  const [showWebhookSettings, setShowWebhookSettings] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('sniper_webhook', webhookUrl);
-      localStorage.setItem('sniper_mission_history', JSON.stringify(missionHistory));
-      localStorage.setItem('sniper_trade_stats', JSON.stringify(tradeStats));
-      localStorage.setItem('sniper_active_trades', JSON.stringify(activeTrades));
-      localStorage.setItem('sniper_symbols_cluster', JSON.stringify(symbols));
-      localStorage.setItem('sniper_symbols_scalp', JSON.stringify(scalpSymbols));
-    }
-  }, [webhookUrl, missionHistory, tradeStats, activeTrades, symbols, scalpSymbols]);
-
-  const sendWebhookAlert = async (sym, analysisText) => {
-    if (!webhookUrl.trim()) return;
-    try {
-      await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: `🚨 **تنبيه عسكري فوري للمنصة** 🎯\nرصد هدف على السهم: **${sym}**\n\n\`\`\`${analysisText}\`\`\`` })
-      });
-    } catch (e) {}
-  };
-
-  const speakAlert = (text) => {
-    try {
-      if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'ar-SA';
-        utterance.rate = 1.0;
-        window.speechSynthesis.speak(utterance);
-      }
-    } catch (e) {}
-  };
-
-  const playRadarSound = (sym = '', analysisText = '') => {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(880, ctx.currentTime);
-      gain.gain.setValueAtTime(0.1, ctx.currentTime);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.3);
-    } catch (e) {}
-    
-    if (sym) {
-      speakAlert(`تنبيه رادار السنايبر. تم رصد فرصة ذهبية على السهم ${sym}`);
-      sendWebhookAlert(sym, analysisText);
-      
-      const timeNow = new Date().toLocaleTimeString('ar-SA');
-      setMissionHistory(prev => [
-        { id: Date.now(), symbol: sym, time: timeNow, details: analysisText },
-        ...prev.slice(0, 49)
-      ]);
-    }
-  };
-
-  useEffect(() => {
-    let interval;
-    if (autoRefresh) {
-      interval = setInterval(() => {
-        setTimer((prev) => {
-          if (prev <= 1) {
-            if (activeTab === 'cluster') runAnalysis();
-            else runScalpAnalysis();
-            return 300;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      setTimer(300);
-    }
-    return () => clearInterval(interval);
-  }, [autoRefresh, activeTab, symbols, scalpSymbols]);
-
-  const runAnalysis = async () => {
-    setLoading(true);
-    const newResults = {};
-    let firstMatchedSym = '';
-    let firstAnalysis = '';
-    for (let sym of symbols) {
-      try {
-        const res = await fetch(`/api/analyze?symbol=${sym}`);
-        const data = await res.json();
-        newResults[sym] = data;
-        if (data.isSuitable && !firstMatchedSym) {
-          firstMatchedSym = sym;
-          firstAnalysis = data.analysis;
-        }
-      } catch (err) {
-        newResults[sym] = { error: "فشل الاتصال بمحرك التحليل" };
-      }
-    }
-    setResults(newResults);
-    setLoading(false);
-    if (firstMatchedSym) playRadarSound(firstMatchedSym, firstAnalysis);
-  };
-
-  const runScalpAnalysis = async () => {
-    setLoadingScalp(true);
-    const newResults = {};
-    let firstMatchedSym = '';
-    let firstAnalysis = '';
-    for (let sym of scalpSymbols) {
-      try {
-        const res = await fetch(`/api/analyze?symbol=${sym}&scalp=true`);
-        const data = await res.json();
-        newResults[sym] = data;
-        if (data.isSuitable && !firstMatchedSym) {
-          firstMatchedSym = sym;
-          firstAnalysis = data.analysis;
-        }
-      } catch (err) {
-        newResults[sym] = { error: "فشل الاتصال بالرادار اللحظي" };
-      }
-    }
-    setScalpResults(newResults);
-    setLoadingScalp(false);
-    if (firstMatchedSym) playRadarSound(firstMatchedSym, firstAnalysis);
-  };
-
-  const scanMarketForCluster = async () => {
-    setScanning(true);
-    try {
-      const res = await fetch(`/api/analyze?scan=true&symbols=${symbols.join(',')}`);
-      const data = await res.json();
-      if (data.matched && data.matched.length > 0) {
-        const merged = Array.from(new Set([...symbols, ...data.matched]));
-        setSymbols(merged);
-        playRadarSound(data.matched[0], "مسح راداري استثماري موسع من السوق الحي");
-        alert(`🎯 رادار السوق الحي اصطاد ${data.matched.length} سهم قيادي ونشط من قائمة (Day & 52W Gainers)!`);
-        runAnalysis();
-      } else {
-        alert('لا توجد أسهم جديدة مطابقة حالياً من السوق.');
-      }
-    } catch (e) {
-      alert('حدث خطأ أثناء فحص رادار السوق الحي.');
-    }
-    setScanning(false);
-  };
-
-  const scanMarketForScalp = async () => {
-    setScanning(true);
-    try {
-      const res = await fetch(`/api/analyze?scan=true&scalp=true&symbols=${scalpSymbols.join(',')}`);
-      const data = await res.json();
-      if (data.matched && data.matched.length > 0) {
-        const merged = Array.from(new Set([...scalpSymbols, ...data.matched]));
-        setScalpSymbols(merged);
-        playRadarSound(data.matched[0], "مسح راداري للسكالبينج من السوق الحي");
-        alert(`⚡ رادار السكالبينج سحب ${data.matched.length} سهم ترند فجائي من السوق الحي!`);
-        runScalpAnalysis();
-      } else {
-        alert('لا توجد ترندات لحظية جديدة مطابقة حالياً.');
-      }
-    } catch (e) {
-      alert('حدث خطأ أثناء فحص رادار السكالبينج.');
-    }
-    setScanning(false);
-  };
-
-  const enterTrade = (sym, price) => {
-    const timeNow = new Date().toLocaleTimeString('ar-SA');
-    const p = Number(price);
-    const newTrade = {
-      id: Date.now(),
-      symbol: sym,
-      entryPrice: p,
-      time: timeNow,
-      type: activeTab === 'cluster' ? 'استثمار (كلاستر و FVGs)' : 'سكالبينج (ترند لحظي)',
-      stopLoss: (p * 0.97).toFixed(2),
-      targets: {
-        t1: (p * 1.025).toFixed(2),
-        t2: (p * 1.050).toFixed(2),
-        t3: (p * 1.080).toFixed(2)
-      },
-      status: 'نشطة'
-    };
-    setActiveTrades(prev => [newTrade, ...prev]);
-    alert(`🎯 تم فتح الصفقة بنجاح على [${sym}] بسعر [${p}]!\nتم تفعيل نظام الأهداف التدريجية ووقف الخسارة المتحرك.`);
-  };
-
-  const closeActiveTrade = (tradeId) => {
-    setActiveTrades(prev => prev.filter(t => t.id !== tradeId));
-    alert('✅ تم إغلاق الصفقة بنجاح وترحيلها لسجل الأداء.');
-  };
-
-  const addSymbol = (e) => {
+  // فحص سهم فردي
+  const handleAnalyze = async (e) => {
     e.preventDefault();
-    if (!newSymbol.trim()) return;
-    const upper = newSymbol.toUpperCase().trim();
-    if (activeTab === 'cluster') {
-      if (!symbols.includes(upper)) setSymbols([...symbols, upper]);
-    } else {
-      if (!scalpSymbols.includes(upper)) setScalpSymbols([...scalpSymbols, upper]);
+    if (!symbol) return;
+    setLoading(true);
+    setError('');
+    setData(null);
+
+    try {
+      const res = await fetch(`/api/sniper?symbol=${symbol}&scalp=${scalpMode}`);
+      const result = await res.json();
+      if (res.ok) {
+        setData(result);
+      } else {
+        setError(result.error || 'حدث خطأ أثناء الجلب');
+      }
+    } catch (err) {
+      setError('فشل الاتصال بالخادم');
+    } finally {
+      setLoading(false);
     }
-    setNewSymbol('');
   };
 
-  const removeSymbol = (symToRemove) => {
-    if (activeTab === 'cluster') {
-      setSymbols(symbols.filter(s => s !== symToRemove));
-    } else {
-      setScalpSymbols(scalpSymbols.filter(s => s !== symToRemove));
+  // فحص السوق التلقائي
+  const handleScan = async () => {
+    setScanLoading(true);
+    setScanResults([]);
+    setError('');
+
+    try {
+      const res = await fetch(`/api/sniper?scan=true&scalp=${scalpMode}`);
+      const result = await res.json();
+      if (res.ok) {
+        setScanResults(result.matched || []);
+      } else {
+        setError(result.error || 'فشل الفحص الشامل');
+      }
+    } catch (err) {
+      setError('فشل الاتصال بالخادم للفحص');
+    } finally {
+      setScanLoading(false);
     }
   };
-
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-    alert('📋 تم نسخ تفاصيل التحليل بنجاح!');
-  };
-
-  const copyAllIntelBriefing = () => {
-    const activeList = activeTab === 'cluster' ? symbols : scalpSymbols;
-    const activeRes = activeTab === 'cluster' ? results : scalpResults;
-    const suitableSymbols = activeList.filter(sym => activeRes[sym] && activeRes[sym].isSuitable);
-    
-    if (suitableSymbols.length === 0) {
-      alert('⚠️ لا توجد فرص مطابقة لنسخ تقريرها!');
-      return;
-    }
-
-    let report = `🎯 **تقرير العمليات (${activeTab === 'cluster' ? 'استثمار 4 ساعات' : 'سكالبينج لحظي'})** 📊\n\n`;
-    suitableSymbols.forEach((sym, index) => {
-      report += `[الهدف #${index + 1}] - الرمز: ${sym}\n${activeRes[sym].analysis}\n-------------------\n\n`;
-    });
-
-    navigator.clipboard.writeText(report);
-    alert('📋 تم نسخ التقرير الشامل بنجاح!');
-  };
-
-  const recordTradeOutcome = (outcome) => {
-    setTradeStats(prev => ({ ...prev, [outcome]: prev[outcome] + 1 }));
-  };
-
-  const currentList = activeTab === 'cluster' ? symbols : scalpSymbols;
-  const currentRes = activeTab === 'cluster' ? results : scalpResults;
-  const isCurrentLoading = activeTab === 'cluster' ? loading : loadingScalp;
-
-  const displayedSymbols = currentList.filter(sym => {
-    const data = currentRes[sym];
-    if (filterOnlySuitable && (!data || !data.isSuitable)) return false;
-    
-    if (activeRadarFilter === 'whales' && (!data || !data.hasWhaleVolume)) return false;
-    if (activeRadarFilter === 'fvg' && (!data || !data.hasFVG)) return false;
-    if (activeRadarFilter === 'traps' && (!data || !data.isTrapDetected)) return false;
-    if (activeRadarFilter === 'multi_rsi' && (!data || !data.isMultiRsiValid)) return false;
-
-    return true;
-  });
-
-  const totalAnalyzed = Object.keys(currentRes).length;
-  const suitableCount = Object.values(currentRes).filter(r => r?.isSuitable).length;
-  const successRate = totalAnalyzed > 0 ? ((suitableCount / totalAnalyzed) * 100).toFixed(1) : '0.0';
-  const marketMomentumScore = totalAnalyzed > 0 ? Math.round((suitableCount / totalAnalyzed) * 100) : 0;
-  const totalRecordedTrades = tradeStats.wins + tradeStats.losses;
-  const winRatePercent = totalRecordedTrades > 0 ? Math.round((tradeStats.wins / totalRecordedTrades) * 100) : 0;
 
   return (
-    <main style={{ padding: '25px', direction: 'rtl', fontFamily: 'Tahoma, sans-serif', background: '#030712', color: '#f8fafc', minHeight: '100vh' }}>
-      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 font-sans" dir="rtl">
+      <div className="max-w-4xl mx-auto space-y-6">
         
-        {/* العنوان الرئيسي */}
-        <div style={{ textAlign: 'center', marginBottom: '15px' }}>
-          <h1 style={{ color: '#38bdf8', fontSize: '26px', fontWeight: '900', margin: '0 0 5px 0' }}>
-            🎯 نظام السنايبر العسكري الشامل (مع ربط السوق الحي)
-          </h1>
-          <p style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>
-            سحب آلي من قائمة (Day & 52W Gainers)، رادارات الحيتان، الفراغات السعرية FVGs، وإدارة الأهداف
-          </p>
-        </div>
-
-        {/* التبديل بين الأقسام */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '15px', flexWrap: 'wrap' }}>
-          <button 
-            onClick={() => { setActiveTab('cluster'); setFilterOnlySuitable(false); }}
-            style={{ padding: '10px 22px', background: activeTab === 'cluster' ? '#0284c7' : '#0f172a', color: '#fff', border: '1px solid #38bdf8', borderRadius: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
+        {/* الهيدر والعنوان العسكري */}
+        <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-2xl flex flex-col md:flex-row justify-between items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-black text-amber-400 tracking-wider flex items-center gap-2">
+              🎯 منصتي سنايبر الاحترافية <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-1 rounded-full border border-amber-500/30">نسخة طماع 🔥</span>
+            </h1>
+            <p className="text-slate-400 text-sm mt-1">نظام تتبع الحيتان، الرصد اللحظي، وبطاقة الثقة التنبؤية الانعكاسية.</p>
+          </div>
+          
+          {/* زر تبديل الوضع (سكالبينج / كلاستر) */}
+          <button
+            onClick={() => setScalpMode(!scalpMode)}
+            className={`px-4 py-2 rounded-xl font-bold transition-all border ${
+              scalpMode 
+                ? 'bg-purple-600/20 border-purple-500 text-purple-300 shadow-lg shadow-purple-900/40' 
+                : 'bg-emerald-600/20 border-emerald-500 text-emerald-300 shadow-lg shadow-emerald-900/40'
+            }`}
           >
-            📊 الكلاستر والاستثمار الآلي [{symbols.length} سهم]
-          </button>
-          <button 
-            onClick={() => { setActiveTab('scalp'); setFilterOnlySuitable(false); }}
-            style={{ padding: '10px 22px', background: activeTab === 'scalp' ? '#9333ea' : '#0f172a', color: '#fff', border: '1px solid #c084fc', borderRadius: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
-          >
-            ⚡ موجات الترند اللحظي (سكالبينج) [{scalpSymbols.length} سهم]
+            {scalpMode ? '⚡ الوضع اللحظي (سكالبينج 15د)' : '🛡️ وضع الاستثمار (كلاستر 4س)'}
           </button>
         </div>
 
-        {/* شريط الأزرار العلوية المتقدمة */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0f172a', padding: '12px 18px', borderRadius: '12px', border: '1px solid #1e293b', marginBottom: '15px', flexWrap: 'wrap', gap: '10px' }}>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <button onClick={() => setShowHistoryModal(true)} style={{ background: '#0284c7', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-              📜 سجل العمليات والأداء ({missionHistory.length})
-            </button>
-            <button onClick={() => setShowTradesModal(true)} style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-              🎯 صفقاتي المفتوحة ({activeTrades.length})
-            </button>
-            <button onClick={() => setShowWebhookSettings(!showWebhookSettings)} style={{ background: '#0369a1', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-              🔗 إعدادات الويب هوك
-            </button>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#1e293b', padding: '4px 8px', borderRadius: '8px', border: '1px solid #475569' }}>
-              <span style={{ fontSize: '11px', color: '#94a3b8' }}>نتائج الصفقات:</span>
-              <button onClick={() => recordTradeOutcome('wins')} style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>✅ {tradeStats.wins}</button>
-              <button onClick={() => recordTradeOutcome('losses')} style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>❌ {tradeStats.losses}</button>
-              <span style={{ fontSize: '11px', color: '#facc15', fontWeight: 'bold' }}>({winRatePercent}%)</span>
-            </div>
-          </div>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
-            <span style={{ color: '#94a3b8' }}>زخم السوق:</span>
-            <span style={{ color: marketMomentumScore >= 30 ? '#22c55e' : '#38bdf8', fontWeight: 'bold' }}>
-              {marketMomentumScore >= 30 ? 'سيولة عالية متفجرة 🔥' : 'هدوء استباقي ومراقبة 🛡️'}
-            </span>
-            <span style={{ background: '#1e293b', padding: '2px 8px', borderRadius: '6px', color: '#fff', fontWeight: '900' }}>{marketMomentumScore}%</span>
-          </div>
-        </div>
-
-        {showWebhookSettings && (
-          <div style={{ background: '#0f172a', padding: '15px', borderRadius: '10px', border: '1px solid #38bdf8', marginBottom: '15px', display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <input 
-              type="text" 
-              placeholder="أدخل رابط Webhook URL..." 
-              value={webhookUrl}
-              onChange={(e) => setWebhookUrl(e.target.value)}
-              style={{ flex: 1, padding: '8px 12px', background: '#030712', border: '1px solid #475569', borderRadius: '6px', color: '#fff', fontSize: '13px' }}
+        {/* نموذج البحث والفحص */}
+        <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
+          <form onSubmit={handleAnalyze} className="flex flex-col md:flex-row gap-3">
+            <input
+              type="text"
+              placeholder="أدخل رمز السهم (مثال: TSLA, AAPL, NVDA)..."
+              value={symbol}
+              onChange={(e) => setSymbol(e.target.value)}
+              className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-amber-500 uppercase font-mono"
             />
-            <button onClick={() => alert('تم حفظ الرابط بنجاح!')} style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>حفظ</button>
-          </div>
-        )}
-
-        {/* شريط فلاتر الرادارات العسكرية المتقدمة */}
-        <div style={{ background: '#0f172a', padding: '12px 18px', borderRadius: '12px', border: '1px solid #1e293b', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 'bold' }}>🎯 فلاتر الرادار:</span>
-            <button onClick={() => setActiveRadarFilter('all')} style={{ background: activeRadarFilter === 'all' ? '#0284c7' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>الكل</button>
-            <button onClick={() => setActiveRadarFilter('whales')} style={{ background: activeRadarFilter === 'whales' ? '#16a34a' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>🐋 رادار الحيتان</button>
-            <button onClick={() => setActiveRadarFilter('fvg')} style={{ background: activeRadarFilter === 'fvg' ? '#9333ea' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>🧲 الفراغات السعرية FVGs</button>
-            <button onClick={() => setActiveRadarFilter('traps')} style={{ background: activeRadarFilter === 'traps' ? '#d97706' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>⚠️ كشف فخاخ صناع السوق</button>
-            <button onClick={() => setActiveRadarFilter('multi_rsi')} style={{ background: activeRadarFilter === 'multi_rsi' ? '#0d9488' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>📈 توافق فريمات RSI</button>
-          </div>
-          
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <button onClick={() => setFilterOnlySuitable(!filterOnlySuitable)} style={{ background: filterOnlySuitable ? '#16a34a' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
-              {filterOnlySuitable ? '✅ الفرص المؤكدة فقط' : '📊 عرض الكل'}
+            <button
+              type="submit"
+              disabled={loading}
+              className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-6 py-3 rounded-xl transition-all shadow-lg shadow-amber-500/20 disabled:opacity-50"
+            >
+              {loading ? '⏳ جاري التحليل...' : '🔍 فحص عسكري مباشر'}
             </button>
-            <button onClick={() => setAutoRefresh(!autoRefresh)} style={{ background: autoRefresh ? '#7c3aed' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
-              {autoRefresh ? `⚡ رادار آلي (${Math.floor(timer/60)}:${timer%60 < 10 ? '0':''}${timer%60})` : '⚡ تشغيل الفحص الآلي'}
-            </button>
-          </div>
-        </div>
-
-        {/* لوحات المؤشرات */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px', marginBottom: '20px' }}>
-          <div style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #1e293b', textAlign: 'center' }}>
-            <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '5px' }}>نسبة قبول الصفقات</div>
-            <div style={{ fontSize: '22px', fontWeight: '900', color: '#38bdf8' }}>{successRate}%</div>
-          </div>
-          <div style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #065f46', textAlign: 'center' }}>
-            <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '5px' }}>الفرص الذهبية المطابقة ✅</div>
-            <div style={{ fontSize: '22px', fontWeight: '900', color: '#4ade80' }}>{suitableCount} فرصة</div>
-          </div>
-          <div style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #1e293b', textAlign: 'center' }}>
-            <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '5px' }}>الأسهم المفحوصة</div>
-            <div style={{ fontSize: '22px', fontWeight: '900', color: '#facc15' }}>{totalAnalyzed} / {currentList.length}</div>
-          </div>
-          <div style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #1e293b', textAlign: 'center' }}>
-            <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '5px' }}>إجمالي الأسهم بالمراقبة</div>
-            <div style={{ fontSize: '22px', fontWeight: '900', color: '#c084fc' }}>{currentList.length} سهم</div>
-          </div>
-        </div>
-
-        {/* إضافة سهم، رادار السوق الحي، ونسخ التقرير الشامل */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '25px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <form onSubmit={addSymbol} style={{ display: 'flex', gap: '8px' }}>
-            <input 
-              type="text" 
-              placeholder="أدخل رمز السهم (مثال: TSLA)" 
-              value={newSymbol}
-              onChange={(e) => setNewSymbol(e.target.value)}
-              style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #475569', background: '#0f172a', color: '#fff', outline: 'none', fontSize: '13px', width: '180px' }}
-            />
-            <button type="submit" style={{ padding: '10px 16px', background: activeTab === 'cluster' ? '#0284c7' : '#9333ea', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>إضافة</button>
           </form>
 
-          {activeTab === 'cluster' ? (
-            <button onClick={scanMarketForCluster} disabled={scanning} style={{ padding: '10px 16px', background: scanning ? '#475569' : '#059669', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
-              {scanning ? '🔄 جاري جلب السوق الحي...' : '🐋 سحب الأسهم الرابحة من السوق الحي'}
+          <div className="flex items-center justify-between pt-2 border-t border-slate-800/60">
+            <span className="text-xs text-slate-400">فحص قائمة الأسهم الذكية تلقائياً:</span>
+            <button
+              onClick={handleScan}
+              disabled={scanLoading}
+              className="bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 font-semibold px-4 py-2 rounded-xl text-sm transition-all flex items-center gap-2"
+            >
+              {scanLoading ? '📡 جاري البحث في السوق...' : '🚀 مسح السوق التلقائي الآن'}
             </button>
-          ) : (
-            <button onClick={scanMarketForScalp} disabled={scanning} style={{ padding: '10px 16px', background: scanning ? '#475569' : '#9333ea', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
-              {scanning ? '🔄 جاري جلب السوق الحي...' : '⚡ سحب سكالبينج من السوق الحي'}
-            </button>
-          )}
-
-          <button onClick={copyAllIntelBriefing} style={{ padding: '10px 16px', background: '#0369a1', color: '#fff', border: '1px solid #38bdf8', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
-            📑 نسخ التقرير الشامل
-          </button>
+          </div>
         </div>
 
-        {/* زر الفحص الرئيسي */}
-        <div style={{ textAlign: 'center', marginBottom: '35px' }}>
-          <button 
-            onClick={activeTab === 'cluster' ? runAnalysis : runScalpAnalysis} 
-            disabled={isCurrentLoading}
-            style={{ padding: '14px 45px', background: isCurrentLoading ? '#475569' : (activeTab === 'cluster' ? '#16a34a' : '#9333ea'), color: '#fff', border: 'none', borderRadius: '12px', fontSize: '16px', cursor: 'pointer', fontWeight: '900', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
-          >
-            {isCurrentLoading ? '⚡ جاري فحص كافة المحاور والأسواق...' : (activeTab === 'cluster' ? '🚀 بدء التحليل العميق (كلاستر، FVGs وحيتان)' : '⚡ بدء الفحص السريع لموجات الترند')}
-          </button>
-        </div>
+        {/* عرض رسائل الخطأ */}
+        {error && (
+          <div className="bg-rose-950/40 border border-rose-800 text-rose-300 p-4 rounded-xl text-center">
+            ⚠️ {error}
+          </div>
+        )}
 
-        {/* شبكة عرض الأسهم */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '22px' }}>
-          {displayedSymbols.map((sym) => {
-            const data = currentRes[sym];
-            const isMatched = data?.isSuitable;
-
-            return (
-              <div key={sym} style={{ background: '#0f172a', padding: '20px', borderRadius: '16px', border: isMatched ? '2px solid #22c55e' : '1px solid #1e293b', position: 'relative' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #1e293b', paddingBottom: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <h3 style={{ margin: 0, color: '#facc15', fontSize: '20px', fontWeight: '800' }}>{sym}</h3>
-                    {isMatched && <span style={{ background: '#064e3b', color: '#4ade80', fontSize: '10px', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold' }}>هدف مؤكد 🔥</span>}
-                  </div>
-                  <button onClick={() => removeSymbol(sym)} style={{ background: '#7f1d1d', color: '#fca5a5', border: 'none', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}>حذف</button>
-                </div>
-
-                {data ? (
-                  <div>
-                    <div style={{ background: '#030712', padding: '12px', borderRadius: '10px', border: '1px solid #1e293b', marginBottom: '12px' }}>
-                      <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '12px', color: '#e2e8f0', margin: 0, lineHeight: '1.5' }}>
-                        {data.analysis || data.error}
-                      </pre>
-                    </div>
-
-                    {isMatched ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <a href={`https://www.tradingview.com/chart/?symbol=${sym}`} target="_blank" rel="noopener noreferrer" style={{ flex: 1, display: 'block', background: '#0284c7', color: '#fff', padding: '8px', textAlign: 'center', borderRadius: '8px', fontSize: '12px', textDecoration: 'none', fontWeight: 'bold' }}>📈 الشارت</a>
-                          <button onClick={() => copyToClipboard(data.analysis)} style={{ flex: 1, background: '#334155', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}>📋 نسخ التقرير</button>
-                        </div>
-                        {/* زر أنا دخلت الصفقة */}
-                        <button onClick={() => enterTrade(sym, data.price)} style={{ width: '100%', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', cursor: 'pointer', fontWeight: '900' }}>
-                          🎯 أنا دخلت الصفقة (تفعيل الأهداف التدريجية)
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ background: '#451a03', color: '#fdba74', padding: '8px', textAlign: 'center', borderRadius: '8px', fontSize: '11.5px', fontWeight: 'bold' }}>
-                        قيد المراقبة الاستباقية - لم تكتمل شروط الحيتان أو الفجوات ❌
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div style={{ textAlign: 'center', margin: '30px 0' }}>
-                    <p style={{ color: '#64748b', fontSize: '12px', margin: 0 }}>في انتظار فحص الرادار الشامل...</p>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* نافذة صفقاتي المفتوحة والأهداف الثلاثية */}
-        {showTradesModal && (
-          <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
-            <div style={{ background: '#0f172a', padding: '25px', borderRadius: '16px', border: '1px solid #16a34a', width: '90%', maxWidth: '700px', maxHeight: '85vh', overflowY: 'auto' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid #1e293b', paddingBottom: '10px' }}>
-                <h3 style={{ margin: 0, color: '#4ade80', fontSize: '18px' }}>🎯 لوحة متابعة الصفقات المفتوحة (الأهداف الثلاثية)</h3>
-                <button onClick={() => setShowTradesModal(false)} style={{ background: '#7f1d1d', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>إغلاق</button>
-              </div>
-              {activeTrades.length === 0 ? (
-                <p style={{ color: '#94a3b8', textAlign: 'center', padding: '20px' }}>لا توجد صفقات مسجلة حالياً.</p>
-              ) : (
-                activeTrades.map((t) => (
-                  <div key={t.id} style={{ background: '#030712', padding: '14px', borderRadius: '10px', border: '1px solid #1e293b', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-                    <div>
-                      <div style={{ color: '#facc15', fontSize: '15px', fontWeight: 'bold', marginBottom: '4px' }}>
-                        🎯 الرمز: {t.symbol} <span style={{ color: '#38bdf8', fontSize: '11px' }}>({t.type})</span>
-                      </div>
-                      <div style={{ color: '#cbd5e1', fontSize: '12.5px', lineHeight: '1.5' }}>
-                        سعر الدخول: <strong style={{ color: '#4ade80' }}>{t.entryPrice}</strong> | وقف الخسارة: <strong style={{ color: '#ef4444' }}>{t.stopLoss}</strong><br/>
-                        🎯 أهداف الخروج: الهدف 1 (33%): {t.targets.t1} | الهدف 2 (33%): {t.targets.t2} | الهدف 3 (34%): {t.targets.t3}
-                      </div>
-                    </div>
-                    <button onClick={() => closeActiveTrade(t.id)} style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-                      إغلاق وتسيير الصفقة 🛑
-                    </button>
-                  </div>
-                ))
-              )}
+        {/* نتائج المسح التلقائي للسوق */}
+        {scanResults.length > 0 && (
+          <div className="bg-slate-900 border border-emerald-500/30 p-6 rounded-2xl shadow-xl space-y-3">
+            <h3 className="text-emerald-400 font-bold flex items-center gap-2">
+              🟢 الأسهم المطابقة لشروط الصيد العسكري ({scanResults.length})
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {scanResults.map((sym) => (
+                <button
+                  key={sym}
+                  onClick={() => { setSymbol(sym); }}
+                  className="bg-slate-950 border border-slate-800 hover:border-emerald-500 text-white font-mono px-4 py-2 rounded-xl transition-all font-bold"
+                >
+                  {sym} 🔥
+                </button>
+              ))}
             </div>
           </div>
         )}
 
-        {/* نافذة سجل العمليات */}
-        {showHistoryModal && (
-          <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
-            <div style={{ background: '#0f172a', padding: '25px', borderRadius: '16px', border: '1px solid #38bdf8', width: '90%', maxWidth: '600px', maxHeight: '80vh', overflowY: 'auto' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid #1e293b', paddingBottom: '10px' }}>
-                <h3 style={{ margin: 0, color: '#38bdf8', fontSize: '18px' }}>📜 سجل العمليات الحربية</h3>
-                <button onClick={() => setShowHistoryModal(false)} style={{ background: '#7f1d1d', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>إغلاق</button>
+        {/* بطاقة عرض تفاصيل التحليل المتقدم */}
+        {data && (
+          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-2xl space-y-6">
+            
+            {/* رأس النتائج */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-slate-800">
+              <div>
+                <h2 className="text-xl font-mono font-bold text-amber-400 flex items-center gap-3">
+                  {data.symbol} 
+                  <span className="text-white text-lg bg-slate-950 px-3 py-1 rounded-lg border border-slate-800">
+                    ${data.price}
+                  </span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">مؤشر الزخم RSI: <span className="text-white font-mono">{data.rsi}</span></p>
               </div>
-              {missionHistory.length === 0 ? (
-                <p style={{ color: '#94a3b8', textAlign: 'center', padding: '20px' }}>لا توجد عمليات مسجلة حتى الآن.</p>
-              ) : (
-                missionHistory.map((item) => (
-                  <div key={item.id} style={{ background: '#030712', padding: '12px', borderRadius: '8px', border: '1px solid #1e293b', marginBottom: '10px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#facc15', fontSize: '13px', fontWeight: 'bold', marginBottom: '5px' }}>
-                      <span>🎯 الهدف: {item.symbol}</span>
-                      <span style={{ color: '#94a3b8', fontSize: '11px' }}>{item.time}</span>
-                    </div>
-                    <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '11.5px', color: '#cbd5e1', margin: 0 }}>
-                      {item.details}
-                    </pre>
-                  </div>
-                ))
-              )}
+
+              {/* بطاقة الثقة الانعكاسية 🔮 */}
+              <div className="bg-slate-950 border border-amber-500/40 px-4 py-2 rounded-xl text-center shadow-inner">
+                <span className="text-xs text-slate-400 block">🔮 بطاقة الثقة التنبؤية</span>
+                <span className="text-lg font-black text-amber-400">{data.confidenceScore}% 🎯</span>
+              </div>
             </div>
+
+            {/* شريط الاختراق والاتجاه اللحظي 🎚️ */}
+            <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col md:flex-row justify-between items-center gap-3">
+              <div>
+                <span className="text-xs text-slate-400 block">🎚️ شريط الاختراق والاتجاه:</span>
+                <span className="text-sm font-bold text-emerald-300 mt-0.5 block">{data.breakoutTape}</span>
+              </div>
+              <div className="text-left">
+                <span className="text-xs text-slate-400 block">📈 معدل الاختراق والزخم:</span>
+                <span className="text-sm font-mono font-bold text-amber-400">{data.momentumRate}%</span>
+              </div>
+            </div>
+
+            {/* تقرير التحليل العسكري الكامل */}
+            <div className="bg-slate-950 p-5 rounded-xl border border-slate-800">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">📋 التقرير العسكري المفصل:</h4>
+              <pre className="whitespace-pre-wrap text-slate-200 text-sm font-sans leading-relaxed">
+                {data.analysis}
+              </pre>
+            </div>
+
+            {/* مؤشرات الحالة السريعة */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs text-center">
+              <div className={`p-3 rounded-xl border ${data.isSuitable ? 'bg-emerald-950/30 border-emerald-800/50 text-emerald-300' : 'bg-slate-950 border-slate-800 text-slate-400'}`}>
+                حالة النموذج: {data.isSuitable ? 'مؤكد 🔥' : 'تحت المراقبة ⚠️'}
+              </div>
+              <div className={`p-3 rounded-xl border ${data.hasWhaleVolume ? 'bg-amber-950/30 border-amber-800/50 text-amber-300' : 'bg-slate-950 border-slate-800 text-slate-400'}`}>
+                رادار الحيتان: {data.hasWhaleVolume ? 'نشط 🐋' : 'هادئ 🛡️'}
+              </div>
+              <div className={`p-3 rounded-xl border ${data.hasFVG ? 'bg-blue-950/30 border-blue-800/50 text-blue-300' : 'bg-slate-950 border-slate-800 text-slate-400'}`}>
+                فراغات FVG: {data.hasFVG ? 'موجودة 🧲' : 'لا توجد ⚠️'}
+              </div>
+              <div className={`p-3 rounded-xl border ${!data.isTrapDetected ? 'bg-emerald-950/30 border-emerald-800/50 text-emerald-300' : 'bg-rose-950/30 border-rose-800/50 text-rose-300'}`}>
+                فخاخ السوق: {data.isTrapDetected ? 'تحذير فخ ❌' : 'منطقة نظيفة ✅'}
+              </div>
+            </div>
+
           </div>
         )}
 
       </div>
-    </main>
+    </div>
   );
 }
