@@ -34,6 +34,9 @@ export default function Home() {
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [timer, setTimer] = useState(300);
 
+  // ميزة التنبيهات الاستباقية المبكرة (Proactive Early Alerts)
+  const [earlyAlertsEnabled, setEarlyAlertsEnabled] = useState(true);
+
   // نظام تتبع إحصائيات الصفقات والأداء
   const [tradeStats, setTradeStats] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -80,13 +83,13 @@ export default function Home() {
     }
   }, [webhookUrl, missionHistory, tradeStats, activeTrades, symbols, scalpSymbols]);
 
-  const sendWebhookAlert = async (sym, analysisText) => {
+  const sendWebhookAlert = async (sym, analysisText, isEarly = false) => {
     if (!webhookUrl.trim()) return;
     try {
       await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: `🚨 **تنبيه عسكري فوري للمنصة** 🎯\nرصد هدف على السهم: **${sym}**\n\n\`\`\`${analysisText}\`\`\`` })
+        body: JSON.stringify({ content: isEarly ? `⏳ **إنذار استباقي مبكر** 🎯\nاقتراب هدف على السهم: **${sym}**\n\n\`\`\`${analysisText}\`\`\`` : `🚨 **تنبيه عسكري فوري للمنصة** 🎯\nرصد هدف على السهم: **${sym}**\n\n\`\`\`${analysisText}\`\`\`` })
       });
     } catch (e) {}
   };
@@ -102,13 +105,13 @@ export default function Home() {
     } catch (e) {}
   };
 
-  const playRadarSound = (sym = '', analysisText = '') => {
+  const playRadarSound = (sym = '', analysisText = '', isEarly = false) => {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.setValueAtTime(isEarly ? 660 : 880, ctx.currentTime);
       gain.gain.setValueAtTime(0.1, ctx.currentTime);
       osc.connect(gain);
       gain.connect(ctx.destination);
@@ -117,12 +120,12 @@ export default function Home() {
     } catch (e) {}
     
     if (sym) {
-      speakAlert(`تنبيه رادار السنايبر. تم رصد فرصة ذهبية على السهم ${sym}`);
-      sendWebhookAlert(sym, analysisText);
+      speakAlert(isEarly ? `تنبيه استباقي. السهم ${sym} يقترب بشدة من منطقة الهدف` : `تنبيه رادار السنايبر. تم رصد فرصة ذهبية على السهم ${sym}`);
+      sendWebhookAlert(sym, analysisText, isEarly);
       
       const timeNow = new Date().toLocaleTimeString('ar-SA');
       setMissionHistory(prev => [
-        { id: Date.now(), symbol: sym, time: timeNow, details: analysisText },
+        { id: Date.now(), symbol: sym, time: timeNow, details: analysisText, isEarly },
         ...prev.slice(0, 49)
       ]);
     }
@@ -147,12 +150,13 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [autoRefresh, activeTab, symbols, scalpSymbols]);
 
-  // تم التعديل لتوجيه الطلب إلى مسار /api/analyze المعتمد لديك
   const runAnalysis = async () => {
     setLoading(true);
     const newResults = {};
     let firstMatchedSym = '';
     let firstAnalysis = '';
+    let isEarlyAlert = false;
+
     for (let sym of symbols) {
       try {
         const res = await fetch('/api/analyze', {
@@ -163,14 +167,21 @@ export default function Home() {
             scalpMode: false,
             minConfidence,
             cooldownMinutes,
+            earlyAlertsEnabled,
             discordWebhook: webhookUrl
           })
         });
         const data = await res.json();
         newResults[sym] = data;
+        
         if (data.isSuitable && data.confidenceScore >= minConfidence && !firstMatchedSym) {
           firstMatchedSym = sym;
           firstAnalysis = data.analysis;
+          isEarlyAlert = false;
+        } else if (earlyAlertsEnabled && data.isEarlyAlert && !firstMatchedSym) {
+          firstMatchedSym = sym;
+          firstAnalysis = data.analysis;
+          isEarlyAlert = true;
         }
       } catch (err) {
         newResults[sym] = { error: "فشل الاتصال بمحرك التحليل" };
@@ -178,15 +189,16 @@ export default function Home() {
     }
     setResults(newResults);
     setLoading(false);
-    if (firstMatchedSym) playRadarSound(firstMatchedSym, firstAnalysis);
+    if (firstMatchedSym) playRadarSound(firstMatchedSym, firstAnalysis, isEarlyAlert);
   };
 
-  // تم التعديل لتوجيه الطلب إلى مسار /api/analyze المعتمد لديك
   const runScalpAnalysis = async () => {
     setLoadingScalp(true);
     const newResults = {};
     let firstMatchedSym = '';
     let firstAnalysis = '';
+    let isEarlyAlert = false;
+
     for (let sym of scalpSymbols) {
       try {
         const res = await fetch('/api/analyze', {
@@ -197,14 +209,21 @@ export default function Home() {
             scalpMode: true,
             minConfidence,
             cooldownMinutes,
+            earlyAlertsEnabled,
             discordWebhook: webhookUrl
           })
         });
         const data = await res.json();
         newResults[sym] = data;
+
         if (data.isSuitable && data.confidenceScore >= minConfidence && !firstMatchedSym) {
           firstMatchedSym = sym;
           firstAnalysis = data.analysis;
+          isEarlyAlert = false;
+        } else if (earlyAlertsEnabled && data.isEarlyAlert && !firstMatchedSym) {
+          firstMatchedSym = sym;
+          firstAnalysis = data.analysis;
+          isEarlyAlert = true;
         }
       } catch (err) {
         newResults[sym] = { error: "فشل الاتصال بالرادار اللحظي" };
@@ -212,10 +231,9 @@ export default function Home() {
     }
     setScalpResults(newResults);
     setLoadingScalp(false);
-    if (firstMatchedSym) playRadarSound(firstMatchedSym, firstAnalysis);
+    if (firstMatchedSym) playRadarSound(firstMatchedSym, firstAnalysis, isEarlyAlert);
   };
 
-  // تم التعديل لتوجيه الطلب إلى مسار /api/analyze المعتمد لديك
   const scanMarketForCluster = async () => {
     setScanning(true);
     try {
@@ -236,7 +254,6 @@ export default function Home() {
     setScanning(false);
   };
 
-  // تم التعديل لتوجيه الطلب إلى مسار /api/analyze المعتمد لديك
   const scanMarketForScalp = async () => {
     setScanning(true);
     try {
@@ -311,14 +328,14 @@ export default function Home() {
   const copyAllIntelBriefing = () => {
     const activeList = activeTab === 'cluster' ? symbols : scalpSymbols;
     const activeRes = activeTab === 'cluster' ? results : scalpResults;
-    const suitableSymbols = activeList.filter(sym => activeRes[sym] && activeRes[sym].isSuitable && activeRes[sym].confidenceScore >= minConfidence);
+    const suitableSymbols = activeList.filter(sym => activeRes[sym] && (activeRes[sym].isSuitable || activeRes[sym].isEarlyAlert));
     
     if (suitableSymbols.length === 0) {
-      alert('⚠️ لا توجد فرص مطابقة لنسبة الثقة المحددة لنسخ تقريرها!');
+      alert('⚠️ لا توجد فرص أو تنبيهات استباقية مطابقة لنسخ تقريرها!');
       return;
     }
 
-    let report = `🎯 **تقرير العمليات (${activeTab === 'cluster' ? 'استثمار 4 ساعات' : 'سكالبينج لحظي'})** 📊\n\n`;
+    let report = `🎯 **تقرير العمليات والذكاء الاصطناعي (${activeTab === 'cluster' ? 'استثمار 4 ساعات' : 'سكالبينج لحظي'})** 📊\n\n`;
     suitableSymbols.forEach((sym, index) => {
       report += `[الهدف #${index + 1}] - الرمز: ${sym}\n${activeRes[sym].analysis}\n-------------------\n\n`;
     });
@@ -337,7 +354,7 @@ export default function Home() {
 
   const displayedSymbols = currentList.filter(sym => {
     const data = currentRes[sym];
-    if (filterOnlySuitable && (!data || !data.isSuitable || data.confidenceScore < minConfidence)) return false;
+    if (filterOnlySuitable && (!data || (!data.isSuitable && !data.isEarlyAlert))) return false;
     
     if (activeRadarFilter === 'whales' && (!data || !data.hasWhaleVolume)) return false;
     if (activeRadarFilter === 'fvg' && (!data || !data.hasFVG)) return false;
@@ -348,7 +365,7 @@ export default function Home() {
   });
 
   const totalAnalyzed = Object.keys(currentRes).length;
-  const suitableCount = Object.values(currentRes).filter(r => r?.isSuitable && r?.confidenceScore >= minConfidence).length;
+  const suitableCount = Object.values(currentRes).filter(r => r?.isSuitable || r?.isEarlyAlert).length;
   const successRate = totalAnalyzed > 0 ? ((suitableCount / totalAnalyzed) * 100).toFixed(1) : '0.0';
   const marketMomentumScore = totalAnalyzed > 0 ? Math.round((suitableCount / totalAnalyzed) * 100) : 0;
   const totalRecordedTrades = tradeStats.wins + tradeStats.losses;
@@ -361,10 +378,10 @@ export default function Home() {
         {/* العنوان الرئيسي */}
         <div style={{ textAlign: 'center', marginBottom: '15px' }}>
           <h1 style={{ color: '#38bdf8', fontSize: '26px', fontWeight: '900', margin: '0 0 5px 0' }}>
-            🎯 منصتي سنايبر الاحترافية (نسخة طماع 🔥)
+            🎯 منصتي سنايبر الاحترافية (نسخة طماع + خريطة السيولة والذكاء الاصطناعي 🔥)
           </h1>
           <p style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>
-            سحب آلي من السوق الحي، رادارات الحيتان، الفراغات السعرية FVGs، وبطاقة الثقة التنبؤية الانعكاسية
+            سحب آلي، رادارات الحيتان، خريطة السيولة اللحظية DOM Heatmap، تقييم الذكاء الاصطناعي، والتنبيهات الاستباقية المبكرة
           </p>
         </div>
 
@@ -472,8 +489,11 @@ export default function Home() {
           </div>
           
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button onClick={() => setEarlyAlertsEnabled(!earlyAlertsEnabled)} style={{ background: earlyAlertsEnabled ? '#0284c7' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
+              {earlyAlertsEnabled ? '⏳ التنبيه الاستباقي: مفعل' : '⏳ التنبيه الاستباقي: معطل'}
+            </button>
             <button onClick={() => setFilterOnlySuitable(!filterOnlySuitable)} style={{ background: filterOnlySuitable ? '#16a34a' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
-              {filterOnlySuitable ? `✅ الثقة >= ${minConfidence}%` : '📊 عرض الكل'}
+              {filterOnlySuitable ? `✅ الفرص المكتملة والاستباقية` : '📊 عرض الكل'}
             </button>
             <button onClick={() => setAutoRefresh(!autoRefresh)} style={{ background: autoRefresh ? '#7c3aed' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
               {autoRefresh ? `⚡ رادار آلي (${Math.floor(timer/60)}:${timer%60 < 10 ? '0':''}${timer%60})` : '⚡ تشغيل الفحص الآلي'}
@@ -488,7 +508,7 @@ export default function Home() {
             <div style={{ fontSize: '22px', fontWeight: '900', color: '#38bdf8' }}>{successRate}%</div>
           </div>
           <div style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #065f46', textAlign: 'center' }}>
-            <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '5px' }}>الفرص الذهبية المطابقة ✅</div>
+            <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '5px' }}>الفرص والإنذارات المطابقة ✅</div>
             <div style={{ fontSize: '22px', fontWeight: '900', color: '#4ade80' }}>{suitableCount} فرصة</div>
           </div>
           <div style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #1e293b', textAlign: 'center' }}>
@@ -525,7 +545,7 @@ export default function Home() {
           )}
 
           <button onClick={copyAllIntelBriefing} style={{ padding: '10px 16px', background: '#0369a1', color: '#fff', border: '1px solid #38bdf8', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
-            📑 نسخ التقرير الشامل
+            📑 نسخ التقرير الشامل والذكاء الاصطناعي
           </button>
         </div>
 
@@ -536,7 +556,7 @@ export default function Home() {
             disabled={isCurrentLoading}
             style={{ padding: '14px 45px', background: isCurrentLoading ? '#475569' : (activeTab === 'cluster' ? '#16a34a' : '#9333ea'), color: '#fff', border: 'none', borderRadius: '12px', fontSize: '16px', cursor: 'pointer', fontWeight: '900', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
           >
-            {isCurrentLoading ? '⚡ جاري فحص كافة المحاور والأسواق...' : (activeTab === 'cluster' ? '🚀 بدء التحليل العميق (كلاستر، FVGs وحيتان)' : '⚡ بدء الفحص السريع لموجات الترند')}
+            {isCurrentLoading ? '⚡ جاري فحص كافة المحاور والأسواق وخريطة السيولة...' : (activeTab === 'cluster' ? '🚀 بدء التحليل العميق (كلاستر، FVGs، الحيتان والذكاء الاصطناعي)' : '⚡ بدء الفحص السريع لموجات الترند')}
           </button>
         </div>
 
@@ -545,13 +565,15 @@ export default function Home() {
           {displayedSymbols.map((sym) => {
             const data = currentRes[sym];
             const isMatched = data?.isSuitable && data?.confidenceScore >= minConfidence;
+            const isEarly = data?.isEarlyAlert && !isMatched;
 
             return (
-              <div key={sym} style={{ background: '#0f172a', padding: '20px', borderRadius: '16px', border: isMatched ? '2px solid #22c55e' : '1px solid #1e293b', position: 'relative' }}>
+              <div key={sym} style={{ background: '#0f172a', padding: '20px', borderRadius: '16px', border: isMatched ? '2px solid #22c55e' : isEarly ? '2px solid #f59e0b' : '1px solid #1e293b', position: 'relative' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #1e293b', paddingBottom: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <h3 style={{ margin: 0, color: '#facc15', fontSize: '20px', fontWeight: '800' }}>{sym}</h3>
                     {isMatched && <span style={{ background: '#064e3b', color: '#4ade80', fontSize: '10px', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold' }}>هدف مؤكد 🔥</span>}
+                    {isEarly && <span style={{ background: '#451a03', color: '#f59e0b', fontSize: '10px', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold' }}>إنذار استباقي ⏳</span>}
                   </div>
                   <button onClick={() => removeSymbol(sym)} style={{ background: '#7f1d1d', color: '#fca5a5', border: 'none', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}>حذف</button>
                 </div>
@@ -564,13 +586,13 @@ export default function Home() {
                       </pre>
                     </div>
 
-                    {isMatched ? (
+                    {isMatched || isEarly ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <a href={`https://www.tradingview.com/chart/?symbol=${sym}`} target="_blank" rel="noopener noreferrer" style={{ flex: 1, display: 'block', background: '#0284c7', color: '#fff', padding: '8px', textAlign: 'center', borderRadius: '8px', fontSize: '12px', textDecoration: 'none', fontWeight: 'bold' }}>📈 الشارت</a>
                           <button onClick={() => copyToClipboard(data.analysis)} style={{ flex: 1, background: '#334155', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}>📋 نسخ التقرير</button>
                         </div>
-                        <button onClick={() => enterTrade(sym, data.price)} style={{ width: '100%', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', cursor: 'pointer', fontWeight: '900' }}>
+                        <button onClick={() => enterTrade(sym, data.price)} style={{ width: '100%', background: isMatched ? '#16a34a' : '#d97706', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', cursor: 'pointer', fontWeight: '900' }}>
                           🎯 أنا دخلت الصفقة (تفعيل الأهداف التدريجية)
                         </button>
                       </div>
@@ -582,7 +604,7 @@ export default function Home() {
                   </div>
                 ) : (
                   <div style={{ textAlign: 'center', margin: '30px 0' }}>
-                    <p style={{ color: '#64748b', fontSize: '12px', margin: 0 }}>في انتظار فحص الرادار الشامل...</p>
+                    <p style={{ color: '#64748b', fontSize: '12px', margin: 0 }}>في انتظار فحص الرادار الشامل وخريطة السيولة...</p>
                   </div>
                 )}
               </div>
@@ -636,7 +658,7 @@ export default function Home() {
                 missionHistory.map((item) => (
                   <div key={item.id} style={{ background: '#030712', padding: '12px', borderRadius: '8px', border: '1px solid #1e293b', marginBottom: '10px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', color: '#facc15', fontSize: '13px', fontWeight: 'bold', marginBottom: '5px' }}>
-                      <span>🎯 الهدف: {item.symbol}</span>
+                      <span>🎯 الهدف: {item.symbol} {item.isEarly ? '(إنذار استباقي ⏳)' : ''}</span>
                       <span style={{ color: '#94a3b8', fontSize: '11px' }}>{item.time}</span>
                     </div>
                     <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '11.5px', color: '#cbd5e1', margin: 0 }}>
