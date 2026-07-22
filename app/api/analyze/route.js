@@ -9,8 +9,9 @@ async function fetchYahooData(symbol, isScalp = false) {
 
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${intervalQuery}&range=${rangeQuery}`;
     const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-    const data = await res.json();
+    if (!res.ok) return null;
     
+    const data = await res.json();
     const result = data.chart?.result?.[0];
     if (!result) return null;
 
@@ -118,6 +119,7 @@ async function fetchYahooData(symbol, isScalp = false) {
   }
 }
 
+// ⚡ فحص السوق دفعة واحدة وبشكل متوازي لتجنب الـ Timeout
 async function scanLiveMarket(isScalp = false, customSymbols = [], minConfidence = 70) {
   try {
     const liveGainersSymbols = isScalp 
@@ -125,14 +127,15 @@ async function scanLiveMarket(isScalp = false, customSymbols = [], minConfidence
       : ['SNDK', 'AXTI', 'ABVX', 'ERAS', 'ALMS', 'DMRA', 'MU', 'GSIT', 'KULR'];
 
     const marketPool = Array.from(new Set([...customSymbols, ...liveGainersSymbols]));
-    const matchedSymbols = [];
 
-    for (let sym of marketPool) {
-      const data = await fetchYahooData(sym, isScalp);
-      if (data && data.isSuitable && data.confidenceScore >= minConfidence) {
-        matchedSymbols.push(sym);
-      }
-    }
+    // تنفيذ الفحص دفعة واحدة بشكل متوازي بالكامل (Parallel Execution)
+    const promises = marketPool.map(sym => fetchYahooData(sym, isScalp));
+    const results = await Promise.all(promises);
+
+    const matchedSymbols = results
+      .filter(data => data && data.isSuitable && data.confidenceScore >= minConfidence)
+      .map(data => data.symbol);
+
     return matchedSymbols;
   } catch (e) {
     return [];
@@ -152,7 +155,6 @@ async function sendTelegramAlert(text) {
   } catch (e) {}
 }
 
-// 🟢 معالجة طلبات GET (تخدم السكرينر والمسح الحي والبحث الفردي عبر الـ Query Params)
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -186,7 +188,6 @@ export async function GET(request) {
   }
 }
 
-// 🔵 معالجة طلبات POST (تخدم التحليل المتقدم وإرسال التنبيهات)
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -210,7 +211,7 @@ export async function POST(request) {
       let shouldAlert = true;
       const cooldownMs = cooldownMinutes * 60 * 1000;
 
-      if (existingCache && existingCache.mode === modeKey && (now - existingCache.timestamp) < cooldownMs) {
+    if (existingCache && existingCache.mode === modeKey && (now - existingCache.timestamp) < cooldownMs) {
         shouldAlert = false;
       }
 
