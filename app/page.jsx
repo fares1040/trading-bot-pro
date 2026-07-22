@@ -38,6 +38,17 @@ export default function Home() {
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [timer, setTimer] = useState(300);
 
+  // نظام تتبع إحصائيات الصفقات (Win / Loss)
+  const [tradeStats, setTradeStats] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const savedStats = localStorage.getItem('sniper_trade_stats');
+      if (savedStats) {
+        try { return JSON.parse(savedStats); } catch (e) {}
+      }
+    }
+    return { wins: 0, losses: 0 };
+  });
+
   const [missionHistory, setMissionHistory] = useState(() => {
     if (typeof window !== 'undefined') {
       const savedHist = localStorage.getItem('sniper_mission_history');
@@ -66,6 +77,12 @@ export default function Home() {
       localStorage.setItem('sniper_mission_history', JSON.stringify(missionHistory));
     }
   }, [missionHistory]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sniper_trade_stats', JSON.stringify(tradeStats));
+    }
+  }, [tradeStats]);
 
   useEffect(() => {
     localStorage.setItem('sniper_symbols_cluster', JSON.stringify(symbols));
@@ -110,11 +127,11 @@ export default function Home() {
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start();
-      osc.stop(ctx.currentTime + 0.2);
+      osc.stop(ctx.currentTime + 0.3);
     } catch (e) {}
     
     if (sym) {
-      speakAlert(`تنبيه رادار السنايبر. تم رصد هدف على السهم ${sym}`);
+      speakAlert(`تنبيه رادار السنايبر. تم رصد هدف جديد على السهم ${sym}`);
       sendWebhookAlert(sym, analysisText);
       
       const timeNow = new Date().toLocaleTimeString('ar-SA');
@@ -274,6 +291,13 @@ export default function Home() {
     alert('📋 تم نسخ التقرير الشامل بنجاح!');
   };
 
+  const recordTrade = (outcome) => {
+    setTradeStats(prev => ({
+      ...prev,
+      [outcome]: prev[outcome] + 1
+    }));
+  };
+
   const currentList = activeTab === 'cluster' ? symbols : scalpSymbols;
   const currentRes = activeTab === 'cluster' ? results : scalpResults;
   const isCurrentLoading = activeTab === 'cluster' ? loading : loadingScalp;
@@ -286,6 +310,21 @@ export default function Home() {
   const totalAnalyzed = Object.keys(currentRes).length;
   const suitableCount = Object.values(currentRes).filter(r => r?.isSuitable).length;
   const successRate = totalAnalyzed > 0 ? ((suitableCount / totalAnalyzed) * 100).toFixed(1) : '0.0';
+
+  // حساب مؤشر القوة وزخم السوق الديناميكي
+  const marketMomentumScore = totalAnalyzed > 0 ? Math.round((suitableCount / totalAnalyzed) * 100) : 0;
+  let marketStatusText = 'هدوء استباقي ومراقبة مناطق الكلاستر 🛡️';
+  let marketStatusColor = '#38bdf8';
+  if (marketMomentumScore >= 40) {
+    marketStatusText = 'هجوم شرائي عارم وسيولة عالية تتفجر في السوق 🔥';
+    marketStatusColor = '#22c55e';
+  } else if (marketMomentumScore >= 20) {
+    marketStatusText = 'حركة إيجابية تدريجية وفرص تتشكل ⚡';
+    marketStatusColor = '#f59e0b';
+  }
+
+  const totalRecordedTrades = tradeStats.wins + tradeStats.losses;
+  const winRatePercent = totalRecordedTrades > 0 ? Math.round((tradeStats.wins / totalRecordedTrades) * 100) : 0;
 
   return (
     <main style={{ padding: '25px', direction: 'rtl', fontFamily: 'Tahoma, sans-serif', background: '#030712', color: '#f8fafc', minHeight: '100vh', position: 'relative' }}>
@@ -319,16 +358,28 @@ export default function Home() {
 
         {/* شريط الأزرار العلوية المساعدة */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0f172a', padding: '12px 18px', borderRadius: '12px', border: '1px solid #1e293b', marginBottom: '15px', flexWrap: 'wrap', gap: '10px' }}>
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
             <button onClick={() => setShowHistoryModal(true)} style={{ background: '#0284c7', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-              ⚙️ سجل العمليات الحربية ({missionHistory.length})
+              ⚙️ سجل العمليات ({missionHistory.length})
             </button>
             <button onClick={() => setShowWebhookSettings(!showWebhookSettings)} style={{ background: '#0369a1', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
               🔗 إعدادات البث (Webhook)
             </button>
+            
+            {/* نظام تتبع دقة الصفقات الميدانية (Win/Loss) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#1e293b', padding: '4px 10px', borderRadius: '8px', border: '1px solid #475569' }}>
+              <span style={{ fontSize: '11px', color: '#94a3b8' }}>سجل الأداء:</span>
+              <button onClick={() => recordTrade('wins')} style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>✅ {tradeStats.wins}</button>
+              <button onClick={() => recordTrade('losses')} style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>❌ {tradeStats.losses}</button>
+              <span style={{ fontSize: '11px', color: '#facc15', fontWeight: 'bold' }}>({winRatePercent}%)</span>
+            </div>
           </div>
-          <div style={{ fontSize: '12px', color: '#94a3b8' }}>
-            🌍 مؤشر نبض الخوف والسيولة العالمي: هدوء استباقي ومراقبة مناطق الكلاستر
+          
+          {/* مؤشر القوة والنبض الديناميكي */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+            <span style={{ color: '#94a3b8' }}>مؤشر الزخم العام:</span>
+            <span style={{ color: marketStatusColor, fontWeight: 'bold' }}>{marketStatusText}</span>
+            <span style={{ background: '#1e293b', padding: '2px 8px', borderRadius: '6px', color: '#fff', fontWeight: '900' }}>{marketMomentumScore}%</span>
           </div>
         </div>
 
@@ -362,7 +413,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* لوحات المؤشرات والعدادات (نفس التصميم القديم) */}
+        {/* لوحات المؤشرات والعدادات */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px', marginBottom: '20px' }}>
           <div style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #1e293b', textAlign: 'center' }}>
             <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '5px' }}>نسبة الكفاءة والقبول الحالية</div>
