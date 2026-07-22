@@ -5,22 +5,15 @@ export default function Home() {
   const [symbols, setSymbols] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('sniper_symbols_cluster');
-      if (saved) {
-        try { return JSON.parse(saved); } catch (e) {}
-      }
+      if (saved) { try { return JSON.parse(saved); } catch (e) {} }
     }
-    return [
-      'VMAR', 'CETX', 'GSIT', 'PRFX', 'BYRN', 'ERNA', 
-      'LNZA', 'HURA', 'KULR', 'ANVS', 'PPSI', 'BJDX'
-    ];
+    return ['VMAR', 'CETX', 'GSIT', 'PRFX', 'BYRN', 'ERNA', 'LNZA', 'HURA', 'KULR', 'ANVS', 'PPSI', 'BJDX'];
   });
 
   const [scalpSymbols, setScalpSymbols] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('sniper_symbols_scalp');
-      if (saved) {
-        try { return JSON.parse(saved); } catch (e) {}
-      }
+      if (saved) { try { return JSON.parse(saved); } catch (e) {} }
     }
     return ['TSLA', 'NVDA', 'AAPL', 'AMD', 'META', 'MSFT', 'SPY', 'QQQ'];
   });
@@ -30,36 +23,45 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [activeTab, setActiveTab] = useState('cluster'); 
-  
   const [scalpResults, setScalpResults] = useState({});
   const [loadingScalp, setLoadingScalp] = useState(false);
 
+  // إعدادات الفلاتر والرادارات المتقدمة الجديدة
   const [filterOnlySuitable, setFilterOnlySuitable] = useState(false);
+  const [activeRadarFilter, setActiveRadarFilter] = useState('all'); // all, whales, fvg, traps, multi_rsi
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [timer, setTimer] = useState(300);
 
-  // نظام تتبع إحصائيات الصفقات (Win / Loss)
+  // نظام تتبع إحصائيات الصفقات والأداء
   const [tradeStats, setTradeStats] = useState(() => {
     if (typeof window !== 'undefined') {
-      const savedStats = localStorage.getItem('sniper_trade_stats');
-      if (savedStats) {
-        try { return JSON.parse(savedStats); } catch (e) {}
-      }
+      const saved = localStorage.getItem('sniper_trade_stats');
+      if (saved) { try { return JSON.parse(saved); } catch (e) {} }
     }
     return { wins: 0, losses: 0 };
   });
 
+  // صفقاتي المفتوحة مع الأهداف التدريجية ووقف الخسارة المتحرك
+  const [activeTrades, setActiveTrades] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sniper_active_trades');
+      if (saved) { try { return JSON.parse(saved); } catch (e) {} }
+    }
+    return [];
+  });
+  const [showTradesModal, setShowTradesModal] = useState(false);
+
+  // سجل العمليات الحربية
   const [missionHistory, setMissionHistory] = useState(() => {
     if (typeof window !== 'undefined') {
-      const savedHist = localStorage.getItem('sniper_mission_history');
-      if (savedHist) {
-        try { return JSON.parse(savedHist); } catch (e) {}
-      }
+      const saved = localStorage.getItem('sniper_mission_history');
+      if (saved) { try { return JSON.parse(saved); } catch (e) {} }
     }
     return [];
   });
   const [showHistoryModal, setShowHistoryModal] = useState(false);
 
+  // إعدادات البث والتنبيهات الخارجية (Webhook)
   const [webhookUrl, setWebhookUrl] = useState(() => {
     if (typeof window !== 'undefined') return localStorage.getItem('sniper_webhook') || '';
     return '';
@@ -69,28 +71,13 @@ export default function Home() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('sniper_webhook', webhookUrl);
-    }
-  }, [webhookUrl]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
       localStorage.setItem('sniper_mission_history', JSON.stringify(missionHistory));
-    }
-  }, [missionHistory]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
       localStorage.setItem('sniper_trade_stats', JSON.stringify(tradeStats));
+      localStorage.setItem('sniper_active_trades', JSON.stringify(activeTrades));
+      localStorage.setItem('sniper_symbols_cluster', JSON.stringify(symbols));
+      localStorage.setItem('sniper_symbols_scalp', JSON.stringify(scalpSymbols));
     }
-  }, [tradeStats]);
-
-  useEffect(() => {
-    localStorage.setItem('sniper_symbols_cluster', JSON.stringify(symbols));
-  }, [symbols]);
-
-  useEffect(() => {
-    localStorage.setItem('sniper_symbols_scalp', JSON.stringify(scalpSymbols));
-  }, [scalpSymbols]);
+  }, [webhookUrl, missionHistory, tradeStats, activeTrades, symbols, scalpSymbols]);
 
   const sendWebhookAlert = async (sym, analysisText) => {
     if (!webhookUrl.trim()) return;
@@ -98,9 +85,7 @@ export default function Home() {
       await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: `🚨 **تنبيه عسكري فوري** 🎯\nتم رصد هدف على السهم: **${sym}**\n\n\`\`\`${analysisText}\`\`\``
-        })
+        body: JSON.stringify({ content: `🚨 **تنبيه عسكري فوري للمنصة** 🎯\nرصد هدف على السهم: **${sym}**\n\n\`\`\`${analysisText}\`\`\`` })
       });
     } catch (e) {}
   };
@@ -131,7 +116,7 @@ export default function Home() {
     } catch (e) {}
     
     if (sym) {
-      speakAlert(`تنبيه رادار السنايبر. تم رصد هدف جديد على السهم ${sym}`);
+      speakAlert(`تنبيه رادار السنايبر. تم رصد فرصة ذهبية على السهم ${sym}`);
       sendWebhookAlert(sym, analysisText);
       
       const timeNow = new Date().toLocaleTimeString('ar-SA');
@@ -176,7 +161,7 @@ export default function Home() {
           firstAnalysis = data.analysis;
         }
       } catch (err) {
-        newResults[sym] = { error: "فشل الاتصال" };
+        newResults[sym] = { error: "فشل الاتصال بمحرك التحليل" };
       }
     }
     setResults(newResults);
@@ -199,7 +184,7 @@ export default function Home() {
           firstAnalysis = data.analysis;
         }
       } catch (err) {
-        newResults[sym] = { error: "فشل الاتصال" };
+        newResults[sym] = { error: "فشل الاتصال بالرادار اللحظي" };
       }
     }
     setScalpResults(newResults);
@@ -215,8 +200,8 @@ export default function Home() {
       if (data.matched && data.matched.length > 0) {
         const merged = Array.from(new Set([...symbols, ...data.matched]));
         setSymbols(merged);
-        playRadarSound(data.matched[0], "مسح راداري استثماري");
-        alert(`🎯 رادار الكلاستر اصطاد ${data.matched.length} سهم جديد!`);
+        playRadarSound(data.matched[0], "مسح راداري استثماري موسع");
+        alert(`🎯 رادار الكلاستر والحيتان اصطاد ${data.matched.length} سهم جديد جاهز للانفجار!`);
         runAnalysis();
       } else {
         alert('لا توجد أسهم استثمارية جديدة مطابقة حالياً.');
@@ -236,7 +221,7 @@ export default function Home() {
         const merged = Array.from(new Set([...scalpSymbols, ...data.matched]));
         setScalpSymbols(merged);
         playRadarSound(data.matched[0], "مسح راداري للسكالبينج");
-        alert(`⚡ رادار السكالبينج اصطاد ${data.matched.length} سهم ترند لحظي جديد!`);
+        alert(`⚡ رادار السكالبينج والتسارع الفجائي اصطاد ${data.matched.length} سهم ترند جديد!`);
         runScalpAnalysis();
       } else {
         alert('لا توجد ترندات لحظية جديدة مطابقة حالياً.');
@@ -245,6 +230,32 @@ export default function Home() {
       alert('حدث خطأ أثناء فحص رادار السكالبينج.');
     }
     setScanning(false);
+  };
+
+  const enterTrade = (sym, price) => {
+    const timeNow = new Date().toLocaleTimeString('ar-SA');
+    const p = Number(price);
+    const newTrade = {
+      id: Date.now(),
+      symbol: sym,
+      entryPrice: p,
+      time: timeNow,
+      type: activeTab === 'cluster' ? 'استثمار (كلاستر و FVGs)' : 'سكالبينج (ترند لحظي)',
+      stopLoss: (p * 0.97).toFixed(2),
+      targets: {
+        t1: (p * 1.025).toFixed(2),
+        t2: (p * 1.050).toFixed(2),
+        t3: (p * 1.080).toFixed(2)
+      },
+      status: 'نشطة'
+    };
+    setActiveTrades(prev => [newTrade, ...prev]);
+    alert(`🎯 تم فتح الصفقة بنجاح على [${sym}] بسعر [${p}]!\nتم تفعيل نظام الأهداف التدريجية ووقف الخسارة المتحرك.`);
+  };
+
+  const closeActiveTrade = (tradeId) => {
+    setActiveTrades(prev => prev.filter(t => t.id !== tradeId));
+    alert('✅ تم إغلاق الصفقة بنجاح وترحيلها لسجل الأداء.');
   };
 
   const addSymbol = (e) => {
@@ -269,7 +280,7 @@ export default function Home() {
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
-    alert('📋 تم نسخ بيانات التوصية بنجاح!');
+    alert('📋 تم نسخ تفاصيل التحليل بنجاح!');
   };
 
   const copyAllIntelBriefing = () => {
@@ -291,11 +302,8 @@ export default function Home() {
     alert('📋 تم نسخ التقرير الشامل بنجاح!');
   };
 
-  const recordTrade = (outcome) => {
-    setTradeStats(prev => ({
-      ...prev,
-      [outcome]: prev[outcome] + 1
-    }));
+  const recordTradeOutcome = (outcome) => {
+    setTradeStats(prev => ({ ...prev, [outcome]: prev[outcome] + 1 }));
   };
 
   const currentList = activeTab === 'cluster' ? symbols : scalpSymbols;
@@ -303,40 +311,35 @@ export default function Home() {
   const isCurrentLoading = activeTab === 'cluster' ? loading : loadingScalp;
 
   const displayedSymbols = currentList.filter(sym => {
-    if (!filterOnlySuitable) return true;
-    return currentRes[sym] && currentRes[sym].isSuitable;
+    const data = currentRes[sym];
+    if (filterOnlySuitable && (!data || !data.isSuitable)) return false;
+    
+    if (activeRadarFilter === 'whales' && (!data || !data.hasWhaleVolume)) return false;
+    if (activeRadarFilter === 'fvg' && (!data || !data.hasFVG)) return false;
+    if (activeRadarFilter === 'traps' && (!data || !data.isTrapDetected)) return false;
+    if (activeRadarFilter === 'multi_rsi' && (!data || !data.isMultiRsiValid)) return false;
+
+    return true;
   });
 
   const totalAnalyzed = Object.keys(currentRes).length;
   const suitableCount = Object.values(currentRes).filter(r => r?.isSuitable).length;
   const successRate = totalAnalyzed > 0 ? ((suitableCount / totalAnalyzed) * 100).toFixed(1) : '0.0';
-
-  // حساب مؤشر القوة وزخم السوق الديناميكي
   const marketMomentumScore = totalAnalyzed > 0 ? Math.round((suitableCount / totalAnalyzed) * 100) : 0;
-  let marketStatusText = 'هدوء استباقي ومراقبة مناطق الكلاستر 🛡️';
-  let marketStatusColor = '#38bdf8';
-  if (marketMomentumScore >= 40) {
-    marketStatusText = 'هجوم شرائي عارم وسيولة عالية تتفجر في السوق 🔥';
-    marketStatusColor = '#22c55e';
-  } else if (marketMomentumScore >= 20) {
-    marketStatusText = 'حركة إيجابية تدريجية وفرص تتشكل ⚡';
-    marketStatusColor = '#f59e0b';
-  }
-
   const totalRecordedTrades = tradeStats.wins + tradeStats.losses;
   const winRatePercent = totalRecordedTrades > 0 ? Math.round((tradeStats.wins / totalRecordedTrades) * 100) : 0;
 
   return (
-    <main style={{ padding: '25px', direction: 'rtl', fontFamily: 'Tahoma, sans-serif', background: '#030712', color: '#f8fafc', minHeight: '100vh', position: 'relative' }}>
+    <main style={{ padding: '25px', direction: 'rtl', fontFamily: 'Tahoma, sans-serif', background: '#030712', color: '#f8fafc', minHeight: '100vh' }}>
       <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
         
         {/* العنوان الرئيسي */}
         <div style={{ textAlign: 'center', marginBottom: '15px' }}>
           <h1 style={{ color: '#38bdf8', fontSize: '26px', fontWeight: '900', margin: '0 0 5px 0' }}>
-            🎯 نظام السنايبر العسكري الذكي
+            🎯 نظام السنايبر العسكري الشامل (مع كافة المحاور)
           </h1>
           <p style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>
-            منصة القيادة والتحكم الآلي لتحليل وفحص الأسهم (استثماري ولحظي)
+            رادارات الحيتان، فخاخ صناع السوق، الفراغات السعرية FVGs، وإدارة الأهداف التدريجية
           </p>
         </div>
 
@@ -346,39 +349,42 @@ export default function Home() {
             onClick={() => { setActiveTab('cluster'); setFilterOnlySuitable(false); }}
             style={{ padding: '10px 22px', background: activeTab === 'cluster' ? '#0284c7' : '#0f172a', color: '#fff', border: '1px solid #38bdf8', borderRadius: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
           >
-            📊 نظام الكلاستر والاستثمار (4 ساعات) [{symbols.length} سهم]
+            📊 الكلاستر والاستثمار الآلي [{symbols.length} سهم]
           </button>
           <button 
             onClick={() => { setActiveTab('scalp'); setFilterOnlySuitable(false); }}
             style={{ padding: '10px 22px', background: activeTab === 'scalp' ? '#9333ea' : '#0f172a', color: '#fff', border: '1px solid #c084fc', borderRadius: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
           >
-            ⚡ رادار موجات الترند اللحظي (سكالبينج) [{scalpSymbols.length} سهم]
+            ⚡ موجات الترند اللحظي (سكالبينج) [{scalpSymbols.length} سهم]
           </button>
         </div>
 
-        {/* شريط الأزرار العلوية المساعدة */}
+        {/* شريط الأزرار العلوية المتقدمة */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0f172a', padding: '12px 18px', borderRadius: '12px', border: '1px solid #1e293b', marginBottom: '15px', flexWrap: 'wrap', gap: '10px' }}>
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <button onClick={() => setShowHistoryModal(true)} style={{ background: '#0284c7', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-              ⚙️ سجل العمليات ({missionHistory.length})
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <button onClick={() => setShowHistoryModal(true)} style={{ background: '#0284c7', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
+              📜 سجل العمليات والأداء ({missionHistory.length})
             </button>
-            <button onClick={() => setShowWebhookSettings(!showWebhookSettings)} style={{ background: '#0369a1', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-              🔗 إعدادات البث (Webhook)
+            <button onClick={() => setShowTradesModal(true)} style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
+              🎯 صفقاتي المفتوحة ({activeTrades.length})
+            </button>
+            <button onClick={() => setShowWebhookSettings(!showWebhookSettings)} style={{ background: '#0369a1', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
+              🔗 إعدادات الويب هوك
             </button>
             
-            {/* نظام تتبع دقة الصفقات الميدانية (Win/Loss) */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#1e293b', padding: '4px 10px', borderRadius: '8px', border: '1px solid #475569' }}>
-              <span style={{ fontSize: '11px', color: '#94a3b8' }}>سجل الأداء:</span>
-              <button onClick={() => recordTrade('wins')} style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>✅ {tradeStats.wins}</button>
-              <button onClick={() => recordTrade('losses')} style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>❌ {tradeStats.losses}</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#1e293b', padding: '4px 8px', borderRadius: '8px', border: '1px solid #475569' }}>
+              <span style={{ fontSize: '11px', color: '#94a3b8' }}>نتائج الصفقات:</span>
+              <button onClick={() => recordTradeOutcome('wins')} style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>✅ {tradeStats.wins}</button>
+              <button onClick={() => recordTradeOutcome('losses')} style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>❌ {tradeStats.losses}</button>
               <span style={{ fontSize: '11px', color: '#facc15', fontWeight: 'bold' }}>({winRatePercent}%)</span>
             </div>
           </div>
           
-          {/* مؤشر القوة والنبض الديناميكي */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
-            <span style={{ color: '#94a3b8' }}>مؤشر الزخم العام:</span>
-            <span style={{ color: marketStatusColor, fontWeight: 'bold' }}>{marketStatusText}</span>
+            <span style={{ color: '#94a3b8' }}>زخم السوق:</span>
+            <span style={{ color: marketMomentumScore >= 30 ? '#22c55e' : '#38bdf8', fontWeight: 'bold' }}>
+              {marketMomentumScore >= 30 ? 'سيولة عالية متفجرة 🔥' : 'هدوء استباقي ومراقبة 🛡️'}
+            </span>
             <span style={{ background: '#1e293b', padding: '2px 8px', borderRadius: '6px', color: '#fff', fontWeight: '900' }}>{marketMomentumScore}%</span>
           </div>
         </div>
@@ -387,88 +393,81 @@ export default function Home() {
           <div style={{ background: '#0f172a', padding: '15px', borderRadius: '10px', border: '1px solid #38bdf8', marginBottom: '15px', display: 'flex', gap: '10px', alignItems: 'center' }}>
             <input 
               type="text" 
-              placeholder="أدخل رابط Discord Webhook URL هنا..." 
+              placeholder="أدخل رابط Webhook URL..." 
               value={webhookUrl}
               onChange={(e) => setWebhookUrl(e.target.value)}
               style={{ flex: 1, padding: '8px 12px', background: '#030712', border: '1px solid #475569', borderRadius: '6px', color: '#fff', fontSize: '13px' }}
             />
-            <button onClick={() => alert('تم حفظ رابط الويب هوك بنجاح!')} style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>حفظ</button>
+            <button onClick={() => alert('تم حفظ الرابط بنجاح!')} style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>حفظ</button>
           </div>
         )}
 
-        {/* شريط حالة الرادار والتبريد */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0f172a', padding: '12px 18px', borderRadius: '12px', border: '1px solid #1e293b', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px' }}>
-            <span style={{ color: '#22c55e', fontWeight: 'bold' }}>🟢 حالة الرادار ({activeTab === 'cluster' ? 'استثمار' : 'لحظي'}):</span>
-            <span style={{ background: '#1e293b', padding: '4px 10px', borderRadius: '6px', color: '#cbd5e1' }}>📊 رادار بانتظار رصد السيولة</span>
-            <span style={{ color: '#f59e0b', fontWeight: 'bold' }}>({suitableCount} هدف جاهز)</span>
+        {/* شريط فلاتر الرادارات العسكرية المتقدمة */}
+        <div style={{ background: '#0f172a', padding: '12px 18px', borderRadius: '12px', border: '1px solid #1e293b', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 'bold' }}>🎯 فلاتر الرادار:</span>
+            <button onClick={() => setActiveRadarFilter('all')} style={{ background: activeRadarFilter === 'all' ? '#0284c7' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>الكل</button>
+            <button onClick={() => setActiveRadarFilter('whales')} style={{ background: activeRadarFilter === 'whales' ? '#16a34a' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>🐋 رادار الحيتان</button>
+            <button onClick={() => setActiveRadarFilter('fvg')} style={{ background: activeRadarFilter === 'fvg' ? '#9333ea' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>🧲 الفراغات السعرية FVGs</button>
+            <button onClick={() => setActiveRadarFilter('traps')} style={{ background: activeRadarFilter === 'traps' ? '#d97706' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>⚠️ كشف فخاخ صناع السوق</button>
+            <button onClick={() => setActiveRadarFilter('multi_rsi')} style={{ background: activeRadarFilter === 'multi_rsi' ? '#0d9488' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>📈 توافق فريمات RSI</button>
           </div>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <button onClick={() => setFilterOnlySuitable(!filterOnlySuitable)} style={{ background: filterOnlySuitable ? '#16a34a' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '7px 14px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}>
-              {filterOnlySuitable ? '✅ عرض المطابقة فقط' : '📊 عرض كافة القائمة'}
+          
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button onClick={() => setFilterOnlySuitable(!filterOnlySuitable)} style={{ background: filterOnlySuitable ? '#16a34a' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
+              {filterOnlySuitable ? '✅ الفرص المؤكدة فقط' : '📊 عرض الكل'}
             </button>
-            <button onClick={() => setAutoRefresh(!autoRefresh)} style={{ background: autoRefresh ? '#7c3aed' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '7px 14px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}>
-              {autoRefresh ? `⚡ الرادار يعمل (${Math.floor(timer/60)}:${timer%60 < 10 ? '0':''}${timer%60})` : '⚡ تشغيل الرادار التلقائي'}
+            <button onClick={() => setAutoRefresh(!autoRefresh)} style={{ background: autoRefresh ? '#7c3aed' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
+              {autoRefresh ? `⚡ رادار آلي (${Math.floor(timer/60)}:${timer%60 < 10 ? '0':''}${timer%60})` : '⚡ تشغيل الفحص الآلي'}
             </button>
           </div>
         </div>
 
-        {/* لوحات المؤشرات والعدادات */}
+        {/* لوحات المؤشرات */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px', marginBottom: '20px' }}>
           <div style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #1e293b', textAlign: 'center' }}>
-            <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '5px' }}>نسبة الكفاءة والقبول الحالية</div>
+            <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '5px' }}>نسبة قبول الصفقات</div>
             <div style={{ fontSize: '22px', fontWeight: '900', color: '#38bdf8' }}>{successRate}%</div>
           </div>
           <div style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #065f46', textAlign: 'center' }}>
             <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '5px' }}>الفرص الذهبية المطابقة ✅</div>
-            <div style={{ fontSize: '22px', fontWeight: '900', color: '#4ade80' }}>{suitableCount} فرص</div>
+            <div style={{ fontSize: '22px', fontWeight: '900', color: '#4ade80' }}>{suitableCount} فرصة</div>
           </div>
           <div style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #1e293b', textAlign: 'center' }}>
-            <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '5px' }}>الأسهم التي تم فحصها</div>
+            <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '5px' }}>الأسهم المفحوصة</div>
             <div style={{ fontSize: '22px', fontWeight: '900', color: '#facc15' }}>{totalAnalyzed} / {currentList.length}</div>
           </div>
           <div style={{ background: '#0f172a', padding: '15px', borderRadius: '12px', border: '1px solid #1e293b', textAlign: 'center' }}>
-            <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '5px' }}>إجمالي الأسهم تحت المراقبة</div>
+            <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '5px' }}>إجمالي الأسهم بالمراقبة</div>
             <div style={{ fontSize: '22px', fontWeight: '900', color: '#c084fc' }}>{currentList.length} سهم</div>
           </div>
         </div>
 
-        {/* أزرار الإدخال، رادار الصيد، والنسخ */}
+        {/* إضافة سهم، رادار الصيد الموسع، ونسخ التقرير الشامل */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '25px', flexWrap: 'wrap', alignItems: 'center' }}>
           <form onSubmit={addSymbol} style={{ display: 'flex', gap: '8px' }}>
             <input 
               type="text" 
-              placeholder={activeTab === 'cluster' ? "أدخل رمز السهم الجديد (مثال: VMAR)" : "أدخل سهم للسكالبينج"}
+              placeholder="أدخل رمز السهم (مثال: TSLA)" 
               value={newSymbol}
               onChange={(e) => setNewSymbol(e.target.value)}
-              style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #475569', background: '#0f172a', color: '#fff', outline: 'none', fontSize: '13px', width: '220px' }}
+              style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #475569', background: '#0f172a', color: '#fff', outline: 'none', fontSize: '13px', width: '180px' }}
             />
-            <button type="submit" style={{ padding: '10px 18px', background: activeTab === 'cluster' ? '#0284c7' : '#9333ea', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>إضافة للقائمة</button>
+            <button type="submit" style={{ padding: '10px 16px', background: activeTab === 'cluster' ? '#0284c7' : '#9333ea', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>إضافة</button>
           </form>
 
           {activeTab === 'cluster' ? (
-            <button 
-              onClick={scanMarketForCluster} 
-              disabled={scanning}
-              style={{ padding: '10px 20px', background: scanning ? '#475569' : '#059669', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}
-            >
-              {scanning ? '🔄 جاري المسح...' : '🎯 رادار صيد الكلاستر والاستثمار'}
+            <button onClick={scanMarketForCluster} disabled={scanning} style={{ padding: '10px 16px', background: scanning ? '#475569' : '#059669', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
+              {scanning ? '🔄 جاري البحث...' : '🐋 رادار صيد الحيتان'}
             </button>
           ) : (
-            <button 
-              onClick={scanMarketForScalp} 
-              disabled={scanning}
-              style={{ padding: '10px 20px', background: scanning ? '#475569' : '#9333ea', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}
-            >
-              {scanning ? '🔄 جاري المسح...' : '⚡ رادار صيد ترندات السكالبينج'}
+            <button onClick={scanMarketForScalp} disabled={scanning} style={{ padding: '10px 16px', background: scanning ? '#475569' : '#9333ea', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
+              {scanning ? '🔄 جاري البحث...' : '⚡ رادار التسارع الفجائي'}
             </button>
           )}
 
-          <button 
-            onClick={copyAllIntelBriefing}
-            style={{ padding: '10px 20px', background: '#0369a1', color: '#fff', border: '1px solid #38bdf8', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}
-          >
-            📑 نسخ تقرير العمليات الشامل
+          <button onClick={copyAllIntelBriefing} style={{ padding: '10px 16px', background: '#0369a1', color: '#fff', border: '1px solid #38bdf8', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
+            📑 نسخ التقرير الشامل
           </button>
         </div>
 
@@ -479,69 +478,54 @@ export default function Home() {
             disabled={isCurrentLoading}
             style={{ padding: '14px 45px', background: isCurrentLoading ? '#475569' : (activeTab === 'cluster' ? '#16a34a' : '#9333ea'), color: '#fff', border: 'none', borderRadius: '12px', fontSize: '16px', cursor: 'pointer', fontWeight: '900', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
           >
-            {isCurrentLoading ? '⚡ جاري المعالجة والتحليل...' : (activeTab === 'cluster' ? '🚀 بدء الفحص الشامل للاستثمار (4 ساعات)' : '⚡ بدء الفحص السريع لموجات الترند (سكالبينج)')}
+            {isCurrentLoading ? '⚡ جاري فحص كافة المحاور والأسواق...' : (activeTab === 'cluster' ? '🚀 بدء التحليل العميق (كلاستر، FVGs وحيتان)' : '⚡ بدء الفحص السريع لموجات الترند')}
           </button>
         </div>
 
         {/* شبكة عرض الأسهم */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '22px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '22px' }}>
           {displayedSymbols.map((sym) => {
             const data = currentRes[sym];
             const isMatched = data?.isSuitable;
 
             return (
-              <div 
-                key={sym} 
-                style={{ 
-                  background: '#0f172a', 
-                  padding: '22px', 
-                  borderRadius: '16px', 
-                  border: isMatched ? '2px solid #22c55e' : '1px solid #1e293b', 
-                  position: 'relative' 
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #1e293b', paddingBottom: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <h3 style={{ margin: 0, color: '#facc15', fontSize: '22px', fontWeight: '800' }}>{sym}</h3>
-                    {isMatched && <span style={{ background: '#064e3b', color: '#4ade80', fontSize: '11px', padding: '3px 10px', borderRadius: '6px', fontWeight: 'bold' }}>هدف مؤكد 🔥</span>}
+              <div key={sym} style={{ background: '#0f172a', padding: '20px', borderRadius: '16px', border: isMatched ? '2px solid #22c55e' : '1px solid #1e293b', position: 'relative' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #1e293b', paddingBottom: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 style={{ margin: 0, color: '#facc15', fontSize: '20px', fontWeight: '800' }}>{sym}</h3>
+                    {isMatched && <span style={{ background: '#064e3b', color: '#4ade80', fontSize: '10px', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold' }}>هدف مؤكد 🔥</span>}
                   </div>
-                  <button onClick={() => removeSymbol(sym)} style={{ background: '#7f1d1d', color: '#fca5a5', border: 'none', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>حذف</button>
+                  <button onClick={() => removeSymbol(sym)} style={{ background: '#7f1d1d', color: '#fca5a5', border: 'none', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}>حذف</button>
                 </div>
 
                 {data ? (
                   <div>
-                    <div style={{ background: '#030712', padding: '14px', borderRadius: '10px', border: '1px solid #1e293b', marginBottom: '14px' }}>
-                      <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '12.5px', color: '#e2e8f0', margin: 0, lineHeight: '1.6' }}>
+                    <div style={{ background: '#030712', padding: '12px', borderRadius: '10px', border: '1px solid #1e293b', marginBottom: '12px' }}>
+                      <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '12px', color: '#e2e8f0', margin: 0, lineHeight: '1.5' }}>
                         {data.analysis || data.error}
                       </pre>
                     </div>
 
                     {isMatched ? (
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <a 
-                          href={`https://www.tradingview.com/chart/?symbol=${sym}`} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          style={{ flex: 1, display: 'block', background: '#0284c7', color: '#fff', padding: '9px', textAlign: 'center', borderRadius: '8px', fontSize: '13px', textDecoration: 'none', fontWeight: 'bold' }}
-                        >
-                          📈 الشارت
-                        </a>
-                        <button 
-                          onClick={() => copyToClipboard(data.analysis)}
-                          style={{ flex: 1, background: '#334155', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px', fontSize: '13px', cursor: 'pointer', fontWeight: 'bold' }}
-                        >
-                          📋 نسخ
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <a href={`https://www.tradingview.com/chart/?symbol=${sym}`} target="_blank" rel="noopener noreferrer" style={{ flex: 1, display: 'block', background: '#0284c7', color: '#fff', padding: '8px', textAlign: 'center', borderRadius: '8px', fontSize: '12px', textDecoration: 'none', fontWeight: 'bold' }}>📈 الشارت</a>
+                          <button onClick={() => copyToClipboard(data.analysis)} style={{ flex: 1, background: '#334155', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}>📋 نسخ التقرير</button>
+                        </div>
+                        {/* زر أنا دخلت الصفقة */}
+                        <button onClick={() => enterTrade(sym, data.price)} style={{ width: '100%', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', cursor: 'pointer', fontWeight: '900' }}>
+                          🎯 أنا دخلت الصفقة (تفعيل الأهداف التدريجية)
                         </button>
                       </div>
                     ) : (
-                      <div style={{ background: '#451a03', color: '#fdba74', padding: '8px', textAlign: 'center', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold' }}>
-                        قيد المراقبة - النموذج لم يكتمل ❌
+                      <div style={{ background: '#451a03', color: '#fdba74', padding: '8px', textAlign: 'center', borderRadius: '8px', fontSize: '11.5px', fontWeight: 'bold' }}>
+                        قيد المراقبة الاستباقية - لم تكتمل شروط الحيتان أو الفجوات ❌
                       </div>
                     )}
                   </div>
                 ) : (
-                  <div style={{ textAlign: 'center', margin: '35px 0' }}>
-                    <p style={{ color: '#64748b', fontSize: '13px', margin: '0 0 8px 0' }}>في انتظار فحص الرادار...</p>
+                  <div style={{ textAlign: 'center', margin: '30px 0' }}>
+                    <p style={{ color: '#64748b', fontSize: '12px', margin: 0 }}>في انتظار فحص الرادار الشامل...</p>
                   </div>
                 )}
               </div>
@@ -549,7 +533,39 @@ export default function Home() {
           })}
         </div>
 
-        {/* نافذة سجل العمليات الحربية */}
+        {/* نافذة صفقاتي المفتوحة والأهداف الثلاثية */}
+        {showTradesModal && (
+          <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+            <div style={{ background: '#0f172a', padding: '25px', borderRadius: '16px', border: '1px solid #16a34a', width: '90%', maxWidth: '700px', maxHeight: '85vh', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid #1e293b', paddingBottom: '10px' }}>
+                <h3 style={{ margin: 0, color: '#4ade80', fontSize: '18px' }}>🎯 لوحة متابعة الصفقات المفتوحة (الأهداف الثلاثية)</h3>
+                <button onClick={() => setShowTradesModal(false)} style={{ background: '#7f1d1d', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>إغلاق</button>
+              </div>
+              {activeTrades.length === 0 ? (
+                <p style={{ color: '#94a3b8', textAlign: 'center', padding: '20px' }}>لا توجد صفقات مسجلة حالياً.</p>
+              ) : (
+                activeTrades.map((t) => (
+                  <div key={t.id} style={{ background: '#030712', padding: '14px', borderRadius: '10px', border: '1px solid #1e293b', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                    <div>
+                      <div style={{ color: '#facc15', fontSize: '15px', fontWeight: 'bold', marginBottom: '4px' }}>
+                        🎯 الرمز: {t.symbol} <span style={{ color: '#38bdf8', fontSize: '11px' }}>({t.type})</span>
+                      </div>
+                      <div style={{ color: '#cbd5e1', fontSize: '12.5px', lineHeight: '1.5' }}>
+                        سعر الدخول: <strong style={{ color: '#4ade80' }}>{t.entryPrice}</strong> | وقف الخسارة: <strong style={{ color: '#ef4444' }}>{t.stopLoss}</strong><br/>
+                        🎯 أهداف الخروج: الهدف 1 (33%): {t.targets.t1} | الهدف 2 (33%): {t.targets.t2} | الهدف 3 (34%): {t.targets.t3}
+                      </div>
+                    </div>
+                    <button onClick={() => closeActiveTrade(t.id)} style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
+                      إغلاق وتسيير الصفقة 🛑
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* نافذة سجل العمليات */}
         {showHistoryModal && (
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
             <div style={{ background: '#0f172a', padding: '25px', borderRadius: '16px', border: '1px solid #38bdf8', width: '90%', maxWidth: '600px', maxHeight: '80vh', overflowY: 'auto' }}>
