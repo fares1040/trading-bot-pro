@@ -68,7 +68,6 @@ export default function Home() {
     if (typeof window !== 'undefined') return localStorage.getItem('sniper_webhook') || '';
     return '';
   });
-  const [showWebhookSettings, setShowWebhookSettings] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -148,6 +147,7 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [autoRefresh, activeTab, symbols, scalpSymbols]);
 
+  // تم التعديل لتوجيه الطلب إلى مسار /api/analyze المعتمد لديك
   const runAnalysis = async () => {
     setLoading(true);
     const newResults = {};
@@ -155,7 +155,7 @@ export default function Home() {
     let firstAnalysis = '';
     for (let sym of symbols) {
       try {
-        const res = await fetch('/api/sniper', {
+        const res = await fetch('/api/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -181,6 +181,7 @@ export default function Home() {
     if (firstMatchedSym) playRadarSound(firstMatchedSym, firstAnalysis);
   };
 
+  // تم التعديل لتوجيه الطلب إلى مسار /api/analyze المعتمد لديك
   const runScalpAnalysis = async () => {
     setLoadingScalp(true);
     const newResults = {};
@@ -188,7 +189,7 @@ export default function Home() {
     let firstAnalysis = '';
     for (let sym of scalpSymbols) {
       try {
-        const res = await fetch('/api/sniper', {
+        const res = await fetch('/api/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -214,10 +215,11 @@ export default function Home() {
     if (firstMatchedSym) playRadarSound(firstMatchedSym, firstAnalysis);
   };
 
+  // تم التعديل لتوجيه الطلب إلى مسار /api/analyze المعتمد لديك
   const scanMarketForCluster = async () => {
     setScanning(true);
     try {
-      const res = await fetch(`/api/sniper?scan=true&scalp=false&minConfidence=${minConfidence}&symbols=${symbols.join(',')}`);
+      const res = await fetch(`/api/analyze?scan=true&scalp=false&minConfidence=${minConfidence}&symbols=${symbols.join(',')}`);
       const data = await res.json();
       if (data.matched && data.matched.length > 0) {
         const merged = Array.from(new Set([...symbols, ...data.matched]));
@@ -234,10 +236,11 @@ export default function Home() {
     setScanning(false);
   };
 
+  // تم التعديل لتوجيه الطلب إلى مسار /api/analyze المعتمد لديك
   const scanMarketForScalp = async () => {
     setScanning(true);
     try {
-      const res = await fetch(`/api/sniper?scan=true&scalp=true&minConfidence=${minConfidence}&symbols=${scalpSymbols.join(',')}`);
+      const res = await fetch(`/api/analyze?scan=true&scalp=true&minConfidence=${minConfidence}&symbols=${scalpSymbols.join(',')}`);
       const data = await res.json();
       if (data.matched && data.matched.length > 0) {
         const merged = Array.from(new Set([...scalpSymbols, ...data.matched]));
@@ -470,7 +473,7 @@ export default function Home() {
           
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <button onClick={() => setFilterOnlySuitable(!filterOnlySuitable)} style={{ background: filterOnlySuitable ? '#16a34a' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
-              {filterOnlySuitable ? `✅ الثقة $\ge$ ${minConfidence}%` : '📊 عرض الكل'}
+              {filterOnlySuitable ? `✅ الثقة >= ${minConfidence}%` : '📊 عرض الكل'}
             </button>
             <button onClick={() => setAutoRefresh(!autoRefresh)} style={{ background: autoRefresh ? '#7c3aed' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
               {autoRefresh ? `⚡ رادار آلي (${Math.floor(timer/60)}:${timer%60 < 10 ? '0':''}${timer%60})` : '⚡ تشغيل الفحص الآلي'}
