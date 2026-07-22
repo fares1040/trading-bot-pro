@@ -200,14 +200,14 @@ export default function Home() {
       if (data.matched && data.matched.length > 0) {
         const merged = Array.from(new Set([...symbols, ...data.matched]));
         setSymbols(merged);
-        playRadarSound(data.matched[0], "مسح راداري استثماري موسع");
-        alert(`🎯 رادار الكلاستر والحيتان اصطاد ${data.matched.length} سهم جديد جاهز للانفجار!`);
+        playRadarSound(data.matched[0], "مسح راداري استثماري موسع من السوق الحي");
+        alert(`🎯 رادار السوق الحي اصطاد ${data.matched.length} سهم قيادي ونشط من قائمة (Day & 52W Gainers)!`);
         runAnalysis();
       } else {
-        alert('لا توجد أسهم استثمارية جديدة مطابقة حالياً.');
+        alert('لا توجد أسهم جديدة مطابقة حالياً من السوق.');
       }
     } catch (e) {
-      alert('حدث خطأ أثناء فحص الرادار الاستثماري.');
+      alert('حدث خطأ أثناء فحص رادار السوق الحي.');
     }
     setScanning(false);
   };
@@ -220,8 +220,8 @@ export default function Home() {
       if (data.matched && data.matched.length > 0) {
         const merged = Array.from(new Set([...scalpSymbols, ...data.matched]));
         setScalpSymbols(merged);
-        playRadarSound(data.matched[0], "مسح راداري للسكالبينج");
-        alert(`⚡ رادار السكالبينج والتسارع الفجائي اصطاد ${data.matched.length} سهم ترند جديد!`);
+        playRadarSound(data.matched[0], "مسح راداري للسكالبينج من السوق الحي");
+        alert(`⚡ رادار السكالبينج سحب ${data.matched.length} سهم ترند فجائي من السوق الحي!`);
         runScalpAnalysis();
       } else {
         alert('لا توجد ترندات لحظية جديدة مطابقة حالياً.');
@@ -336,10 +336,10 @@ export default function Home() {
         {/* العنوان الرئيسي */}
         <div style={{ textAlign: 'center', marginBottom: '15px' }}>
           <h1 style={{ color: '#38bdf8', fontSize: '26px', fontWeight: '900', margin: '0 0 5px 0' }}>
-            🎯 نظام السنايبر العسكري الشامل (مع كافة المحاور)
+            🎯 نظام السنايبر العسكري الشامل (مع ربط السوق الحي)
           </h1>
           <p style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>
-            رادارات الحيتان، فخاخ صناع السوق، الفراغات السعرية FVGs، وإدارة الأهداف التدريجية
+            سحب آلي من قائمة (Day & 52W Gainers)، رادارات الحيتان، الفراغات السعرية FVGs، وإدارة الأهداف
           </p>
         </div>
 
@@ -443,7 +443,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* إضافة سهم، رادار الصيد الموسع، ونسخ التقرير الشامل */}
+        {/* إضافة سهم، رادار السوق الحي، ونسخ التقرير الشامل */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '25px', flexWrap: 'wrap', alignItems: 'center' }}>
           <form onSubmit={addSymbol} style={{ display: 'flex', gap: '8px' }}>
             <input 
@@ -458,11 +458,11 @@ export default function Home() {
 
           {activeTab === 'cluster' ? (
             <button onClick={scanMarketForCluster} disabled={scanning} style={{ padding: '10px 16px', background: scanning ? '#475569' : '#059669', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
-              {scanning ? '🔄 جاري البحث...' : '🐋 رادار صيد الحيتان'}
+              {scanning ? '🔄 جاري جلب السوق الحي...' : '🐋 سحب الأسهم الرابحة من السوق الحي'}
             </button>
           ) : (
             <button onClick={scanMarketForScalp} disabled={scanning} style={{ padding: '10px 16px', background: scanning ? '#475569' : '#9333ea', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
-              {scanning ? '🔄 جاري البحث...' : '⚡ رادار التسارع الفجائي'}
+              {scanning ? '🔄 جاري جلب السوق الحي...' : '⚡ سحب سكالبينج من السوق الحي'}
             </button>
           )}
 
