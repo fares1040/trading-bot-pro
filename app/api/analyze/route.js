@@ -23,7 +23,7 @@ async function fetchYahooData(symbol, isScalp = false) {
    
     if (quotes.length < 5 || !currentPrice) return null;
 const volAvg = volumes.reduce((a, b) => a + b, 0) / (volumes.length || 1);
-    const currentVol = volumes[volumes.length - 1] || 0;
+    const currentVol = volumes.length > 0 ? (volumes[volumes.length - 1] || volumes[volumes.length - 2] || 0) : 0;
     const hasWhaleVolume = currentVol > volAvg * 1.05; // خفضنا الشرط ليلتقط السيولة أسرع
 
     const hasFVG = (quotes[quotes.length - 1] - quotes[quotes.length - 2]) > (currentPrice * 0.002); 
