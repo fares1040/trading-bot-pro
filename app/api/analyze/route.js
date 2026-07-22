@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 
+// 🧠 ذاكرة عسكرية مؤقتة لمنع تكرار تنبيهات التليجرام لنفس السهم
+// تسجل الوقت ونوع الوضع (scalp أو cluster) لضمان عدم التكرار إلا بعد نصف ساعة أو عند الانعكاس
+const alertCooldowns = new Map();
+
 async function fetchYahooData(symbol, isScalp = false) {
   try {
     const intervalQuery = isScalp ? '15m' : '4h';
@@ -20,9 +24,10 @@ async function fetchYahooData(symbol, isScalp = false) {
     const prevClose = meta.chartPreviousClose || meta.previousClose || currentPrice;
     const changePercent = ((currentPrice - prevClose) / prevClose) * 100;
 
-   
     if (quotes.length < 5 || !currentPrice) return null;
-const volAvg = volumes.reduce((a, b) => a + b, 0) / (volumes.length || 1);
+    const volAvg = volumes.reduce((a, b) => a + b, 0) / (volumes.length || 1);
+    
+    // التعديل الذكي لحل مشكلة الفوليوم الصفر (البحث العكسي)
     const currentVol = volumes.length > 0 ? (volumes[volumes.length - 1] || volumes[volumes.length - 2] || 0) : 0;
     const hasWhaleVolume = currentVol > volAvg * 1.05; // خفضنا الشرط ليلتقط السيولة أسرع
 
@@ -168,14 +173,38 @@ export async function GET(request) {
     return NextResponse.json({ error: 'الرجاء تحديد رمز السهم' }, { status: 400 });
   }
 
-  const analysisResult = await fetchYahooData(symbol.toUpperCase(), scalpMode);
+  const symbolUpper = symbol.toUpperCase();
+  const analysisResult = await fetchYahooData(symbolUpper, scalpMode);
   
   if (!analysisResult) {
     return NextResponse.json({ error: 'فشل في جلب بيانات السهم أو عدم توفر معلومات كافية' }, { status: 404 });
   }
 
+  // 🚀 آلية التحقق والتحكم بالتكرار والإنعكاس
   if (analysisResult.isSuitable) {
-    await sendTelegramAlert(`🚨 **تنبيه عسكري مؤكد** 🎯\n\n${analysisResult.telegramHeader}\n\n${analysisResult.analysis}`);
+    const now = Date.now();
+    const modeKey = scalpMode ? 'scalp' : 'cluster';
+    const existingCache = alertCooldowns.get(symbolUpper);
+
+    let shouldAlert = true;
+
+    if (existingCache) {
+      const timePassed = now - existingCache.timestamp;
+      const sameMode = existingCache.mode === modeKey;
+
+      // إذا كان التنبيه لنفس السهم ونفس الوضع ولم يمر 30 دقيقة (1800000 مللي ثانية) -> امنع الإرسال
+      if (sameMode && timePassed < 1800000) {
+        shouldAlert = false;
+      }
+      // ملحوظة: لو تغير الوضع (sameMode === false)، يعني السهم انعكست حالته وسيرسل فوراً!
+    }
+
+    if (shouldAlert) {
+      // تحديث الذاكرة بالوقت الحالي والوضع الفعال
+      alertCooldowns.set(symbolUpper, { timestamp: now, mode: modeKey });
+      
+      await sendTelegramAlert(`🚨 **تنبيه عسكري مؤكد** 🎯\n\n${analysisResult.telegramHeader}\n\n${analysisResult.analysis}`);
+    }
   }
 
   return NextResponse.json({
