@@ -4,16 +4,20 @@ import { useState, useEffect } from 'react';
 export default function Home() {
   const [symbols, setSymbols] = useState(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('sniper_symbols_cluster');
-      if (saved) { try { return JSON.parse(saved); } catch (e) {} }
+      try {
+        const saved = localStorage.getItem('sniper_symbols_cluster');
+        if (saved) return JSON.parse(saved);
+      } catch (e) {}
     }
     return ['VMAR', 'CETX', 'GSIT', 'PRFX', 'BYRN', 'ERNA', 'LNZA', 'HURA', 'KULR', 'ANVS', 'PPSI', 'BJDX'];
   });
 
   const [scalpSymbols, setScalpSymbols] = useState(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('sniper_symbols_scalp');
-      if (saved) { try { return JSON.parse(saved); } catch (e) {} }
+      try {
+        const saved = localStorage.getItem('sniper_symbols_scalp');
+        if (saved) return JSON.parse(saved);
+      } catch (e) {}
     }
     return ['TSLA', 'NVDA', 'AAPL', 'AMD', 'META', 'MSFT', 'SPY', 'QQQ'];
   });
@@ -35,8 +39,10 @@ export default function Home() {
   // نظام تتبع إحصائيات الصفقات والأداء
   const [tradeStats, setTradeStats] = useState(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('sniper_trade_stats');
-      if (saved) { try { return JSON.parse(saved); } catch (e) {} }
+      try {
+        const saved = localStorage.getItem('sniper_trade_stats');
+        if (saved) return JSON.parse(saved);
+      } catch (e) {}
     }
     return { wins: 0, losses: 0 };
   });
@@ -44,8 +50,10 @@ export default function Home() {
   // صفقاتي المفتوحة مع الأهداف التدريجية ووقف الخسارة المتحرك
   const [activeTrades, setActiveTrades] = useState(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('sniper_active_trades');
-      if (saved) { try { return JSON.parse(saved); } catch (e) {} }
+      try {
+        const saved = localStorage.getItem('sniper_active_trades');
+        if (saved) return JSON.parse(saved);
+      } catch (e) {}
     }
     return [];
   });
@@ -54,8 +62,10 @@ export default function Home() {
   // سجل العمليات الحربية
   const [missionHistory, setMissionHistory] = useState(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('sniper_mission_history');
-      if (saved) { try { return JSON.parse(saved); } catch (e) {} }
+      try {
+        const saved = localStorage.getItem('sniper_mission_history');
+        if (saved) return JSON.parse(saved);
+      } catch (e) {}
     }
     return [];
   });
