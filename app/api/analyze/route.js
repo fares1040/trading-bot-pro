@@ -20,22 +20,22 @@ async function fetchYahooData(symbol, isScalp = false) {
     const prevClose = meta.chartPreviousClose || meta.previousClose || currentPrice;
     const changePercent = ((currentPrice - prevClose) / prevClose) * 100;
 
+   
     if (quotes.length < 5 || !currentPrice) return null;
-
-    const volAvg = volumes.reduce((a, b) => a + b, 0) / (volumes.length || 1);
+const volAvg = volumes.reduce((a, b) => a + b, 0) / (volumes.length || 1);
     const currentVol = volumes[volumes.length - 1] || 0;
-    const hasWhaleVolume = currentVol > volAvg * 1.4;
+    const hasWhaleVolume = currentVol > volAvg * 1.05; // خفضنا الشرط ليلتقط السيولة أسرع
 
-    const hasFVG = (quotes[quotes.length - 1] - quotes[quotes.length - 2]) > (currentPrice * 0.015);
-    const isTrapDetected = currentVol > volAvg * 1.2 && quotes[quotes.length - 1] < quotes[quotes.length - 2];
+    const hasFVG = (quotes[quotes.length - 1] - quotes[quotes.length - 2]) > (currentPrice * 0.002); 
+    const isTrapDetected = currentVol > volAvg * 1.5 && quotes[quotes.length - 1] < quotes[quotes.length - 2];
     const isMultiRsiValid = true;
 
     let rsi, isSuitable, analysisText, telegramHeader;
 
     if (isScalp) {
       rsi = Number((40 + (Math.sin(currentPrice) * 15)).toFixed(1));
-      const volSpike = currentVol > volAvg * 1.15;
-      isSuitable = rsi < 55 && (volSpike || hasWhaleVolume || hasFVG);
+      const volSpike = currentVol > volAvg * 1.02;
+      isSuitable = rsi < 70 && (volSpike || hasWhaleVolume || changePercent > -1); // توسيع شروط القبول للسكالبينج
 
       const stopLoss = (currentPrice * 0.985).toFixed(2);
       const t1 = (currentPrice * 1.015).toFixed(2);
