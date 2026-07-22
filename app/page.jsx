@@ -26,7 +26,7 @@ export default function Home() {
   const [scalpResults, setScalpResults] = useState({});
   const [loadingScalp, setLoadingScalp] = useState(false);
 
-  // ⚙️ إعدادات الفلاتر والرادارات المتقدمة والتحكم المباشر
+  // ⚙️ إعدادات الفلاتر والرادارات المتقدمة
   const [minConfidence, setMinConfidence] = useState(70);
   const [cooldownMinutes, setCooldownMinutes] = useState(30);
   const [filterOnlySuitable, setFilterOnlySuitable] = useState(false);
@@ -34,10 +34,11 @@ export default function Home() {
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [timer, setTimer] = useState(300);
 
-  // ميزة التنبيهات الاستباقية المبكرة (Proactive Early Alerts)
+  // التنبيهات الاستباقية وحاسبة المظلة (Parachute Trailing Stop)
   const [earlyAlertsEnabled, setEarlyAlertsEnabled] = useState(true);
+  const [parachuteActive, setParachuteActive] = useState(true);
 
-  // نظام تتبع إحصائيات الصفقات والأداء
+  // سجل إحصائيات الأداء الذكي وتاريخ التنبيهات
   const [tradeStats, setTradeStats] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('sniper_trade_stats');
@@ -46,7 +47,6 @@ export default function Home() {
     return { wins: 0, losses: 0 };
   });
 
-  // صفقاتي المفتوحة مع الأهداف التدريجية ووقف الخسارة المتحرك
   const [activeTrades, setActiveTrades] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('sniper_active_trades');
@@ -56,7 +56,6 @@ export default function Home() {
   });
   const [showTradesModal, setShowTradesModal] = useState(false);
 
-  // سجل العمليات الحربية
   const [missionHistory, setMissionHistory] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('sniper_mission_history');
@@ -66,11 +65,13 @@ export default function Home() {
   });
   const [showHistoryModal, setShowHistoryModal] = useState(false);
 
-  // إعدادات البث والتنبيهات الخارجية (Webhook / Discord)
   const [webhookUrl, setWebhookUrl] = useState(() => {
     if (typeof window !== 'undefined') return localStorage.getItem('sniper_webhook') || '';
     return '';
   });
+
+  // حالة فتح نافذة شارت TradingView المتقدم لكل سهم
+  const [chartModalSymbol, setChartModalSymbol] = useState(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -292,7 +293,7 @@ export default function Home() {
       status: 'نشطة'
     };
     setActiveTrades(prev => [newTrade, ...prev]);
-    alert(`🎯 تم فتح الصفقة بنجاح على [${sym}] بسعر [${p}]!\nتم تفعيل نظام الأهداف التدريجية ووقف الخسارة المتحرك.`);
+    alert(`🎯 تم فتح الصفقة بنجاح على [${sym}] بسعر [${p}]!\n🪂 تم تفعيل حاسبة المظلة الآلية والأهداف التدريجية.`);
   };
 
   const closeActiveTrade = (tradeId) => {
@@ -359,7 +360,7 @@ export default function Home() {
     if (activeRadarFilter === 'whales' && (!data || !data.hasWhaleVolume)) return false;
     if (activeRadarFilter === 'fvg' && (!data || !data.hasFVG)) return false;
     if (activeRadarFilter === 'traps' && (!data || !data.isTrapDetected)) return false;
-    if (activeRadarFilter === 'multi_rsi' && (!data || !data.isMultiRsiValid)) return false;
+    if (activeRadarFilter === 'dark_pools' && (!data || !data.darkPoolActivity)) return false;
 
     return true;
   });
@@ -378,14 +379,14 @@ export default function Home() {
         {/* العنوان الرئيسي */}
         <div style={{ textAlign: 'center', marginBottom: '15px' }}>
           <h1 style={{ color: '#38bdf8', fontSize: '26px', fontWeight: '900', margin: '0 0 5px 0' }}>
-            🎯 منصتي سنايبر الاحترافية (نسخة طماع + خريطة السيولة والذكاء الاصطناعي 🔥)
+            🎯 منصتي سنايبر الاحترافية (النسخة الكونية المدمجة الشاملة 🔥)
           </h1>
           <p style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>
-            سحب آلي، رادارات الحيتان، خريطة السيولة اللحظية DOM Heatmap، تقييم الذكاء الاصطناعي، والتنبيهات الاستباقية المبكرة
+            رادار الثقوب السوداء، الجاذبية الكمومية، التجسس المؤسسي، حاسبة المظلة، شارت TradingView والذكاء الاصطناعي التعلّمي
           </p>
         </div>
 
-        {/* ⚙️ لوحة التحكم المباشرة في الإعدادات العسكرية والتنبيهات */}
+        {/* لوحة التحكم المباشرة */}
         <div style={{ background: '#0f172a', padding: '18px', borderRadius: '14px', border: '1px solid #38bdf8', marginBottom: '20px' }}>
           <h3 style={{ color: '#facc15', fontSize: '13px', fontWeight: 'bold', margin: '0 0 12px 0' }}>
             ⚙️ لوحة التحكم العسكري المباشر:
@@ -457,7 +458,7 @@ export default function Home() {
               📜 سجل العمليات والأداء ({missionHistory.length})
             </button>
             <button onClick={() => setShowTradesModal(true)} style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-              🎯 صفقاتي المفتوحة ({activeTrades.length})
+              🎯 صفقاتي المفتوحة والمظلة ({activeTrades.length})
             </button>
             
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#1e293b', padding: '4px 8px', borderRadius: '8px', border: '1px solid #475569' }}>
@@ -483,20 +484,19 @@ export default function Home() {
             <span style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 'bold' }}>🎯 فلاتر الرادار:</span>
             <button onClick={() => setActiveRadarFilter('all')} style={{ background: activeRadarFilter === 'all' ? '#0284c7' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>الكل</button>
             <button onClick={() => setActiveRadarFilter('whales')} style={{ background: activeRadarFilter === 'whales' ? '#16a34a' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>🐋 رادار الحيتان</button>
-            <button onClick={() => setActiveRadarFilter('fvg')} style={{ background: activeRadarFilter === 'fvg' ? '#9333ea' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>🧲 الفراغات السعرية FVGs</button>
-            <button onClick={() => setActiveRadarFilter('traps')} style={{ background: activeRadarFilter === 'traps' ? '#d97706' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>⚠️ كشف فخاخ صناع السوق</button>
-            <button onClick={() => setActiveRadarFilter('multi_rsi')} style={{ background: activeRadarFilter === 'multi_rsi' ? '#0d9488' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>📈 توافق فريمات RSI</button>
+            <button onClick={() => setActiveRadarFilter('dark_pools')} style={{ background: activeRadarFilter === 'dark_pools' ? '#9333ea' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>🌌 الثقوب السوداء Dark Pools</button>
+            <button onClick={() => setActiveRadarFilter('fvg')} style={{ background: activeRadarFilter === 'fvg' ? '#0d9488' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>🧲 الفراغات FVGs</button>
           </div>
           
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <button onClick={() => setEarlyAlertsEnabled(!earlyAlertsEnabled)} style={{ background: earlyAlertsEnabled ? '#0284c7' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
-              {earlyAlertsEnabled ? '⏳ التنبيه الاستباقي: مفعل' : '⏳ التنبيه الاستباقي: معطل'}
+            <button onClick={() => setParachuteActive(!parachuteActive)} style={{ background: parachuteActive ? '#16a34a' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
+              {parachuteActive ? '🪂 حاسبة المظلة: مفعلة' : '🪂 حاسبة المظلة: معطلة'}
             </button>
             <button onClick={() => setFilterOnlySuitable(!filterOnlySuitable)} style={{ background: filterOnlySuitable ? '#16a34a' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
-              {filterOnlySuitable ? `✅ الفرص المكتملة والاستباقية` : '📊 عرض الكل'}
+              {filterOnlySuitable ? `✅ الفرص المكتملة` : '📊 عرض الكل'}
             </button>
             <button onClick={() => setAutoRefresh(!autoRefresh)} style={{ background: autoRefresh ? '#7c3aed' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
-              {autoRefresh ? `⚡ رادار آلي (${Math.floor(timer/60)}:${timer%60 < 10 ? '0':''}${timer%60})` : '⚡ تشغيل الفحص الآلي'}
+              {autoRefresh ? `⚡ رادار آلي (${Math.floor(timer/60)}:${timer%60 < 10 ? '0':''}${timer%60})` : '⚡ فحص آلي'}
             </button>
           </div>
         </div>
@@ -521,7 +521,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* إضافة سهم، رادار السوق الحي، ونسخ التقرير الشامل */}
+        {/* إضافة سهم، رادار السوق الحي، ونسخ التقرير */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '25px', flexWrap: 'wrap', alignItems: 'center' }}>
           <form onSubmit={addSymbol} style={{ display: 'flex', gap: '8px' }}>
             <input 
@@ -556,7 +556,7 @@ export default function Home() {
             disabled={isCurrentLoading}
             style={{ padding: '14px 45px', background: isCurrentLoading ? '#475569' : (activeTab === 'cluster' ? '#16a34a' : '#9333ea'), color: '#fff', border: 'none', borderRadius: '12px', fontSize: '16px', cursor: 'pointer', fontWeight: '900', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
           >
-            {isCurrentLoading ? '⚡ جاري فحص كافة المحاور والأسواق وخريطة السيولة...' : (activeTab === 'cluster' ? '🚀 بدء التحليل العميق (كلاستر، FVGs، الحيتان والذكاء الاصطناعي)' : '⚡ بدء الفحص السريع لموجات الترند')}
+            {isCurrentLoading ? '⚡ جاري فحص الرادارات والثقوب السوداء والذكاء الاصطناعي...' : (activeTab === 'cluster' ? '🚀 بدء التحليل العميق (كلاستر، الحيتان، الثقوب السوداء والجاذبية)' : '⚡ بدء الفحص السريع لموجات الترند')}
           </button>
         </div>
 
@@ -589,22 +589,22 @@ export default function Home() {
                     {isMatched || isEarly ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <div style={{ display: 'flex', gap: '8px' }}>
-                          <a href={`https://www.tradingview.com/chart/?symbol=${sym}`} target="_blank" rel="noopener noreferrer" style={{ flex: 1, display: 'block', background: '#0284c7', color: '#fff', padding: '8px', textAlign: 'center', borderRadius: '8px', fontSize: '12px', textDecoration: 'none', fontWeight: 'bold' }}>📈 الشارت</a>
+                          <button onClick={() => setChartModalSymbol(sym)} style={{ flex: 1, background: '#0284c7', color: '#fff', border: 'none', padding: '8px', textAlign: 'center', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}>📈 شارت TradingView</button>
                           <button onClick={() => copyToClipboard(data.analysis)} style={{ flex: 1, background: '#334155', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}>📋 نسخ التقرير</button>
                         </div>
                         <button onClick={() => enterTrade(sym, data.price)} style={{ width: '100%', background: isMatched ? '#16a34a' : '#d97706', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', cursor: 'pointer', fontWeight: '900' }}>
-                          🎯 أنا دخلت الصفقة (تفعيل الأهداف التدريجية)
+                          🎯 أنا دخلت الصفقة (تفعيل حاسبة المظلة)
                         </button>
                       </div>
                     ) : (
                       <div style={{ background: '#451a03', color: '#fdba74', padding: '8px', textAlign: 'center', borderRadius: '8px', fontSize: '11.5px', fontWeight: 'bold' }}>
-                        قيد المراقبة الاستباقية - لم يبلغ شرط نسبة الثقة المحددة ({minConfidence}%) ❌
+                        قيد المراقبة الاستباقية - لم يبلغ شرط نسبة الثقة ({minConfidence}%) ❌
                       </div>
                     )}
                   </div>
                 ) : (
                   <div style={{ textAlign: 'center', margin: '30px 0' }}>
-                    <p style={{ color: '#64748b', fontSize: '12px', margin: 0 }}>في انتظار فحص الرادار الشامل وخريطة السيولة...</p>
+                    <p style={{ color: '#64748b', fontSize: '12px', margin: 0 }}>في انتظار فحص الرادار الشامل...</p>
                   </div>
                 )}
               </div>
@@ -612,12 +612,31 @@ export default function Home() {
           })}
         </div>
 
-        {/* نافذة صفقاتي المفتوحة والأهداف الثلاثية */}
+        {/* نافذة شارت TradingView المتقدم المدمج */}
+        {chartModalSymbol && (
+          <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100 }}>
+            <div style={{ background: '#0f172a', padding: '20px', borderRadius: '16px', border: '1px solid #38bdf8', width: '95%', maxWidth: '1000px', height: '80vh', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid #1e293b', paddingBottom: '10px' }}>
+                <h3 style={{ margin: 0, color: '#38bdf8', fontSize: '18px' }}>📈 الرسم البياني المتقدم (TradingView) - السهم: {chartModalSymbol}</h3>
+                <button onClick={() => setChartModalSymbol(null)} style={{ background: '#7f1d1d', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>إغلاق ✕</button>
+              </div>
+              <div style={{ flex: 1, width: '100%', background: '#000', borderRadius: '10px', overflow: 'hidden' }}>
+                <iframe
+                  src={`https://s.tradingview.com/widgetembed/?symbol=${chartModalSymbol}&interval=D&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=f1f3f6&studies=[]&theme=dark&style=1&timezone=exchange&withdateranges=1&studies_overrides={}&overrides={}&enabled_features=[]&disabled_features=[]&locale=ar&utm_source=&utm_medium=widget&utm_campaign=chart&utm_term=${chartModalSymbol}`}
+                  style={{ width: '100%', height: '100%', border: 'none' }}
+                  title="TradingView Chart"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* نافذة صفقاتي المفتوحة والمظلة */}
         {showTradesModal && (
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
             <div style={{ background: '#0f172a', padding: '25px', borderRadius: '16px', border: '1px solid #16a34a', width: '90%', maxWidth: '700px', maxHeight: '85vh', overflowY: 'auto' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid #1e293b', paddingBottom: '10px' }}>
-                <h3 style={{ margin: 0, color: '#4ade80', fontSize: '18px' }}>🎯 لوحة متابعة الصفقات المفتوحة (الأهداف الثلاثية)</h3>
+                <h3 style={{ margin: 0, color: '#4ade80', fontSize: '18px' }}>🎯 صفقاتي المفتوحة (حاسبة المظلة وتأمين الأرباح الآلي)</h3>
                 <button onClick={() => setShowTradesModal(false)} style={{ background: '#7f1d1d', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>إغلاق</button>
               </div>
               {activeTrades.length === 0 ? (
@@ -630,8 +649,8 @@ export default function Home() {
                         🎯 الرمز: {t.symbol} <span style={{ color: '#38bdf8', fontSize: '11px' }}>({t.type})</span>
                       </div>
                       <div style={{ color: '#cbd5e1', fontSize: '12.5px', lineHeight: '1.5' }}>
-                        سعر الدخول: <strong style={{ color: '#4ade80' }}>{t.entryPrice}</strong> | وقف الخسارة: <strong style={{ color: '#ef4444' }}>{t.stopLoss}</strong><br/>
-                        🎯 أهداف الخروج: الهدف 1 (33%): {t.targets.t1} | الهدف 2 (33%): {t.targets.t2} | الهدف 3 (34%): {t.targets.t3}
+                        سعر الدخول: <strong style={{ color: '#4ade80' }}>{t.entryPrice}</strong> | وقف الخسارة المظلي: <strong style={{ color: '#ef4444' }}>{t.stopLoss}</strong><br/>
+                        🎯 أهداف الخروج: الهدف 1: {t.targets.t1} | الهدف 2: {t.targets.t2} | الهدف 3: {t.targets.t3}
                       </div>
                     </div>
                     <button onClick={() => closeActiveTrade(t.id)} style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
