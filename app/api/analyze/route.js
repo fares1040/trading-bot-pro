@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+// 🧠 ذاكرة عسكرية مؤقتة لمنع تكرار تنبيهات التليجرام لنفس السهم
 const alertCooldowns = new Map();
 
 async function fetchYahooData(symbol, isScalp = false) {
@@ -32,10 +33,12 @@ async function fetchYahooData(symbol, isScalp = false) {
     const isTrapDetected = currentVol > volAvg * 1.5 && quotes[quotes.length - 1] < quotes[quotes.length - 2];
     const isMultiRsiValid = true;
 
+    // 🔥 1. معدل الاختراق والزخم اللحظي
     const priceDiff = quotes[quotes.length - 1] - quotes[quotes.length - 2];
     const momentumRate = Number(((priceDiff / currentPrice) * 100).toFixed(2));
     const volumeMultiplier = Number((currentVol / (volAvg || 1)).toFixed(2));
 
+    // 🔥 2. شريط مؤشر الاختراق اللحظي (Live Breakout Status Bar)
     let breakoutTape = '⚪ مسار جانبي ميت';
     if (momentumRate > 0.15 && volumeMultiplier > 1.2) {
       breakoutTape = '🚀 [اختراق صاروخي هجومي مكتمل 🔥]';
@@ -45,6 +48,7 @@ async function fetchYahooData(symbol, isScalp = false) {
       breakoutTape = '⚠️ [فخ تصريفي / مصيدة صانع سوق ❌]';
     }
 
+    // 🔥 3. 🔮 نظام "التنبؤ الانعكاسي التراجعي بطاقة الثقة التنبؤية"
     let confidenceScore = 50;
     if (hasWhaleVolume) confidenceScore += 20;
     if (hasFVG) confidenceScore += 15;
@@ -172,27 +176,20 @@ async function sendTelegramAlert(text) {
     await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: CHAT_ID, text: text, parse_mode: 'Markdown' })
+      body: JSON.stringify({
+        chat_id: CHAT_ID,
+        text: text,
+        parse_mode: 'Markdown'
+      })
     });
   } catch (e) {}
 }
 
-// 👾 دالة إرسال التنبيه إلى Discord Webhook
-async function sendDiscordAlert(text, webhookUrl) {
-  if (!webhookUrl) return;
-  try {
-    await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: text })
-    });
-  } catch (e) {}
-}
-
+// 🟢 دعم طلبات الـ POST (التي ترسلها الواجهة لتنفيذ التحليل المفصل)
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { symbol, scalpMode, minConfidence, cooldownMinutes, discordWebhook } = body;
+    const { symbol, scalpMode, minConfidence = 70, cooldownMinutes = 30 } = body;
 
     if (!symbol) {
       return NextResponse.json({ error: 'الرجاء تحديد رمز السهم' }, { status: 400 });
@@ -205,18 +202,18 @@ export async function POST(request) {
       return NextResponse.json({ error: 'فشل في جلب بيانات السهم' }, { status: 404 });
     }
 
-    const confLimit = minConfidence !== undefined ? Number(minConfidence) : 70;
-    const cooldownMs = (cooldownMinutes !== undefined ? Number(cooldownMinutes) : 30) * 60 * 1000;
-
-    if (analysisResult.isSuitable && analysisResult.confidenceScore >= confLimit) {
+    if (analysisResult.isSuitable && analysisResult.confidenceScore >= minConfidence) {
       const now = Date.now();
       const modeKey = scalpMode ? 'scalp' : 'cluster';
       const existingCache = alertCooldowns.get(symbolUpper);
 
       let shouldAlert = true;
+      const cooldownMs = cooldownMinutes * 60 * 1000;
+
       if (existingCache) {
         const timePassed = now - existingCache.timestamp;
         const sameMode = existingCache.mode === modeKey;
+
         if (sameMode && timePassed < cooldownMs) {
           shouldAlert = false;
         }
@@ -224,13 +221,7 @@ export async function POST(request) {
 
       if (shouldAlert) {
         alertCooldowns.set(symbolUpper, { timestamp: now, mode: modeKey });
-        const alertMsg = `🚨 **تنبيه عسكري مؤكد (منظومة طماع الاحترافية)** 🎯\n\n${analysisResult.telegramHeader}\n\n${analysisResult.analysis}`;
-        
-        // إرسال لتليجرام وديسكورد معاً
-        await sendTelegramAlert(alertMsg);
-        if (discordWebhook) {
-          await sendDiscordAlert(alertMsg, discordWebhook);
-        }
+        await sendTelegramAlert(`🚨 **تنبيه عسكري مؤكد (منظومة طماع الاحترافية)** 🎯\n\n${analysisResult.telegramHeader}\n\n${analysisResult.analysis}`);
       }
     }
 
@@ -240,12 +231,12 @@ export async function POST(request) {
   }
 }
 
-// دعم المسح التلقائي عبر GET أو POST
+// 🔵 دعم طلبات الـ GET (الخاصة بمسح السوق الحي عبر السكرينر)
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const scanMode = searchParams.get('scan') === 'true';
   const scalpMode = searchParams.get('scalp') === 'true';
-  const minConfidence = Number(searchParams.get('minConfidence') || 70);
+  const minConfidence = Number(searchParams.get('minConfidence')) || 70;
   const customSymbolsParam = searchParams.get('symbols');
 
   if (scanMode) {
@@ -257,5 +248,5 @@ export async function GET(request) {
     return NextResponse.json({ matched });
   }
 
-  return NextResponse.json({ error: 'استخدم طريقة POST للفحص الفردي أو تفعيل مسح الـ GET الصحيح' }, { status: 400 });
+  return NextResponse.json({ error: 'طريقة الطلب غير صالحة' }, { status: 400 });
 }
