@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+// 🧠 ذاكرة عسكرية مؤقتة لمنع تكرار تنبيهات التليجرام لنفس السهم
 const alertCooldowns = new Map();
 
 async function fetchYahooData(symbol, isScalp = false) {
@@ -73,6 +74,9 @@ async function fetchYahooData(symbol, isScalp = false) {
                      `📈 معدل الاختراق والزخم: ${momentumRate}% (مضاعف الفوليوم: ${volumeMultiplier}x)\n` +
                      `🎚️ شريط الاختراق اللحظي: ${breakoutTape}\n` +
                      `🔮 بطاقة الثقة التنبؤية الانعكاسية: [ ${confidenceScore}% 🎯 ]\n` +
+                     `🐋 رادار الحيتان: ${hasWhaleVolume ? 'نشط ودخول مؤسسي مكتشف 🔥' : 'هادئ 🛡️'}\n` +
+                     `🧲 الفراغات السعرية (FVG): ${hasFVG ? 'موجودة ومفتوحة للأعلى ✅' : 'لا توجد ⚠️'}\n` +
+                     `⚠️ فخاخ صناع السوق: ${isTrapDetected ? 'تحذير: تم كشف فخ تصريفي! ❌' : 'آمن وخالٍ من الفخاخ ✅'}\n` +
                      `🛑 وقف الخسارة السريع: ${stopLoss}\n` +
                      `🎯 الأهداف السريعة: ${t1} / ${t2} / ${t3}\n` +
                      `📌 الحالة: ${isSuitable ? 'هدف مؤكد 🔥' : 'تحت المراقبة ❌'}`;
@@ -93,6 +97,9 @@ async function fetchYahooData(symbol, isScalp = false) {
                      `• معدل الزخم والاختراق: ${momentumRate}% | مضاعف السيولة: ${volumeMultiplier}x\n` +
                      `• 🎚️ شريط الاختراق والاتجاه: ${breakoutTape}\n` +
                      `• 🔮 بطاقة الثقة التنبؤية الانعكاسية: [ ${confidenceScore}% 🎯 ]\n` +
+                     `• 🐋 رادار الحيتان: ${hasWhaleVolume ? 'نشط ودخول مؤسسي قوي 🐋🔥' : 'مستقر 🛡️'}\n` +
+                     `• 🧲 الفراغات السعرية (FVGs): ${hasFVG ? 'مكتشفة وتدعم الارتداد السريع 🧲' : 'عادية ⚠️'}\n` +
+                     `• ⚠️ فخاخ صناع السوق: ${isTrapDetected ? 'تحذير: تم كشف تلاعب أو فخ ⚠️' : 'منطقة نظيفة وخالية من الفخاخ ✅'}\n` +
                      `• وقف الخسارة: ${stopLoss}\n` +
                      `• الأهداف: الهدف 1: ${t1} | الهدف 2: ${t2} | الهدف 3: ${t3}\n` +
                      `• القرار النهائي: ${isSuitable ? 'هدف مؤكد ونموذج مكتمل 🔥' : 'انتظر اكتمال النموذج ❌'}`;
@@ -119,7 +126,6 @@ async function fetchYahooData(symbol, isScalp = false) {
   }
 }
 
-// ⚡ فحص السوق دفعة واحدة وبشكل متوازي لتجنب الـ Timeout
 async function scanLiveMarket(isScalp = false, customSymbols = [], minConfidence = 70) {
   try {
     const liveGainersSymbols = isScalp 
@@ -127,8 +133,6 @@ async function scanLiveMarket(isScalp = false, customSymbols = [], minConfidence
       : ['SNDK', 'AXTI', 'ABVX', 'ERAS', 'ALMS', 'DMRA', 'MU', 'GSIT', 'KULR'];
 
     const marketPool = Array.from(new Set([...customSymbols, ...liveGainersSymbols]));
-
-    // تنفيذ الفحص دفعة واحدة بشكل متوازي بالكامل (Parallel Execution)
     const promises = marketPool.map(sym => fetchYahooData(sym, isScalp));
     const results = await Promise.all(promises);
 
@@ -155,39 +159,7 @@ async function sendTelegramAlert(text) {
   } catch (e) {}
 }
 
-export async function GET(request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const symbol = searchParams.get('symbol');
-    const scanMode = searchParams.get('scan') === 'true';
-    const scalpMode = searchParams.get('scalp') === 'true';
-    const minConfidence = Number(searchParams.get('minConfidence')) || 70;
-    const customSymbolsParam = searchParams.get('symbols');
-
-    if (scanMode) {
-      let userWatchlist = [];
-      if (customSymbolsParam) {
-        userWatchlist = customSymbolsParam.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
-      }
-      const matched = await scanLiveMarket(scalpMode, userWatchlist, minConfidence);
-      return NextResponse.json({ matched });
-    }
-
-    if (symbol) {
-      const symbolUpper = symbol.toUpperCase();
-      const analysisResult = await fetchYahooData(symbolUpper, scalpMode);
-      if (!analysisResult) {
-        return NextResponse.json({ error: 'فشل في جلب بيانات السهم' }, { status: 404 });
-      }
-      return NextResponse.json(analysisResult);
-    }
-
-    return NextResponse.json({ error: 'طلب غير صالح' }, { status: 400 });
-  } catch (e) {
-    return NextResponse.json({ error: 'خطأ في الخادم' }, { status: 500 });
-  }
-}
-
+// دعم طلبات الـ POST (التي ترسلها الواجهة لكل سهم)
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -211,18 +183,42 @@ export async function POST(request) {
       let shouldAlert = true;
       const cooldownMs = cooldownMinutes * 60 * 1000;
 
-    if (existingCache && existingCache.mode === modeKey && (now - existingCache.timestamp) < cooldownMs) {
+      if (existingCache && existingCache.mode === modeKey && (now - existingCache.timestamp) < cooldownMs) {
         shouldAlert = false;
       }
 
       if (shouldAlert) {
         alertCooldowns.set(symbolUpper, { timestamp: now, mode: modeKey });
-        await sendTelegramAlert(`🚨 **تنبيه عسكري مؤكد (منظومة طماع)** 🎯\n\n${analysisResult.telegramHeader}\n\n${analysisResult.analysis}`);
+        await sendTelegramAlert(`🚨 **تنبيه عسكري مؤكد (منظومة طماع الاحترافية)** 🎯\n\n${analysisResult.telegramHeader}\n\n${analysisResult.analysis}`);
       }
     }
 
     return NextResponse.json(analysisResult);
   } catch (e) {
     return NextResponse.json({ error: 'خطأ في معالجة الطلب' }, { status: 500 });
+  }
+}
+
+// دعم طلبات الـ GET (لرادار السوق الحي والسكرينر)
+export async function GET(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const scanMode = searchParams.get('scan') === 'true';
+    const scalpMode = searchParams.get('scalp') === 'true';
+    const minConfidence = Number(searchParams.get('minConfidence')) || 70;
+    const customSymbolsParam = searchParams.get('symbols');
+
+    if (scanMode) {
+      let userWatchlist = [];
+      if (customSymbolsParam) {
+        userWatchlist = customSymbolsParam.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+      }
+      const matched = await scanLiveMarket(scalpMode, userWatchlist, minConfidence);
+      return NextResponse.json({ matched });
+    }
+
+    return NextResponse.json({ error: 'طلب غير صالح' }, { status: 400 });
+  } catch (e) {
+    return NextResponse.json({ error: 'خطأ في الخادم' }, { status: 500 });
   }
 }
