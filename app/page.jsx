@@ -2,19 +2,29 @@
 import { useState, useEffect } from 'react';
 
 export default function Home() {
+  // قائمة نظام الكلاستر والاستثمار (4 ساعات) مستقلة تماماً
   const [symbols, setSymbols] = useState(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('sniper_symbols');
+      const saved = localStorage.getItem('sniper_symbols_cluster');
       if (saved) {
         try { return JSON.parse(saved); } catch (e) {}
       }
     }
     return [
       'VMAR', 'CETX', 'GSIT', 'PRFX', 'BYRN', 'ERNA', 
-      'LNZA', 'HURA', 'KULR', 'ANVS', 'PPSI', 'BJDX', 
-      'MRAM', 'NOK', 'SPSC', 'PODC', 'OPI', 'TOVX', 
-      'NIO', 'LOT', 'OLB', 'OCG', 'QUCY', 'PLUG'
+      'LNZA', 'HURA', 'KULR', 'ANVS', 'PPSI', 'BJDX'
     ];
+  });
+
+  // قائمة رادار الترند اللحظي (السكالبينج) مستقلة تماماً بقائمة خاصة بها
+  const [scalpSymbols, setScalpSymbols] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sniper_symbols_scalp');
+      if (saved) {
+        try { return JSON.parse(saved); } catch (e) {}
+      }
+    }
+    return ['TSLA', 'NVDA', 'AAPL', 'AMD', 'META', 'MSFT', 'SPY', 'QQQ'];
   });
 
   const [newSymbol, setNewSymbol] = useState('');
@@ -23,11 +33,9 @@ export default function Home() {
   const [scanning, setScanning] = useState(false);
   const [loadingSymbol, setLoadingSymbol] = useState(null);
 
-  // تبويب القائمة الرئيسية (هل نحن على فريم 4 ساعات أو رادار الترند اللحظي)
-  const [activeTab, setActiveTab] = useState('cluster'); // 'cluster' or 'scalp'
+  // التبويب النشط ('cluster' أو 'scalp')
+  const [activeTab, setActiveTab] = useState('cluster'); 
   
-  // نتائج رادار الترند اللحظي (السكالبينج) المستقل
-  const [scalpSymbols, setScalpSymbols] = useState(['TSLA', 'NVDA', 'AAPL', 'AMD', 'META', 'MSFT', 'SPY', 'QQQ']);
   const [scalpResults, setScalpResults] = useState({});
   const [loadingScalp, setLoadingScalp] = useState(false);
 
@@ -66,6 +74,14 @@ export default function Home() {
       localStorage.setItem('sniper_mission_history', JSON.stringify(missionHistory));
     }
   }, [missionHistory]);
+
+  useEffect(() => {
+    localStorage.setItem('sniper_symbols_cluster', JSON.stringify(symbols));
+  }, [symbols]);
+
+  useEffect(() => {
+    localStorage.setItem('sniper_symbols_scalp', JSON.stringify(scalpSymbols));
+  }, [scalpSymbols]);
 
   const sendWebhookAlert = async (sym, analysisText) => {
     if (!webhookUrl.trim()) return;
@@ -121,16 +137,13 @@ export default function Home() {
   };
 
   useEffect(() => {
-    localStorage.setItem('sniper_symbols', JSON.stringify(symbols));
-  }, [symbols]);
-
-  useEffect(() => {
     let interval;
     if (autoRefresh) {
       interval = setInterval(() => {
         setTimer((prev) => {
           if (prev <= 1) {
-            runAnalysis();
+            if (activeTab === 'cluster') runAnalysis();
+            else runScalpAnalysis();
             return 300;
           }
           return prev - 1;
@@ -140,9 +153,9 @@ export default function Home() {
       setTimer(300);
     }
     return () => clearInterval(interval);
-  }, [autoRefresh, symbols]);
+  }, [autoRefresh, activeTab, symbols, scalpSymbols]);
 
-  // فحص نظام الكلاستر الأساسي
+  // فحص نظام الكلاستر الأساسي (استثماري)
   const runAnalysis = async () => {
     setLoading(true);
     const newResults = {};
@@ -174,7 +187,6 @@ export default function Home() {
     let firstAnalysis = '';
     for (let sym of scalpSymbols) {
       try {
-        // نرسل مؤشر للـ API بأنه فحص سكالبينج لحظي
         const res = await fetch(`/api/analyze?symbol=${sym}&scalp=true`);
         const data = await res.json();
         newResults[sym] = data;
@@ -191,30 +203,22 @@ export default function Home() {
     if (firstMatchedSym) playRadarSound(firstMatchedSym, `[سكالبينج لحظي] ${firstAnalysis}`);
   };
 
-  const analyzeSingleSymbol = async (sym) => {
-    setLoadingSymbol(sym);
-    try {
-      const res = await fetch(`/api/analyze?symbol=${sym}`);
-      const data = await res.json();
-      setResults(prev => ({ ...prev, [sym]: data }));
-      if (data.isSuitable) playRadarSound(sym, data.analysis);
-    } catch (err) {
-      setResults(prev => ({ ...prev, [sym]: { error: "فشل الاتصال" } }));
-    }
-    setLoadingSymbol(null);
-  };
-
   const scanMarketForMatches = async () => {
     setScanning(true);
     try {
       const res = await fetch(`/api/analyze?scan=true`);
       const data = await res.json();
       if (data.matched && data.matched.length > 0) {
-        const merged = Array.from(new Set([...symbols, ...data.matched]));
-        setSymbols(merged);
+        if (activeTab === 'cluster') {
+          const merged = Array.from(new Set([...symbols, ...data.matched]));
+          setSymbols(merged);
+        } else {
+          const merged = Array.from(new Set([...scalpSymbols, ...data.matched]));
+          setScalpSymbols(merged);
+        }
         playRadarSound(data.matched[0], "مسح راداري شامل للفرص");
         alert(`🎯 رادار السنايبر اصطاد ورصد ${data.matched.length} سهم جديد مطابقة للشروط!`);
-        runAnalysis();
+        if (activeTab === 'cluster') runAnalysis(); else runScalpAnalysis();
       } else {
         alert('الرادار مسح السوق، لا توجد أسهم مطابقة بنسبة 100% حالياً.');
       }
@@ -275,6 +279,7 @@ export default function Home() {
 
   const currentList = activeTab === 'cluster' ? symbols : scalpSymbols;
   const currentRes = activeTab === 'cluster' ? results : scalpResults;
+  const isCurrentLoading = activeTab === 'cluster' ? loading : loadingScalp;
 
   const displayedSymbols = currentList.filter(sym => {
     if (!filterOnlySuitable) return true;
@@ -315,33 +320,35 @@ export default function Home() {
       <div style={{ position: 'relative', zIndex: 1, maxWidth: '1400px', margin: '0 auto' }}>
         
         <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-          <h1 style={{ color: '#38bdf8', fontSize: '32px', fontWeight: '900', margin: '0 0 8px 0', textShadow: '0 0 20px rgba(56, 189, 248, 0.5)' }}>
-            🎯 نظام السنايبر العسكري الذكي
+          <h1 style={{ color: activeTab === 'cluster' ? '#38bdf8' : '#c084fc', fontSize: '32px', fontWeight: '900', margin: '0 0 8px 0', textShadow: '0 0 20px rgba(56, 189, 248, 0.5)' }}>
+            {activeTab === 'cluster' ? '🎯 نظام السنايبر العسكري (الكلاستر - 4 ساعات)' : '⚡ رادار موجات الترند اللحظي (السكالبينج)'}
           </h1>
-          <p style={{ color: '#94a3b8', fontSize: '14px', margin: 0 }}>منصة القيادة والتحكم الآلي لتحليل وفحص الأسهم (استثماري ولحظي)</p>
+          <p style={{ color: '#94a3b8', fontSize: '14px', margin: 0 }}>
+            {activeTab === 'cluster' ? 'منصة الاستثمار والارتداد على فريم 4 ساعات' : 'منصة المضاربة السريعة واقتناص الفوليوم اللحظي'}
+          </p>
         </div>
 
-        {/* 🔀 تبديل الأقسام الرئيسية (فريم 4 ساعات vs رادار الترند اللحظي) */}
+        {/* 🔀 تبديل الأقسام الرئيسية بفصل تام */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '20px' }}>
           <button 
-            onClick={() => setActiveTab('cluster')}
+            onClick={() => { setActiveTab('cluster'); setFilterOnlySuitable(false); }}
             style={{ padding: '12px 25px', background: activeTab === 'cluster' ? '#0284c7' : '#0f172a', color: '#fff', border: '1px solid #38bdf8', borderRadius: '10px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer', boxShadow: activeTab === 'cluster' ? '0 0 15px rgba(56, 189, 248, 0.4)' : 'none' }}
           >
-            🛡️ نظام الكلاستر والاستثمار (4 ساعات)
+            🛡️ نظام الكلاستر والاستثمار (4 ساعات) [{symbols.length} سهم]
           </button>
           <button 
-            onClick={() => setActiveTab('scalp')}
+            onClick={() => { setActiveTab('scalp'); setFilterOnlySuitable(false); }}
             style={{ padding: '12px 25px', background: activeTab === 'scalp' ? '#9333ea' : '#0f172a', color: '#fff', border: '1px solid #c084fc', borderRadius: '10px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer', boxShadow: activeTab === 'scalp' ? '0 0 15px rgba(147, 51, 234, 0.4)' : 'none' }}
           >
-            ⚡ رادار موجات الترند اللحظي (سكالبينج)
+            ⚡ رادار موجات الترند اللحظي [{scalpSymbols.length} سهم]
           </button>
         </div>
 
         <div style={{ background: 'linear-gradient(90deg, #1e1b4b, #0f172a, #064e3b)', border: '1px solid #059669', borderRadius: '12px', padding: '12px 20px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontSize: '18px' }}>🌋</span>
-            <span style={{ fontSize: '13px', color: '#4ade80', fontWeight: 'bold' }}>مؤشر نبض الخوف والسيولة العالمي:</span>
-            <span style={{ color: '#fff', fontSize: '13px' }}>{suitableCount > 2 ? 'مرحلة طشع واستحواذ حيتان نشطة 🔥' : 'هدوء استباقي ومراقبة مناطق الكلاستر ⏳'}</span>
+            <span style={{ fontSize: '13px', color: '#4ade80', fontWeight: 'bold' }}>حالة النظام الحالي:</span>
+            <span style={{ color: '#fff', fontSize: '13px' }}>{activeTab === 'cluster' ? 'فحص استثماري هادئ ⏳' : 'مضاربة سريعة ومتابعة سيولة ⚡'}</span>
           </div>
           
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -402,7 +409,7 @@ export default function Home() {
         <div style={{ background: 'linear-gradient(135deg, #0f172a 100%, #1e1b4b 0%)', border: '1px solid #312e81', borderRadius: '14px', padding: '18px 22px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ width: '12px', height: '12px', background: suitableCount > 0 ? '#22c55e' : '#eab308', borderRadius: '50%', display: 'inline-block' }}></span>
-            <span style={{ fontSize: '14px', color: '#cbd5e1', fontWeight: 'bold' }}>حالة الرادار ({activeTab === 'cluster' ? 'استثماري' : 'لحظي'}):</span>
+            <span style={{ fontSize: '14px', color: '#cbd5e1', fontWeight: 'bold' }}>حالة رادار القسم الحالي:</span>
             <span style={{ background: '#030712', padding: '6px 14px', borderRadius: '8px', color: '#38bdf8', fontSize: '13px', fontWeight: 'bold', border: '1px solid #1e293b' }}>
               📊 {marketSentiment} ({suitableCount} هدف جاهز)
             </span>
@@ -448,12 +455,12 @@ export default function Home() {
           <form onSubmit={addSymbol} style={{ display: 'flex', gap: '10px' }}>
             <input 
               type="text" 
-              placeholder="أدخل رمز السهم الجديد (مثال: TSLA)" 
+              placeholder={activeTab === 'cluster' ? "أدخل سهم للاستثمار (مثال: VMAR)" : "أدخل سهم للسكالبينج (مثال: TSLA)"}
               value={newSymbol}
               onChange={(e) => setNewSymbol(e.target.value)}
               style={{ padding: '11px 16px', borderRadius: '8px', border: '1px solid #475569', background: '#0f172a', color: '#fff', outline: 'none', fontSize: '14px' }}
             />
-            <button type="submit" style={{ padding: '11px 20px', background: '#0284c7', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}>إضافة للسلطة</button>
+            <button type="submit" style={{ padding: '11px 20px', background: activeTab === 'cluster' ? '#0284c7' : '#9333ea', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}>إضافة للقائمة الحالية</button>
           </form>
 
           {activeTab === 'cluster' && (
@@ -477,10 +484,10 @@ export default function Home() {
         <div style={{ textAlign: 'center', marginBottom: '35px' }}>
           <button 
             onClick={activeTab === 'cluster' ? runAnalysis : runScalpAnalysis} 
-            disabled={activeTab === 'cluster' ? loading : loadingScalp}
-            style={{ padding: '14px 40px', background: (activeTab === 'cluster' ? loading : loadingScalp) ? '#475569' : (activeTab === 'cluster' ? '#16a34a' : '#9333ea'), color: '#fff', border: 'none', borderRadius: '10px', fontSize: '16px', cursor: 'pointer', fontWeight: '900', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}
+            disabled={isCurrentLoading}
+            style={{ padding: '14px 40px', background: isCurrentLoading ? '#475569' : (activeTab === 'cluster' ? '#16a34a' : '#9333ea'), color: '#fff', border: 'none', borderRadius: '10px', fontSize: '16px', cursor: 'pointer', fontWeight: '900', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}
           >
-            {(activeTab === 'cluster' ? loading : loadingScalp) ? '⚡ جاري معالجة وفحص القائمة...' : (activeTab === 'cluster' ? '🚀 بدء الفحص الشامل للاستثمار' : '⚡ بدء الفحص السريع لموجات الترند')}
+            {isCurrentLoading ? '⚡ جاري معالجة وفحص القائمة...' : (activeTab === 'cluster' ? '🚀 بدء الفحص الشامل للاستثمار (4 ساعات)' : '⚡ بدء الفحص السريع لموجات الترند (سكالبينج)')}
           </button>
         </div>
 
@@ -488,7 +495,6 @@ export default function Home() {
           {displayedSymbols.map((sym) => {
             const data = currentRes[sym];
             const isMatched = data?.isSuitable;
-            const isItemLoading = loadingSymbol === sym;
 
             return (
               <div 
@@ -563,7 +569,7 @@ export default function Home() {
                 ) : (
                   <div style={{ textAlign: 'center', margin: '35px 0' }}>
                     <p style={{ color: '#64748b', fontSize: '13px', margin: '0 0 8px 0' }}>في انتظار فحص الرادار...</p>
-                    <div style={{ fontSize: '12px', color: '#38bdf8' }}>اضغط زر الفحص اللحظي لبدء الرصد</div>
+                    <div style={{ fontSize: '12px', color: '#38bdf8' }}>اضغط زر الفحص لبدء الرصد</div>
                   </div>
                 )}
               </div>
