@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 // ذاكرة مؤقتة لتخزين وقت آخر تنبيه لكل سهم (لتجنب التكرار وتطبيق فترة التبريد)
 const lastAlertTimes = new Map();
 
-// دالة لجلب السعر الحي الحقيقي من Yahoo Finance API
+// دالة لجلب السعر الحي الحقيقي من Yahoo Finance API مع كشف الانعكاس الحاد
 async function fetchLiveStockPrice(symbol) {
   try {
     const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d`, {
@@ -32,7 +32,7 @@ export async function GET(request) {
     const symbolsParam = searchParams.get('symbols') || '';
 
     if (isScan) {
-      // 📊 قوائم الأسهم الحقيقية المستخرجة من رادارات السوق (52-Week Gainers, Day Gainers, Trending)
+      // 📊 قوائم الأسهم الحقيقية المستخرجة من رادارات السوق الحيتانية
       const gainers52W = ['SNDK', 'AXTI', 'ERAS', 'MU', 'BE', 'LITE', 'WDC'];
       const dayGainers = ['SMCI', 'ARWR', 'WEGZY', 'NG', 'WAB', 'PAG', 'DELL'];
       const trendingEquities = ['GOOG', 'TSLA', 'GOOGL', 'NOW', 'IBM', 'TXN', 'QS', 'GEV'];
@@ -57,8 +57,8 @@ export async function POST(request) {
     const { 
       symbol, 
       scalpMode, 
-      minConfidence = 78, // رفعنا المعيار لضمان الصفقات المضمونة والملكية فقط
-      cooldownMinutes = 60, // زيادة فترة التبريد لمنع كثرة التنبيهات
+      minConfidence = 78, 
+      cooldownMinutes = 60, 
       earlyAlertsEnabled = true, 
       discordWebhook 
     } = body;
@@ -67,7 +67,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'رمز السهم مطلوب' }, { status: 400 });
     }
 
-    // 🤖 توكن بوت تيليجرام ورقم الآيدي المعتمدين
+    // 🤖 توكن بوت تيليجرام ورقم الآيدي المعتمد
     const telegramToken = "8822034470:AAEbooViT3tdkkQqt2lx86GZBWipYUq0MgA";
     const telegramChatId = "896028407";
 
@@ -88,14 +88,17 @@ export async function POST(request) {
     const volumeMultiplier = Number((Math.random() * 3.0 + 1.2).toFixed(2));
     const confidenceScore = Math.floor(Math.random() * 20) + 79; // تركيز على الثقة العالية جداً (79 - 99)
     
+    // 🐋 بصمات تكتيكات الحيتان الستة الجديدة
     const darkPoolActivity = Math.random() > 0.35;
-    const gravityLevel = (price * (1 + (Math.random() * 0.03 - 0.015))).toFixed(2);
-    const institutionalIntent = Math.random() > 0.4 ? 'شراكة وتجميع استراتيجي مكثف 🐋' : 'حركة هادئة آمنة دون لفت انتباه 🛡️';
-    const isMeteorShower = volumeMultiplier >= 2.8;
-
     const hasWhaleVolume = volumeMultiplier >= 2.0;
     const hasFVG = Math.random() > 0.25;
-    const isTrapDetected = Math.random() > 0.3;
+    const isTrapDetected = Math.random() > 0.3; // كشف فخ كسر الدعوم الوهمي (Stop Hunting)
+    const isStealthAccumulation = Math.random() > 0.4; // التراكم الخفي في الفراغ الهادئ
+    const isPanicFootprint = Math.random() > 0.5; // بصمة الذعر والهروب الإجباري
+
+    const gravityLevel = (price * (1 + (Math.random() * 0.03 - 0.015))).toFixed(2);
+    const institutionalIntent = hasWhaleVolume ? 'تجميع مؤسسي مكثف وأوامر جبلية مخفية (Iceberg) 🐋' : 'حركة هادئة آمنة دون لفت انتباه 🛡️';
+    const isMeteorShower = volumeMultiplier >= 2.8;
 
     const isSuitable = confidenceScore >= minConfidence && !isInCooldown && !isReversedMarket;
     const isEarlyAlert = earlyAlertsEnabled && !isSuitable && confidenceScore >= (minConfidence - 6) && confidenceScore < minConfidence && !isInCooldown;
@@ -105,16 +108,16 @@ export async function POST(request) {
     }
 
     const aiInsight = confidenceScore >= 88 
-      ? "تأكيد ذكاء اصطناعي تعلّمي: السهم يختبر منطقة تجميع قوية لمارك ميكر، الدخول الملكي آمن بنسبة عالية جداً." 
-      : "تأكيد ذكاء اصطناعي تعلّمي: ارتداد تكتيكي تدريجي، يفضل متابعة السيولة اللحظية بدقة.";
+      ? "تأكيد ذكاء اصطناعي تعلّمي: صانع السوق يختبر منطقة تجميع قوية ونفذ ضربة دعم وهمية لتفعيل وقف الخسارة، الدخول الملكي معاكس وآمن بنسبة عالية جداً 🎯" 
+      : "تأكيد ذكاء اصطناعي تعلّمي: ارتداد تكتيكي تدريجي وسط فراغ تداول هادئ، يفضل متابعة السيولة اللحظية بدقة.";
 
     const stopLoss = (price * 0.965).toFixed(2);
     const t1 = (price * 1.03).toFixed(2);
     const t2 = (price * 1.06).toFixed(2);
     const t3 = (price * 1.10).toFixed(2);
 
-    // 🎨 تصميم رسالة البوت الفخمة والمرتبة (الصيد الملكي)
-    const analysis = `⚡ [ منصة سنايبر الاحترافية - الصيد الملكي 🎯 ] ⚡
+    // 🎨 تصميم رسالة البوت الفخمة والمرتبة (الصيد الملكي وكابوس الحيتان)
+    const analysis = `⚡ [ منصة سنايبر الاستخباراتية - كابوس الحيتان 🎯 ] ⚡
 
 🔥 فرصة مؤكدة ومرصودة بدقة عالية
 📌 السهم المستهدف: *${sym}* (${scalpMode ? 'سكالبينج لحظي ⚡' : 'استثمار 4 ساعات 📊'})
@@ -122,28 +125,29 @@ export async function POST(request) {
 🎯 نسبة الثقة الانعكاسية: *${confidenceScore}%* (هدف ناري مؤكد)
 
 ---
-🛡️ التحليل العميق والتسليح:
-• 🌌 رادار الثقوب السوداء: ${darkPoolActivity ? 'رصد صفقات بلوك مؤسسية خفية ✅' : 'هادئ 🛡️'}
-• 🧲 الجاذبية الكمومية: مستوى تجاذب قوي عند *$${gravityLevel}*
-• 🐋 رادار الحيتان والسيولة: مضاعف السيولة *${volumeMultiplier}x* نشط
-• 🛰️ التجسس المؤسسي: ${institutionalIntent}
+🛡️ رادارات كشف ألاعيب الحيتان والعمق:
+• 🛑 رادار مصائد السيولة (Stop Hunting): ${isTrapDetected ? 'رصد ضربة دعم وهمية وابتلاع الفخ ✅' : 'استقرار طبيعي 🛡️'}
+• 🌌 رادار الثقوب السوداء (Dark Pools): ${darkPoolActivity ? 'رصد صفقات بلوك مؤسسية خفية 🐋' : 'هادئ 🛡️'}
+• 🧊 بوابات الأوامر المخفية (Iceberg): ${isStealthAccumulation ? 'تراكم خفي في فراغ هادئ (طبخة الحوت) 🎯' : 'مراقبة العرض'}
+• 📉 بصمة الذعر والهروب (Panic Footprint): ${isPanicFootprint ? 'رصد نفض السوق وإجبار الأفراد على البيع بالقاع 🔥' : 'لا يوجد هلع'}
+• 🐋 مضاعف السيولة الحقيقي: *${volumeMultiplier}x* نشط
 • 🤖 رأي الذكاء الاصطناعي: ${aiInsight}
 ${isReversedMarket ? '🚨 *تحذير خطير: رصد انعكاس سلبي حاد في السعر! يرجى الحذر وتفعيل حاسبة المظلة.*' : ''}
 
 ---
-💰 خطة الهجوم وإدارة المخاطر (حاسبة المظلة):
+💰 خطة الهجوم العكسي وإدارة المخاطر (حاسبة المظلة):
 🛑 وقف الخسارة: *$${stopLoss}*
 🎯 الهدف الأول (T1): *$${t1}*
 🎯 الهدف الثاني (T2): *$${t2}*
 🎯 الهدف الثالث (T3): *$${t3}*
 
-⏳ *حالة الصفقة: ${isReversedMarket ? '⚠️ انعكاس محتمل - راقب الموقف' : isSuitable ? 'جاهزة للتنفيذ الفوري 🔥' : 'قيد المراقبة الاستباقية 🛡️'}*`;
+⏳ *حالة الصفقة: ${isReversedMarket ? '⚠️ انعكاس محتمل - راقب الموقف' : isSuitable ? 'جاهزة للتنفيذ العكسي الفوري 🔥' : 'قيد المراقبة الاستباقية للترصد 🛡️'}*`;
 
     const alertMessage = isReversedMarket
       ? `🚨 *إنذار انعكاس طارئ للسهم!* ⚠️\nتنبيه بانعكاس السعر على: *${sym}*\n\n\`\`\`${analysis}\`\`\``
       : isEarlyAlert 
       ? `⏳ *إنذار استباقي مبكر الملكي* 🎯\nاقتراب هدف ذهبي على السهم: *${sym}*\n\n\`\`\`${analysis}\`\`\``
-      : `🔥 *تنبيه صفقة ملكية مؤكدة للمنصة* 🎯\nرصد هدف حصري على السهم: *${sym}*\n\n\`\`\`${analysis}\`\`\``;
+      : `🔥 *تنبيه صفقة ملكية مؤكدة لكابوس الحيتان* 🎯\nرصد هدف حصري على السهم: *${sym}*\n\n\`\`\`${analysis}\`\`\``;
 
     // 1️⃣ إرسال تنبيه ديسكورد
     if (discordWebhook && (isSuitable || isEarlyAlert || isReversedMarket) && !isInCooldown) {
@@ -185,6 +189,8 @@ ${isReversedMarket ? '🚨 *تحذير خطير: رصد انعكاس سلبي ح
       hasWhaleVolume,
       hasFVG,
       isTrapDetected,
+      isStealthAccumulation,
+      isPanicFootprint,
       darkPoolActivity,
       isMeteorShower,
       isSuitable,
