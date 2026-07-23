@@ -26,7 +26,6 @@ export default function Home() {
   const [scalpResults, setScalpResults] = useState({});
   const [loadingScalp, setLoadingScalp] = useState(false);
 
-  // ⚙️ إعدادات الفلاتر والرادارات المتقدمة (تم ضبط الثقة التلقائية على 85% فما فوق للصيد المضمون)
   const [minConfidence, setMinConfidence] = useState(85);
   const [cooldownMinutes, setCooldownMinutes] = useState(30);
   const [filterOnlySuitable, setFilterOnlySuitable] = useState(false);
@@ -34,11 +33,9 @@ export default function Home() {
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [timer, setTimer] = useState(300);
 
-  // التنبيهات الاستباقية وحاسبة المظلة الملكية
   const [earlyAlertsEnabled, setEarlyAlertsEnabled] = useState(true);
   const [parachuteActive, setParachuteActive] = useState(true);
 
-  // 👑 ميزات الحيتان الإضافية الجديدة
   const [marketTrendIndex, setMarketTrendIndex] = useState('صاعد إيجابي (SPY/QQQ 🚀)');
   const [liveOrderFlowTape, setLiveOrderFlowTape] = useState([
     { id: 1, sym: 'TSLA', type: 'شراء ضخم حيتان (Block Trade)', vol: '+150K سهم', time: 'الآن' },
@@ -49,7 +46,6 @@ export default function Home() {
     'NVDA': { support: '115.00 $', resistance: '130.00 $' }
   });
 
-  // سجل إحصائيات الأداء الملكي وتاريخ التنبيهات
   const [tradeStats, setTradeStats] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('sniper_trade_stats');
@@ -81,7 +77,6 @@ export default function Home() {
     return '';
   });
 
-  // حالة فتح نافذة شارت TradingView المتقدم لكل سهم
   const [chartModalSymbol, setChartModalSymbol] = useState(null);
 
   useEffect(() => {
@@ -143,7 +138,6 @@ export default function Home() {
     }
   };
 
-  // ⚡ محرك الفحص التلقائي المستمر (Auto-Scan Cron) بمعيار الصيد المضمون > 85%
   const runAutoAnalysisQuietly = async () => {
     const activeList = activeTab === 'cluster' ? symbols : scalpSymbols;
     const newResults = activeTab === 'cluster' ? { ...results } : { ...scalpResults };
@@ -158,7 +152,7 @@ export default function Home() {
           body: JSON.stringify({
             symbol: sym,
             scalpMode: activeTab === 'scalp',
-            minConfidence: 85, // شرط الصيد المضمون فوق 85% تلقائياً
+            minConfidence: 85,
             cooldownMinutes,
             earlyAlertsEnabled: false,
             discordWebhook: webhookUrl
@@ -167,7 +161,6 @@ export default function Home() {
         const data = await res.json();
         newResults[sym] = data;
 
-        // إطلاق التنبيه الصوتي وربط ديسكورد فقط إذا تحققت الشروط الملكية بنسبة ثقة >= 85%
         if (data.isSuitable && data.confidenceScore >= 85 && !firstMatchedSym) {
           firstMatchedSym = sym;
           firstAnalysis = data.analysis;
@@ -189,7 +182,7 @@ export default function Home() {
       interval = setInterval(() => {
         setTimer((prev) => {
           if (prev <= 1) {
-            runAutoAnalysisQuietly(); // التشغيل التلقائي في الخلفية وفق الشروط الصارمة
+            runAutoAnalysisQuietly();
             return 300;
           }
           return prev - 1;
@@ -436,7 +429,6 @@ export default function Home() {
     <main style={{ padding: '25px', direction: 'rtl', fontFamily: 'Tahoma, sans-serif', background: '#07090e', color: '#f3f4f6', minHeight: '100vh' }}>
       <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
         
-        {/* العنوان الرئيسي الملكي */}
         <div style={{ textAlign: 'center', marginBottom: '18px', borderBottom: '1px solid #d4af3733', paddingBottom: '15px' }}>
           <h1 style={{ color: '#d4af37', fontSize: '28px', fontWeight: '900', margin: '0 0 5px 0', textShadow: '0 2px 10px rgba(212,175,55,0.2)' }}>
             👑 منصتي سنايبر الملكية السيادية (نسخة كابوس الحيتان الفاخرة 🔥)
@@ -446,7 +438,6 @@ export default function Home() {
           </p>
         </div>
 
-        {/* 🌟 شريط المؤشرات الإضافية الحية */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '15px', marginBottom: '20px' }}>
           <div style={{ background: '#0d111a', padding: '14px 18px', borderRadius: '12px', border: '1px solid #21262d' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -479,7 +470,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* لوحة التحكم الملكية المباشرة */}
         <div style={{ background: 'linear-gradient(135deg, #0d111a 0%, #161b22 100%)', padding: '18px', borderRadius: '14px', border: '1px solid #d4af37', marginBottom: '20px', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>
           <h3 style={{ color: '#d4af37', fontSize: '13px', fontWeight: 'bold', margin: '0 0 12px 0' }}>
             ⚙️ لوحة التحكم السيادي الملكي (الصيد المضمون > 85%):
@@ -528,7 +518,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* التبديل بين الأقسام الملكية */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '15px', flexWrap: 'wrap' }}>
           <button 
             onClick={() => { setActiveTab('cluster'); setFilterOnlySuitable(false); }}
@@ -544,7 +533,6 @@ export default function Home() {
           </button>
         </div>
 
-        {/* شريط الأزرار العلوية المتقدمة */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0d111a', padding: '12px 18px', borderRadius: '12px', border: '1px solid #21262d', marginBottom: '15px', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
             <button onClick={() => setShowHistoryModal(true)} style={{ background: '#0284c7', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
@@ -571,7 +559,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* شريط فلاتر الرادارات الملكية المتقدمة */}
         <div style={{ background: '#0d111a', padding: '12px 18px', borderRadius: '12px', border: '1px solid #21262d', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
             <span style={{ fontSize: '12px', color: '#d4af37', fontWeight: 'bold' }}>👑 فلاتر كابوس الحيتان السيادية:</span>
@@ -594,7 +581,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* لوحات المؤشرات الملكية */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px', marginBottom: '20px' }}>
           <div style={{ background: '#0d111a', padding: '15px', borderRadius: '12px', border: '1px solid #21262d', textAlign: 'center' }}>
             <div style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '5px' }}>نسبة قبول الصفقات</div>
@@ -614,7 +600,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* إضافة سهم، رادار السوق الحي، ونسخ التقرير */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '25px', flexWrap: 'wrap', alignItems: 'center' }}>
           <form onSubmit={addSymbol} style={{ display: 'flex', gap: '8px' }}>
             <input 
@@ -642,7 +627,6 @@ export default function Home() {
           </button>
         </div>
 
-        {/* زر الفحص الرئيسي السيادي */}
         <div style={{ textAlign: 'center', marginBottom: '35px' }}>
           <button 
             onClick={activeTab === 'cluster' ? runAnalysis : runScalpAnalysis} 
@@ -653,7 +637,6 @@ export default function Home() {
           </button>
         </div>
 
-        {/* شبكة عرض الأسهم الملكية */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '22px' }}>
           {displayedSymbols.map((sym) => {
             const data = currentRes[sym];
@@ -711,7 +694,6 @@ export default function Home() {
           })}
         </div>
 
-        {/* نافذة شارت TradingView المتقدم المدمج */}
         {chartModalSymbol && (
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100 }}>
             <div style={{ background: '#0d111a', padding: '20px', borderRadius: '16px', border: '1px solid #d4af37', width: '95%', maxWidth: '1000px', height: '80vh', display: 'flex', flexDirection: 'column' }}>
@@ -730,7 +712,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* نافذة صفقاتي ومظلة الحماية الملكية */}
         {showTradesModal && (
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
             <div style={{ background: '#0d111a', padding: '25px', borderRadius: '16px', border: '1px solid #d4af37', width: '90%', maxWidth: '750px', maxHeight: '85vh', overflowY: 'auto' }}>
@@ -767,7 +748,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* نافذة سجل العمليات الملكية */}
         {showHistoryModal && (
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
             <div style={{ background: '#0d111a', padding: '25px', borderRadius: '16px', border: '1px solid #d4af37', width: '90%', maxWidth: '600px', maxHeight: '80vh', overflowY: 'auto' }}>
