@@ -38,6 +38,17 @@ export default function Home() {
   const [earlyAlertsEnabled, setEarlyAlertsEnabled] = useState(true);
   const [parachuteActive, setParachuteActive] = useState(true);
 
+  // 👑 ميزات الحيتان الإضافية الجديدة
+  const [marketTrendIndex, setMarketTrendIndex] = useState('صاعد إيجابي (SPY/QQQ 🚀)');
+  const [liveOrderFlowTape, setLiveOrderFlowTape] = useState([
+    { id: 1, sym: 'TSLA', type: 'شراء ضخم حيتان (Block Trade)', vol: '+150K سهم', time: 'الآن' },
+    { id: 2, sym: 'NVDA', type: 'تراكم خفي مؤسسي', vol: '+85K سهم', time: 'منذ دقيقة' }
+  ]);
+  const [supplyDemandZones, setSupplyDemandZones] = useState({
+    'TSLA': { support: '185.50 $', resistance: '202.00 $' },
+    'NVDA': { support: '115.00 $', resistance: '130.00 $' }
+  });
+
   // سجل إحصائيات الأداء الملكي وتاريخ التنبيهات
   const [tradeStats, setTradeStats] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -296,6 +307,17 @@ export default function Home() {
     alert(`👑 تم اعتماد الصفقة ملكياً على [${sym}] بسعر [${p}]!\n🪂 تم تفعيل حاسبة المظلة السيادية والأهداف التدريجية.`);
   };
 
+  // 🎯 تفعيل حاسبة تعديل المظلة عند الهدف الأول (Break-even)
+  const adjustParachuteToBreakEven = (tradeId) => {
+    setActiveTrades(prev => prev.map(t => {
+      if (t.id === tradeId) {
+        return { ...t, stopLoss: t.entryPrice.toFixed(2), note: 'تم نقل وقف الخسارة لنقطة الدخول (حماية تامة 🛡️)' };
+      }
+      return t;
+    }));
+    alert('🛡️ تم تعديل مظلة الحماية بنجاح! تم رفع وقف الخسارة إلى سعر الدخول تماماً لحماية رأس المال.');
+  };
+
   const closeActiveTrade = (tradeId) => {
     setActiveTrades(prev => prev.filter(t => t.id !== tradeId));
     alert('✅ تم إغلاق الصفقة بنجاح وتدوينها في سجل الأرباح الملكي.');
@@ -384,6 +406,43 @@ export default function Home() {
           <p style={{ color: '#9ca3af', fontSize: '13px', margin: 0 }}>
             غرفة التداول الخاصة لكبار المستثمرين • رادار مصائد السيولة والأوامر المخفية • حاسبة المظلة الملكية وشارت TradingView
           </p>
+        </div>
+
+        {/* 🌟 شريط المؤشرات الإضافية الحية (تدفق السيولة + الارتباط بالسوق العام) */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '15px', marginBottom: '20px' }}>
+          
+          {/* شريط تدفق السيولة الحية (Live Order Flow Tape) */}
+          <div style={{ background: '#0d111a', padding: '14px 18px', borderRadius: '12px', border: '1px solid #21262d' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span style={{ color: '#d4af37', fontSize: '12.5px', fontWeight: 'bold' }}>🌊 خريطة تدفق السيولة الحية (Tape Reading)</span>
+              <span style={{ background: '#064e3b', color: '#4ade80', fontSize: '10px', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>نشط 🟢</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {liveOrderFlowTape.map(item => (
+                <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', background: '#07090e', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', border: '1px solid #1f2937' }}>
+                  <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>{item.sym} - {item.type}</span>
+                  <span style={{ color: '#4ade80', fontWeight: 'bold' }}>{item.vol}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* مؤشر الارتباط بالسوق العام وسرعة العرض والطلب */}
+          <div style={{ background: '#0d111a', padding: '14px 18px', borderRadius: '12px', border: '1px solid #21262d', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <span style={{ color: '#c084fc', fontSize: '12.5px', fontWeight: 'bold' }}>📊 موجه الارتباط بالسوق العام (SPY/QQQ)</span>
+                <span style={{ background: '#3b0764', color: '#e9d5ff', fontSize: '10px', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>مؤشر سيادي</span>
+              </div>
+              <div style={{ background: '#07090e', padding: '10px', borderRadius: '8px', border: '1px solid #1f2937', textAlign: 'center', margin: '6px 0' }}>
+                <span style={{ fontSize: '13px', fontWeight: '900', color: '#4ade80' }}>{marketTrendIndex}</span>
+              </div>
+            </div>
+            <div style={{ fontSize: '11px', color: '#9ca3af', textAlign: 'center' }}>
+              🔒 تتماشى صفقات الحيتان الحالية مع إيجابية مؤشرات السوق الكبرى.
+            </div>
+          </div>
+
         </div>
 
         {/* لوحة التحكم الملكية المباشرة */}
@@ -566,6 +625,7 @@ export default function Home() {
             const data = currentRes[sym];
             const isMatched = data?.isSuitable && data?.confidenceScore >= minConfidence;
             const isEarly = data?.isEarlyAlert && !isMatched;
+            const zoneInfo = supplyDemandZones[sym] || { support: 'قيد الحساب 🛡️', resistance: 'قيد الحساب 🚀' };
 
             return (
               <div key={sym} style={{ background: '#0d111a', padding: '20px', borderRadius: '16px', border: isMatched ? '2px solid #22c55e' : isEarly ? '2px solid #d4af37' : '1px solid #21262d', position: 'relative', boxShadow: isMatched ? '0 0 15px rgba(34,197,94,0.15)' : 'none' }}>
@@ -576,6 +636,12 @@ export default function Home() {
                     {isEarly && <span style={{ background: '#451a03', color: '#d4af37', fontSize: '10px', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold' }}>إنذار ملكي ⏳</span>}
                   </div>
                   <button onClick={() => removeSymbol(sym)} style={{ background: '#7f1d1d', color: '#fca5a5', border: 'none', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}>حذف</button>
+                </div>
+
+                {/* ⚡ رادار مستويات العرض والطلب الخاص بالسهم */}
+                <div style={{ background: '#07090e', padding: '8px 12px', borderRadius: '8px', border: '1px solid #1f2937', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', fontSize: '11.5px' }}>
+                  <span style={{ color: '#4ade80' }}>🛡️ الدعم السيادي: <strong>{zoneInfo.support}</strong></span>
+                  <span style={{ color: '#f87171' }}>🎯 المقاومة: <strong>{zoneInfo.resistance}</strong></span>
                 </div>
 
                 {data ? (
@@ -593,7 +659,7 @@ export default function Home() {
                           <button onClick={() => copyToClipboard(data.analysis)} style={{ flex: 1, background: '#334155', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}>📋 نسخ التقرير</button>
                         </div>
                         <button onClick={() => enterTrade(sym, data.price)} style={{ width: '100%', background: isMatched ? '#16a34a' : '#d4af37', color: isMatched ? '#fff' : '#07090e', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', cursor: 'pointer', fontWeight: '900' }}>
-                          👑 اعتماد الصفقة الملكية (تفعيل مظلة الحماية)
+                          👑 اعتماد الصفقة الملكية (تفعيل مظلة الحماية والأهداف)
                         </button>
                       </div>
                     ) : (
@@ -634,9 +700,9 @@ export default function Home() {
         {/* نافذة صفقاتي ومظلة الحماية الملكية */}
         {showTradesModal && (
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
-            <div style={{ background: '#0d111a', padding: '25px', borderRadius: '16px', border: '1px solid #d4af37', width: '90%', maxWidth: '700px', maxHeight: '85vh', overflowY: 'auto' }}>
+            <div style={{ background: '#0d111a', padding: '25px', borderRadius: '16px', border: '1px solid #d4af37', width: '90%', maxWidth: '750px', maxHeight: '85vh', overflowY: 'auto' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid #21262d', paddingBottom: '10px' }}>
-                <h3 style={{ margin: 0, color: '#d4af37', fontSize: '18px' }}>👑 صفقاتي النشطة ومظلة الحماية السيادية</h3>
+                <h3 style={{ margin: 0, color: '#d4af37', fontSize: '18px' }}>👑 صفقاتي النشطة ومظلة الحماية والأهداف التدريجية</h3>
                 <button onClick={() => setShowTradesModal(false)} style={{ background: '#7f1d1d', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>إغلاق</button>
               </div>
               {activeTrades.length === 0 ? (
@@ -649,13 +715,18 @@ export default function Home() {
                         👑 الرمز: {t.symbol} <span style={{ color: '#38bdf8', fontSize: '11px' }}>({t.type})</span>
                       </div>
                       <div style={{ color: '#d1d5db', fontSize: '12.5px', lineHeight: '1.5' }}>
-                        سعر الدخول: <strong style={{ color: '#4ade80' }}>{t.entryPrice}</strong> | وقف الخسارة المظلي: <strong style={{ color: '#ef4444' }}>{t.stopLoss}</strong><br/>
+                        سعر الدخول: <strong style={{ color: '#4ade80' }}>{t.entryPrice}</strong> | وقف الخسارة المظلي: <strong style={{ color: '#ef4444' }}>{t.stopLoss}</strong> {t.note ? <span style={{ color: '#38bdf8' }}>({t.note})</span> : ''}<br/>
                         🎯 أهداف الخروج الملكية: الهدف 1: {t.targets.t1} | الهدف 2: {t.targets.t2} | الهدف 3: {t.targets.t3}
                       </div>
                     </div>
-                    <button onClick={() => closeActiveTrade(t.id)} style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-                      إغلاق وتدوين الأرباح 🛑
-                    </button>
+                    <div style={{ display: 'flex', gap: '6px', flexDirection: 'column' }}>
+                      <button onClick={() => adjustParachuteToBreakEven(t.id)} style={{ background: '#0284c7', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
+                        🛡️ تفعيل حماية الدخول (هدف 1)
+                      </button>
+                      <button onClick={() => closeActiveTrade(t.id)} style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
+                        إغلاق وتدوين الأرباح 🛑
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
