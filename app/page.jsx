@@ -36,9 +36,9 @@ export default function Home() {
   const [earlyAlertsEnabled, setEarlyAlertsEnabled] = useState(true);
   const [parachuteActive, setParachuteActive] = useState(true);
 
-  const [marketTrendIndex, setMarketTrendIndex] = useState('صاعد إيجابي (SPY/QQQ 🚀)');
+  const [marketTrendIndex, setMarketTrendIndex] = useState('صاعد إيجابي (SPY/QQQ)');
   const [liveOrderFlowTape, setLiveOrderFlowTape] = useState([
-    { id: 1, sym: 'TSLA', type: 'شراء ضخم حيتان (Block Trade)', vol: '+150K سهم', time: 'الآن' },
+    { id: 1, sym: 'TSLA', type: 'شراء ضخم حيتان', vol: '+150K سهم', time: 'الآن' },
     { id: 2, sym: 'NVDA', type: 'تراكم خفي مؤسسي', vol: '+85K سهم', time: 'منذ دقيقة' }
   ]);
   const [supplyDemandZones, setSupplyDemandZones] = useState({
@@ -96,7 +96,7 @@ export default function Home() {
       await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: isEarly ? `⏳ **إنذار استباقي مبكر - القصر الملكي** 👑\nاقتراب هدف سيادي على السهم: **${sym}**\n\n\`\`\`${analysisText}\`\`\`` : `🚨 **تنبيه سيادي فوري (صيد مضمون > 85%)** 👑\nرصد فرصة ملكية مؤكدة على السهم: **${sym}**\n\n\`\`\`${analysisText}\`\`\`` })
+        body: JSON.stringify({ content: isEarly ? `إنذار استباقي مبكر - القصر الملكي: اقتراب هدف سيادي على السهم ${sym}\n\n\`\`\`${analysisText}\`\`\`` : `تنبيه سيادي فوري (صيد مضمون > 85%): رصد فرصة ملكية مؤكدة على السهم ${sym}\n\n\`\`\`${analysisText}\`\`\`` })
       });
     } catch (e) {}
   };
@@ -127,7 +127,7 @@ export default function Home() {
     } catch (e) {}
     
     if (sym) {
-      speakAlert(isEarly ? `تنبيه ملكي استباقي. السهم ${sym} يقترب من منطقة الهدف` : `تنبيه رادار القصر الملكي. تم رصد صيدة ذهبية مضمونة بنسبة تفوق خمس وثمانين بالمائة على السهم ${sym}`);
+      speakAlert(isEarly ? `تنبيه ملكي استباقي. السهم ${sym} يقترب من منطقة الهدف` : `تنبيه رادار القصر الملكي. تم رصد صيدة ذهبية مضمونة على السهم ${sym}`);
       sendWebhookAlert(sym, analysisText, isEarly);
       
       const timeNow = new Date().toLocaleTimeString('ar-SA');
@@ -287,7 +287,7 @@ export default function Home() {
         const merged = Array.from(new Set([...symbols, ...data.matched]));
         setSymbols(merged);
         playRadarSound(data.matched[0], "مسح راداري استثماري ملكي موسع");
-        alert(`👑 رادار القصر اصطاد ${data.matched.length} سهم قيادي ونشط بنسبة ثقة مطابقة!`);
+        alert(`رادار القصر اصطاد ${data.matched.length} سهم قيادي ونشط بنسبة ثقة مطابقة.`);
         runAnalysis();
       } else {
         alert('لا توجد أسهم سيادية جديدة مطابقة لشروط الثقة حالياً.');
@@ -307,7 +307,7 @@ export default function Home() {
         const merged = Array.from(new Set([...scalpSymbols, ...data.matched]));
         setScalpSymbols(merged);
         playRadarSound(data.matched[0], "مسح راداري للسكالبينج السيادي");
-        alert(`⚡ رادار السكالبينج الملكي سحب ${data.matched.length} سهم ترند فجائي!`);
+        alert(`رادار السكالبينج الملكي سحب ${data.matched.length} سهم ترند فجائي.`);
         runScalpAnalysis();
       } else {
         alert('لا توجد ترندات لحظية جديدة مطابقة لشروط الثقة حالياً.');
@@ -326,7 +326,7 @@ export default function Home() {
       symbol: sym,
       entryPrice: p,
       time: timeNow,
-      type: activeTab === 'cluster' ? 'استثمار ملكي سيادي' : 'سكالبينج ملكي لحظي',
+      type: activeTab === 'cluster' ? 'استثمار سيادي' : 'سكالبينج لحظي',
       stopLoss: (p * 0.97).toFixed(2),
       targets: {
         t1: (p * 1.025).toFixed(2),
@@ -336,22 +336,22 @@ export default function Home() {
       status: 'نشطة'
     };
     setActiveTrades(prev => [newTrade, ...prev]);
-    alert(`👑 تم اعتماد الصفقة ملكياً على [${sym}] بسعر [${p}]!\n🪂 تم تفعيل حاسبة المظلة السيادية والأهداف التدريجية.`);
+    alert(`تم اعتماد الصفقة على [${sym}] بسعر [${p}]. تم تفعيل حاسبة المظلة السيادية.`);
   };
 
   const adjustParachuteToBreakEven = (tradeId) => {
     setActiveTrades(prev => prev.map(t => {
       if (t.id === tradeId) {
-        return { ...t, stopLoss: t.entryPrice.toFixed(2), note: 'تم نقل وقف الخسارة لنقطة الدخول (حماية تامة 🛡️)' };
+        return { ...t, stopLoss: t.entryPrice.toFixed(2), note: 'تم نقل وقف الخسارة لنقطة الدخول' };
       }
       return t;
     }));
-    alert('🛡️ تم تعديل مظلة الحماية بنجاح! تم رفع وقف الخسارة إلى سعر الدخول تماماً لحماية رأس المال.');
+    alert('تم تعديل مظلة الحماية بنجاح ورفع وقف الخسارة إلى سعر الدخول.');
   };
 
   const closeActiveTrade = (tradeId) => {
     setActiveTrades(prev => prev.filter(t => t.id !== tradeId));
-    alert('✅ تم إغلاق الصفقة بنجاح وتدوينها في سجل الأرباح الملكي.');
+    alert('تم إغلاق الصفقة بنجاح وتدوينها في سجل الأرباح.');
   };
 
   const addSymbol = (e) => {
@@ -376,7 +376,7 @@ export default function Home() {
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
-    alert('📋 تم نسخ التحليل السيادي بنجاح!');
+    alert('تم نسخ التحليل السيادي بنجاح.');
   };
 
   const copyAllIntelBriefing = () => {
@@ -385,17 +385,17 @@ export default function Home() {
     const suitableSymbols = activeList.filter(sym => activeRes[sym] && (activeRes[sym].isSuitable || activeRes[sym].isEarlyAlert));
     
     if (suitableSymbols.length === 0) {
-      alert('⚠️ لا توجد فرص أو تنبيهات مطابقة لنسخ تقريرها الملكي!');
+      alert('لا توجد فرص أو تنبيهات مطابقة لنسخ تقريرها.');
       return;
     }
 
-    let report = `👑 **تقرير الصفقات والذكاء السيادي لكابوس الحيتان (${activeTab === 'cluster' ? 'استثمار سيادي' : 'سكالبينج ملكي'})** 📊\n\n`;
+    let report = `تقرير الصفقات والذكاء السيادي لكابوس الحيتان (${activeTab === 'cluster' ? 'استثمار سيادي' : 'سكالبينج ملكي'})\n\n`;
     suitableSymbols.forEach((sym, index) => {
-      report += `[الهدف الملكي #${index + 1}] - الرمز: ${sym}\n${activeRes[sym].analysis}\n-------------------\n\n`;
+      report += `[الهدف #${index + 1}] - الرمز: ${sym}\n${activeRes[sym].analysis}\n-------------------\n\n`;
     });
 
     navigator.clipboard.writeText(report);
-    alert('📋 تم نسخ التقرير الملكي الشامل بنجاح!');
+    alert('تم نسخ التقرير الشامل بنجاح.');
   };
 
   const recordTradeOutcome = (outcome) => {
@@ -430,8 +430,8 @@ export default function Home() {
       <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
         
         <div style={{ textAlign: 'center', marginBottom: '18px', borderBottom: '1px solid #d4af3733', paddingBottom: '15px' }}>
-          <h1 style={{ color: '#d4af37', fontSize: '28px', fontWeight: '900', margin: '0 0 5px 0', textShadow: '0 2px 10px rgba(212,175,55,0.2)' }}>
-            👑 منصتي سنايبر الملكية السيادية (نسخة كابوس الحيتان الفاخرة 🔥)
+          <h1 style={{ color: '#d4af37', fontSize: '28px', fontWeight: '900', margin: '0 0 5px 0' }}>
+            منصتي سنايبر الملكية السيادية (نسخة كابوس الحيتان)
           </h1>
           <p style={{ color: '#9ca3af', fontSize: '13px', margin: 0 }}>
             غرفة التداول الخاصة لكبار المستثمرين • رادار مصائد السيولة والأوامر المخفية • فحص آلي للصيد المضمون (> 85%)
@@ -441,8 +441,8 @@ export default function Home() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '15px', marginBottom: '20px' }}>
           <div style={{ background: '#0d111a', padding: '14px 18px', borderRadius: '12px', border: '1px solid #21262d' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span style={{ color: '#d4af37', fontSize: '12.5px', fontWeight: 'bold' }}>🌊 خريطة تدفق السيولة الحية (Tape Reading)</span>
-              <span style={{ background: '#064e3b', color: '#4ade80', fontSize: '10px', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>نشط 🟢</span>
+              <span style={{ color: '#d4af37', fontSize: '12.5px', fontWeight: 'bold' }}>خريطة تدفق السيولة الحية</span>
+              <span style={{ background: '#064e3b', color: '#4ade80', fontSize: '10px', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>نشط</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {liveOrderFlowTape.map(item => (
@@ -457,7 +457,7 @@ export default function Home() {
           <div style={{ background: '#0d111a', padding: '14px 18px', borderRadius: '12px', border: '1px solid #21262d', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ color: '#c084fc', fontSize: '12.5px', fontWeight: 'bold' }}>📊 موجه الارتباط بالسوق العام (SPY/QQQ)</span>
+                <span style={{ color: '#c084fc', fontSize: '12.5px', fontWeight: 'bold' }}>مؤشر الارتباط بالسوق العام (SPY/QQQ)</span>
                 <span style={{ background: '#3b0764', color: '#e9d5ff', fontSize: '10px', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>مؤشر سيادي</span>
               </div>
               <div style={{ background: '#07090e', padding: '10px', borderRadius: '8px', border: '1px solid #1f2937', textAlign: 'center', margin: '6px 0' }}>
@@ -465,14 +465,14 @@ export default function Home() {
               </div>
             </div>
             <div style={{ fontSize: '11px', color: '#9ca3af', textAlign: 'center' }}>
-              🔒 تتماشى صفقات الحيتان الحالية مع إيجابية مؤشرات السوق الكبرى.
+              تتماشى صفقات الحيتان الحالية مع إيجابية مؤشرات السوق الكبرى.
             </div>
           </div>
         </div>
 
-        <div style={{ background: 'linear-gradient(135deg, #0d111a 0%, #161b22 100%)', padding: '18px', borderRadius: '14px', border: '1px solid #d4af37', marginBottom: '20px', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>
+        <div style={{ background: 'linear-gradient(135deg, #0d111a 0%, #161b22 100%)', padding: '18px', borderRadius: '14px', border: '1px solid #d4af37', marginBottom: '20px' }}>
           <h3 style={{ color: '#d4af37', fontSize: '13px', fontWeight: 'bold', margin: '0 0 12px 0' }}>
-            ⚙️ لوحة التحكم السيادي الملكي (الصيد المضمون > 85%):
+            لوحة التحكم السيادي الملكي (الصيد المضمون > 85%):
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '15px', alignItems: 'center' }}>
             <div>
@@ -521,31 +521,31 @@ export default function Home() {
         <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '15px', flexWrap: 'wrap' }}>
           <button 
             onClick={() => { setActiveTab('cluster'); setFilterOnlySuitable(false); }}
-            style={{ padding: '11px 24px', background: activeTab === 'cluster' ? 'linear-gradient(135deg, #d4af37 0%, #aa820a 100%)' : '#0d111a', color: activeTab === 'cluster' ? '#07090e' : '#fff', border: '1px solid #d4af37', borderRadius: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', boxShadow: activeTab === 'cluster' ? '0 0 15px rgba(212,175,55,0.3)' : 'none' }}
+            style={{ padding: '11px 24px', background: activeTab === 'cluster' ? 'linear-gradient(135deg, #d4af37 0%, #aa820a 100%)' : '#0d111a', color: activeTab === 'cluster' ? '#07090e' : '#fff', border: '1px solid #d4af37', borderRadius: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
           >
-            👑 الاستثمار السيادي وكابوس الحيتان [{symbols.length} سهم]
+            الاستثمار السيادي وكابوس الحيتان [{symbols.length} سهم]
           </button>
           <button 
             onClick={() => { setActiveTab('scalp'); setFilterOnlySuitable(false); }}
-            style={{ padding: '11px 24px', background: activeTab === 'scalp' ? 'linear-gradient(135deg, #9333ea 0%, #6b21a8 100%)' : '#0d111a', color: '#fff', border: '1px solid #c084fc', borderRadius: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', boxShadow: activeTab === 'scalp' ? '0 0 15px rgba(147,51,234,0.3)' : 'none' }}
+            style={{ padding: '11px 24px', background: activeTab === 'scalp' ? 'linear-gradient(135deg, #9333ea 0%, #6b21a8 100%)' : '#0d111a', color: '#fff', border: '1px solid #c084fc', borderRadius: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
           >
-            ⚡ موجات الترند الملكي (سكالبينج) [{scalpSymbols.length} سهم]
+            موجات الترند الملكي (سكالبينج) [{scalpSymbols.length} سهم]
           </button>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0d111a', padding: '12px 18px', borderRadius: '12px', border: '1px solid #21262d', marginBottom: '15px', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
             <button onClick={() => setShowHistoryModal(true)} style={{ background: '#0284c7', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-              📜 سجل العمليات الملكية ({missionHistory.length})
+              سجل العمليات ({missionHistory.length})
             </button>
             <button onClick={() => setShowTradesModal(true)} style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-              🎯 صفقاتي ومظلة الحماية ({activeTrades.length})
+              صفقاتي ومظلة الحماية ({activeTrades.length})
             </button>
             
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#161b22', padding: '4px 8px', borderRadius: '8px', border: '1px solid #30363d' }}>
               <span style={{ fontSize: '11px', color: '#9ca3af' }}>نتائج الصفقات:</span>
-              <button onClick={() => recordTradeOutcome('wins')} style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>✅ {tradeStats.wins}</button>
-              <button onClick={() => recordTradeOutcome('losses')} style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>❌ {tradeStats.losses}</button>
+              <button onClick={() => recordTradeOutcome('wins')} style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>{tradeStats.wins}</button>
+              <button onClick={() => recordTradeOutcome('losses')} style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>{tradeStats.losses}</button>
               <span style={{ fontSize: '11px', color: '#d4af37', fontWeight: 'bold' }}>({winRatePercent}%)</span>
             </div>
           </div>
@@ -553,7 +553,7 @@ export default function Home() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
             <span style={{ color: '#9ca3af' }}>زخم القصر:</span>
             <span style={{ color: marketMomentumScore >= 30 ? '#22c55e' : '#38bdf8', fontWeight: 'bold' }}>
-              {marketMomentumScore >= 30 ? 'سيولة ملكية متفجرة 🔥' : 'هدوء سيادي ومراقبة 🛡️'}
+              {marketMomentumScore >= 30 ? 'سيولة متفجرة' : 'هدوء ومراقبة'}
             </span>
             <span style={{ background: '#161b22', padding: '2px 8px', borderRadius: '6px', color: '#d4af37', fontWeight: '900' }}>{marketMomentumScore}%</span>
           </div>
@@ -561,22 +561,22 @@ export default function Home() {
 
         <div style={{ background: '#0d111a', padding: '12px 18px', borderRadius: '12px', border: '1px solid #21262d', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={{ fontSize: '12px', color: '#d4af37', fontWeight: 'bold' }}>👑 فلاتر كابوس الحيتان السيادية:</span>
+            <span style={{ fontSize: '12px', color: '#d4af37', fontWeight: 'bold' }}>فلاتر كابوس الحيتان:</span>
             <button onClick={() => setActiveRadarFilter('all')} style={{ background: activeRadarFilter === 'all' ? '#d4af37' : '#161b22', color: activeRadarFilter === 'all' ? '#07090e' : '#fff', border: '1px solid #30363d', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>الكل</button>
-            <button onClick={() => setActiveRadarFilter('whales')} style={{ background: activeRadarFilter === 'whales' ? '#16a34a' : '#161b22', color: '#fff', border: '1px solid #30363d', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>🐋 رادار الحيتان</button>
-            <button onClick={() => setActiveRadarFilter('traps')} style={{ background: activeRadarFilter === 'traps' ? '#dc2626' : '#161b22', color: '#fff', border: '1px solid #30363d', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>🛑 كاشف الفخاخ</button>
-            <button onClick={() => setActiveRadarFilter('stealth')} style={{ background: activeRadarFilter === 'stealth' ? '#0d9488' : '#161b22', color: '#fff', border: '1px solid #30363d', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>🧊 التراكم الخفي</button>
+            <button onClick={() => setActiveRadarFilter('whales')} style={{ background: activeRadarFilter === 'whales' ? '#16a34a' : '#161b22', color: '#fff', border: '1px solid #30363d', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>رادار الحيتان</button>
+            <button onClick={() => setActiveRadarFilter('traps')} style={{ background: activeRadarFilter === 'traps' ? '#dc2626' : '#161b22', color: '#fff', border: '1px solid #30363d', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>كاشف الفخاخ</button>
+            <button onClick={() => setActiveRadarFilter('stealth')} style={{ background: activeRadarFilter === 'stealth' ? '#0d9488' : '#161b22', color: '#fff', border: '1px solid #30363d', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>التراكم الخفي</button>
           </div>
           
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <button onClick={() => setParachuteActive(!parachuteActive)} style={{ background: parachuteActive ? '#16a34a' : '#161b22', color: '#fff', border: '1px solid #30363d', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
-              {parachuteActive ? '🪂 مظلة الحماية: مفعلة' : '🪂 مظلة الحماية: معطلة'}
+              {parachuteActive ? 'مظلة الحماية: مفعلة' : 'مظلة الحماية: معطلة'}
             </button>
             <button onClick={() => setFilterOnlySuitable(!filterOnlySuitable)} style={{ background: filterOnlySuitable ? '#16a34a' : '#161b22', color: '#fff', border: '1px solid #30363d', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
-              {filterOnlySuitable ? `✅ الفرص الملكية` : '📊 عرض الكل'}
+              {filterOnlySuitable ? 'الفرص الملكية' : 'عرض الكل'}
             </button>
             <button onClick={() => setAutoRefresh(!autoRefresh)} style={{ background: autoRefresh ? '#7c3aed' : '#161b22', color: '#fff', border: '1px solid #30363d', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
-              {autoRefresh ? `⚡ رادار صيد آلي (>85%) (${Math.floor(timer/60)}:${timer%60 < 10 ? '0':''}${timer%60})` : '⚡ تشغيل الرادار الآلي'}
+              {autoRefresh ? `رادار صيد آلي (${Math.floor(timer/60)}:${timer%60 < 10 ? '0':''}${timer%60})` : 'تشغيل الرادار الآلي'}
             </button>
           </div>
         </div>
@@ -587,7 +587,7 @@ export default function Home() {
             <div style={{ fontSize: '22px', fontWeight: '900', color: '#38bdf8' }}>{successRate}%</div>
           </div>
           <div style={{ background: '#0d111a', padding: '15px', borderRadius: '12px', border: '1px solid #065f46', textAlign: 'center' }}>
-            <div style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '5px' }}>الفرص والإنذارات المطابقة ✅</div>
+            <div style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '5px' }}>الفرص والإنذارات المطابقة</div>
             <div style={{ fontSize: '22px', fontWeight: '900', color: '#4ade80' }}>{suitableCount} فرصة</div>
           </div>
           <div style={{ background: '#0d111a', padding: '15px', borderRadius: '12px', border: '1px solid #21262d', textAlign: 'center' }}>
@@ -604,7 +604,7 @@ export default function Home() {
           <form onSubmit={addSymbol} style={{ display: 'flex', gap: '8px' }}>
             <input 
               type="text" 
-              placeholder="أدخل رمز السهم (مثال: TSLA)" 
+              placeholder="رمز السهم (مثال: TSLA)" 
               value={newSymbol}
               onChange={(e) => setNewSymbol(e.target.value)}
               style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #30363d', background: '#0d111a', color: '#fff', outline: 'none', fontSize: '13px', width: '180px' }}
@@ -614,16 +614,16 @@ export default function Home() {
 
           {activeTab === 'cluster' ? (
             <button onClick={scanMarketForCluster} disabled={scanning} style={{ padding: '10px 16px', background: scanning ? '#30363d' : '#059669', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
-              {scanning ? '🔄 جاري جلب السوق الحي...' : '👑 سحب الأسهم السيادية وكابوس الحيتان'}
+              {scanning ? 'جاري جلب السوق الحي...' : 'سحب الأسهم السيادية وكابوس الحيتان'}
             </button>
           ) : (
             <button onClick={scanMarketForScalp} disabled={scanning} style={{ padding: '10px 16px', background: scanning ? '#30363d' : '#9333ea', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
-              {scanning ? '🔄 جاري جلب السوق الحي...' : '⚡ سحب سكالبينج سيادي'}
+              {scanning ? 'جاري جلب السوق الحي...' : 'سحب سكالبينج سيادي'}
             </button>
           )}
 
           <button onClick={copyAllIntelBriefing} style={{ padding: '10px 16px', background: '#0369a1', color: '#fff', border: '1px solid #38bdf8', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
-            📑 نسخ التقرير الملكي الشامل
+            نسخ التقرير الشامل
           </button>
         </div>
 
@@ -631,9 +631,9 @@ export default function Home() {
           <button 
             onClick={activeTab === 'cluster' ? runAnalysis : runScalpAnalysis} 
             disabled={isCurrentLoading}
-            style={{ padding: '15px 50px', background: isCurrentLoading ? '#30363d' : 'linear-gradient(135deg, #d4af37 0%, #aa820a 100%)', color: '#07090e', border: 'none', borderRadius: '12px', fontSize: '16px', cursor: 'pointer', fontWeight: '900', boxShadow: '0 4px 20px rgba(212,175,55,0.4)' }}
+            style={{ padding: '15px 50px', background: isCurrentLoading ? '#30363d' : 'linear-gradient(135deg, #d4af37 0%, #aa820a 100%)', color: '#07090e', border: 'none', borderRadius: '12px', fontSize: '16px', cursor: 'pointer', fontWeight: '900' }}
           >
-            {isCurrentLoading ? '⚡ جاري فحص رادارات القصر الملكي...' : (activeTab === 'cluster' ? '🚀 بدء التحليل السيادي العميق (كابوس الحيتان والمصائد)' : '⚡ بدء الفحص السريع لموجات الترند الملكي')}
+            {isCurrentLoading ? 'جاري فحص رادارات القصر الملكي...' : (activeTab === 'cluster' ? 'بدء التحليل السيادي العميق' : 'بدء الفحص السريع لموجات الترند')}
           </button>
         </div>
 
@@ -642,22 +642,22 @@ export default function Home() {
             const data = currentRes[sym];
             const isMatched = data?.isSuitable && data?.confidenceScore >= minConfidence;
             const isEarly = data?.isEarlyAlert && !isMatched;
-            const zoneInfo = supplyDemandZones[sym] || { support: 'قيد الحساب 🛡️', resistance: 'قيد الحساب 🚀' };
+            const zoneInfo = supplyDemandZones[sym] || { support: 'قيد الحساب', resistance: 'قيد الحساب' };
 
             return (
-              <div key={sym} style={{ background: '#0d111a', padding: '20px', borderRadius: '16px', border: isMatched ? '2px solid #22c55e' : isEarly ? '2px solid #d4af37' : '1px solid #21262d', position: 'relative', boxShadow: isMatched ? '0 0 15px rgba(34,197,94,0.15)' : 'none' }}>
+              <div key={sym} style={{ background: '#0d111a', padding: '20px', borderRadius: '16px', border: isMatched ? '2px solid #22c55e' : isEarly ? '2px solid #d4af37' : '1px solid #21262d', position: 'relative' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #21262d', paddingBottom: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <h3 style={{ margin: 0, color: '#d4af37', fontSize: '20px', fontWeight: '800' }}>{sym}</h3>
-                    {isMatched && <span style={{ background: '#064e3b', color: '#4ade80', fontSize: '10px', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold' }}>صيدة مضمونة 🔥</span>}
-                    {isEarly && <span style={{ background: '#451a03', color: '#d4af37', fontSize: '10px', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold' }}>إنذار ملكي ⏳</span>}
+                    {isMatched && <span style={{ background: '#064e3b', color: '#4ade80', fontSize: '10px', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold' }}>صيدة مضمونة</span>}
+                    {isEarly && <span style={{ background: '#451a03', color: '#d4af37', fontSize: '10px', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold' }}>إنذار ملكي</span>}
                   </div>
                   <button onClick={() => removeSymbol(sym)} style={{ background: '#7f1d1d', color: '#fca5a5', border: 'none', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}>حذف</button>
                 </div>
 
                 <div style={{ background: '#07090e', padding: '8px 12px', borderRadius: '8px', border: '1px solid #1f2937', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', fontSize: '11.5px' }}>
-                  <span style={{ color: '#4ade80' }}>🛡️ الدعم السيادي: <strong>{zoneInfo.support}</strong></span>
-                  <span style={{ color: '#f87171' }}>🎯 المقاومة: <strong>{zoneInfo.resistance}</strong></span>
+                  <span style={{ color: '#4ade80' }}>الدعم السيادي: <strong>{zoneInfo.support}</strong></span>
+                  <span style={{ color: '#f87171' }}>المقاومة: <strong>{zoneInfo.resistance}</strong></span>
                 </div>
 
                 {data ? (
@@ -671,16 +671,16 @@ export default function Home() {
                     {isMatched || isEarly ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <div style={{ display: 'flex', gap: '8px' }}>
-                          <button onClick={() => setChartModalSymbol(sym)} style={{ flex: 1, background: '#0284c7', color: '#fff', border: 'none', padding: '8px', textAlign: 'center', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}>📈 شارت TradingView</button>
-                          <button onClick={() => copyToClipboard(data.analysis)} style={{ flex: 1, background: '#334155', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}>📋 نسخ التقرير</button>
+                          <button onClick={() => setChartModalSymbol(sym)} style={{ flex: 1, background: '#0284c7', color: '#fff', border: 'none', padding: '8px', textAlign: 'center', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}>شارت TradingView</button>
+                          <button onClick={() => copyToClipboard(data.analysis)} style={{ flex: 1, background: '#334155', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}>نسخ التقرير</button>
                         </div>
                         <button onClick={() => enterTrade(sym, data.price)} style={{ width: '100%', background: isMatched ? '#16a34a' : '#d4af37', color: isMatched ? '#fff' : '#07090e', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', cursor: 'pointer', fontWeight: '900' }}>
-                          👑 اعتماد الصفقة الملكية (تفعيل مظلة الحماية والأهداف)
+                          اعتماد الصفقة (تفعيل مظلة الحماية والأهداف)
                         </button>
                       </div>
                     ) : (
                       <div style={{ background: '#161b22', color: '#9ca3af', padding: '8px', textAlign: 'center', borderRadius: '8px', fontSize: '11.5px', fontWeight: 'bold' }}>
-                        قيد المراقبة السيادية - لم يبلغ شرط الثقة ({minConfidence}%) ❌
+                        قيد المراقبة السيادية - لم يبلغ شرط الثقة ({minConfidence}%)
                       </div>
                     )}
                   </div>
@@ -698,7 +698,7 @@ export default function Home() {
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100 }}>
             <div style={{ background: '#0d111a', padding: '20px', borderRadius: '16px', border: '1px solid #d4af37', width: '95%', maxWidth: '1000px', height: '80vh', display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid #21262d', paddingBottom: '10px' }}>
-                <h3 style={{ margin: 0, color: '#d4af37', fontSize: '18px' }}>📈 الرسم البياني السيادي (TradingView) - السهم: {chartModalSymbol}</h3>
+                <h3 style={{ margin: 0, color: '#d4af37', fontSize: '18px' }}>الرسم البياني (TradingView) - السهم: {chartModalSymbol}</h3>
                 <button onClick={() => setChartModalSymbol(null)} style={{ background: '#7f1d1d', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>إغلاق ✕</button>
               </div>
               <div style={{ flex: 1, width: '100%', background: '#000', borderRadius: '10px', overflow: 'hidden' }}>
@@ -716,29 +716,29 @@ export default function Home() {
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
             <div style={{ background: '#0d111a', padding: '25px', borderRadius: '16px', border: '1px solid #d4af37', width: '90%', maxWidth: '750px', maxHeight: '85vh', overflowY: 'auto' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid #21262d', paddingBottom: '10px' }}>
-                <h3 style={{ margin: 0, color: '#d4af37', fontSize: '18px' }}>👑 صفقاتي النشطة ومظلة الحماية والأهداف التدريجية</h3>
+                <h3 style={{ margin: 0, color: '#d4af37', fontSize: '18px' }}>صفقاتي النشطة ومظلة الحماية والأهداف</h3>
                 <button onClick={() => setShowTradesModal(false)} style={{ background: '#7f1d1d', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>إغلاق</button>
               </div>
               {activeTrades.length === 0 ? (
-                <p style={{ color: '#9ca3af', textAlign: 'center', padding: '20px' }}>لا توجد صفقات ملكية مسجلة حالياً.</p>
+                <p style={{ color: '#9ca3af', textAlign: 'center', padding: '20px' }}>لا توجد صفقات مسجلة حالياً.</p>
               ) : (
                 activeTrades.map((t) => (
                   <div key={t.id} style={{ background: '#07090e', padding: '14px', borderRadius: '10px', border: '1px solid #21262d', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                     <div>
                       <div style={{ color: '#d4af37', fontSize: '15px', fontWeight: 'bold', marginBottom: '4px' }}>
-                        👑 الرمز: {t.symbol} <span style={{ color: '#38bdf8', fontSize: '11px' }}>({t.type})</span>
+                        الرمز: {t.symbol} <span style={{ color: '#38bdf8', fontSize: '11px' }}>({t.type})</span>
                       </div>
                       <div style={{ color: '#d1d5db', fontSize: '12.5px', lineHeight: '1.5' }}>
-                        سعر الدخول: <strong style={{ color: '#4ade80' }}>{t.entryPrice}</strong> | وقف الخسارة المظلي: <strong style={{ color: '#ef4444' }}>{t.stopLoss}</strong> {t.note ? <span style={{ color: '#38bdf8' }}>({t.note})</span> : ''}<br/>
-                        🎯 أهداف الخروج الملكية: الهدف 1: {t.targets.t1} | الهدف 2: {t.targets.t2} | الهدف 3: {t.targets.t3}
+                        سعر الدخول: <strong style={{ color: '#4ade80' }}>{t.entryPrice}</strong> | وقف الخسارة: <strong style={{ color: '#ef4444' }}>{t.stopLoss}</strong> {t.note ? <span style={{ color: '#38bdf8' }}>({t.note})</span> : ''}<br/>
+                        أهداف الخروج: الهدف 1: {t.targets.t1} | الهدف 2: {t.targets.t2} | الهدف 3: {t.targets.t3}
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '6px', flexDirection: 'column' }}>
                       <button onClick={() => adjustParachuteToBreakEven(t.id)} style={{ background: '#0284c7', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
-                        🛡️ تفعيل حماية الدخول (هدف 1)
+                        تفعيل حماية الدخول
                       </button>
                       <button onClick={() => closeActiveTrade(t.id)} style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
-                        إغلاق وتدوين الأرباح 🛑
+                        إغلاق وتدوين الأرباح
                       </button>
                     </div>
                   </div>
@@ -752,7 +752,7 @@ export default function Home() {
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
             <div style={{ background: '#0d111a', padding: '25px', borderRadius: '16px', border: '1px solid #d4af37', width: '90%', maxWidth: '600px', maxHeight: '80vh', overflowY: 'auto' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid #21262d', paddingBottom: '10px' }}>
-                <h3 style={{ margin: 0, color: '#d4af37', fontSize: '18px' }}>📜 سجل العمليات السيادية لكابوس الحيتان</h3>
+                <h3 style={{ margin: 0, color: '#d4af37', fontSize: '18px' }}>سجل العمليات السيادية لكابوس الحيتان</h3>
                 <button onClick={() => setShowHistoryModal(false)} style={{ background: '#7f1d1d', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>إغلاق</button>
               </div>
               {missionHistory.length === 0 ? (
@@ -761,7 +761,7 @@ export default function Home() {
                 missionHistory.map((item) => (
                   <div key={item.id} style={{ background: '#07090e', padding: '12px', borderRadius: '8px', border: '1px solid #21262d', marginBottom: '10px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', color: '#d4af37', fontSize: '13px', fontWeight: 'bold', marginBottom: '5px' }}>
-                      <span>👑 الهدف: {item.symbol} {item.isEarly ? '(إنذار ملكي استباقي ⏳)' : ''}</span>
+                      <span>الهدف: {item.symbol} {item.isEarly ? '(إنذار استباقي)' : ''}</span>
                       <span style={{ color: '#9ca3af', fontSize: '11px' }}>{item.time}</span>
                     </div>
                     <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '11.5px', color: '#d1d5db', margin: 0 }}>
