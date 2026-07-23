@@ -26,8 +26,8 @@ export default function Home() {
   const [scalpResults, setScalpResults] = useState({});
   const [loadingScalp, setLoadingScalp] = useState(false);
 
-  // ⚙️ إعدادات الفلاتر والرادارات المتقدمة
-  const [minConfidence, setMinConfidence] = useState(70);
+  // ⚙️ إعدادات الفلاتر والرادارات المتقدمة (تم ضبط الثقة التلقائية على 85% فما فوق للصيد المضمون)
+  const [minConfidence, setMinConfidence] = useState(85);
   const [cooldownMinutes, setCooldownMinutes] = useState(30);
   const [filterOnlySuitable, setFilterOnlySuitable] = useState(false);
   const [activeRadarFilter, setActiveRadarFilter] = useState('all'); 
@@ -101,7 +101,7 @@ export default function Home() {
       await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: isEarly ? `⏳ **إنذار استباقي مبكر - القصر الملكي** 👑\nاقتراب هدف سيادي على السهم: **${sym}**\n\n\`\`\`${analysisText}\`\`\`` : `🚨 **تنبيه سيادي فوري للمنصة** 👑\nرصد فرصة ملكية على السهم: **${sym}**\n\n\`\`\`${analysisText}\`\`\`` })
+        body: JSON.stringify({ content: isEarly ? `⏳ **إنذار استباقي مبكر - القصر الملكي** 👑\nاقتراب هدف سيادي على السهم: **${sym}**\n\n\`\`\`${analysisText}\`\`\`` : `🚨 **تنبيه سيادي فوري (صيد مضمون > 85%)** 👑\nرصد فرصة ملكية مؤكدة على السهم: **${sym}**\n\n\`\`\`${analysisText}\`\`\`` })
       });
     } catch (e) {}
   };
@@ -132,7 +132,7 @@ export default function Home() {
     } catch (e) {}
     
     if (sym) {
-      speakAlert(isEarly ? `تنبيه ملكي استباقي. السهم ${sym} يقترب من منطقة الهدف` : `تنبيه رادار القصر الملكي. تم رصد فرصة استثمارية ذهبية على السهم ${sym}`);
+      speakAlert(isEarly ? `تنبيه ملكي استباقي. السهم ${sym} يقترب من منطقة الهدف` : `تنبيه رادار القصر الملكي. تم رصد صيدة ذهبية مضمونة بنسبة تفوق خمس وثمانين بالمائة على السهم ${sym}`);
       sendWebhookAlert(sym, analysisText, isEarly);
       
       const timeNow = new Date().toLocaleTimeString('ar-SA');
@@ -143,14 +143,53 @@ export default function Home() {
     }
   };
 
+  // ⚡ محرك الفحص التلقائي المستمر (Auto-Scan Cron) بمعيار الصيد المضمون > 85%
+  const runAutoAnalysisQuietly = async () => {
+    const activeList = activeTab === 'cluster' ? symbols : scalpSymbols;
+    const newResults = activeTab === 'cluster' ? { ...results } : { ...scalpResults };
+    let firstMatchedSym = '';
+    let firstAnalysis = '';
+
+    for (let sym of activeList) {
+      try {
+        const res = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            symbol: sym,
+            scalpMode: activeTab === 'scalp',
+            minConfidence: 85, // شرط الصيد المضمون فوق 85% تلقائياً
+            cooldownMinutes,
+            earlyAlertsEnabled: false,
+            discordWebhook: webhookUrl
+          })
+        });
+        const data = await res.json();
+        newResults[sym] = data;
+
+        // إطلاق التنبيه الصوتي وربط ديسكورد فقط إذا تحققت الشروط الملكية بنسبة ثقة >= 85%
+        if (data.isSuitable && data.confidenceScore >= 85 && !firstMatchedSym) {
+          firstMatchedSym = sym;
+          firstAnalysis = data.analysis;
+        }
+      } catch (err) {}
+    }
+
+    if (activeTab === 'cluster') setResults(newResults);
+    else setScalpResults(newResults);
+
+    if (firstMatchedSym) {
+      playRadarSound(firstMatchedSym, firstAnalysis, false);
+    }
+  };
+
   useEffect(() => {
     let interval;
     if (autoRefresh) {
       interval = setInterval(() => {
         setTimer((prev) => {
           if (prev <= 1) {
-            if (activeTab === 'cluster') runAnalysis();
-            else runScalpAnalysis();
+            runAutoAnalysisQuietly(); // التشغيل التلقائي في الخلفية وفق الشروط الصارمة
             return 300;
           }
           return prev - 1;
@@ -160,7 +199,7 @@ export default function Home() {
       setTimer(300);
     }
     return () => clearInterval(interval);
-  }, [autoRefresh, activeTab, symbols, scalpSymbols]);
+  }, [autoRefresh, activeTab, symbols, scalpSymbols, cooldownMinutes, webhookUrl]);
 
   const runAnalysis = async () => {
     setLoading(true);
@@ -307,7 +346,6 @@ export default function Home() {
     alert(`👑 تم اعتماد الصفقة ملكياً على [${sym}] بسعر [${p}]!\n🪂 تم تفعيل حاسبة المظلة السيادية والأهداف التدريجية.`);
   };
 
-  // 🎯 تفعيل حاسبة تعديل المظلة عند الهدف الأول (Break-even)
   const adjustParachuteToBreakEven = (tradeId) => {
     setActiveTrades(prev => prev.map(t => {
       if (t.id === tradeId) {
@@ -404,14 +442,12 @@ export default function Home() {
             👑 منصتي سنايبر الملكية السيادية (نسخة كابوس الحيتان الفاخرة 🔥)
           </h1>
           <p style={{ color: '#9ca3af', fontSize: '13px', margin: 0 }}>
-            غرفة التداول الخاصة لكبار المستثمرين • رادار مصائد السيولة والأوامر المخفية • حاسبة المظلة الملكية وشارت TradingView
+            غرفة التداول الخاصة لكبار المستثمرين • رادار مصائد السيولة والأوامر المخفية • فحص آلي للصيد المضمون (> 85%)
           </p>
         </div>
 
-        {/* 🌟 شريط المؤشرات الإضافية الحية (تدفق السيولة + الارتباط بالسوق العام) */}
+        {/* 🌟 شريط المؤشرات الإضافية الحية */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '15px', marginBottom: '20px' }}>
-          
-          {/* شريط تدفق السيولة الحية (Live Order Flow Tape) */}
           <div style={{ background: '#0d111a', padding: '14px 18px', borderRadius: '12px', border: '1px solid #21262d' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <span style={{ color: '#d4af37', fontSize: '12.5px', fontWeight: 'bold' }}>🌊 خريطة تدفق السيولة الحية (Tape Reading)</span>
@@ -427,7 +463,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* مؤشر الارتباط بالسوق العام وسرعة العرض والطلب */}
           <div style={{ background: '#0d111a', padding: '14px 18px', borderRadius: '12px', border: '1px solid #21262d', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -442,13 +477,12 @@ export default function Home() {
               🔒 تتماشى صفقات الحيتان الحالية مع إيجابية مؤشرات السوق الكبرى.
             </div>
           </div>
-
         </div>
 
         {/* لوحة التحكم الملكية المباشرة */}
         <div style={{ background: 'linear-gradient(135deg, #0d111a 0%, #161b22 100%)', padding: '18px', borderRadius: '14px', border: '1px solid #d4af37', marginBottom: '20px', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>
           <h3 style={{ color: '#d4af37', fontSize: '13px', fontWeight: 'bold', margin: '0 0 12px 0' }}>
-            ⚙️ لوحة التحكم السيادي الملكي:
+            ⚙️ لوحة التحكم السيادي الملكي (الصيد المضمون > 85%):
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '15px', alignItems: 'center' }}>
             <div>
@@ -555,7 +589,7 @@ export default function Home() {
               {filterOnlySuitable ? `✅ الفرص الملكية` : '📊 عرض الكل'}
             </button>
             <button onClick={() => setAutoRefresh(!autoRefresh)} style={{ background: autoRefresh ? '#7c3aed' : '#161b22', color: '#fff', border: '1px solid #30363d', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
-              {autoRefresh ? `⚡ رادار آلي (${Math.floor(timer/60)}:${timer%60 < 10 ? '0':''}${timer%60})` : '⚡ فحص آلي'}
+              {autoRefresh ? `⚡ رادار صيد آلي (>85%) (${Math.floor(timer/60)}:${timer%60 < 10 ? '0':''}${timer%60})` : '⚡ تشغيل الرادار الآلي'}
             </button>
           </div>
         </div>
@@ -632,13 +666,12 @@ export default function Home() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #21262d', paddingBottom: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <h3 style={{ margin: 0, color: '#d4af37', fontSize: '20px', fontWeight: '800' }}>{sym}</h3>
-                    {isMatched && <span style={{ background: '#064e3b', color: '#4ade80', fontSize: '10px', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold' }}>هدف سيادي 🔥</span>}
+                    {isMatched && <span style={{ background: '#064e3b', color: '#4ade80', fontSize: '10px', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold' }}>صيدة مضمونة 🔥</span>}
                     {isEarly && <span style={{ background: '#451a03', color: '#d4af37', fontSize: '10px', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold' }}>إنذار ملكي ⏳</span>}
                   </div>
                   <button onClick={() => removeSymbol(sym)} style={{ background: '#7f1d1d', color: '#fca5a5', border: 'none', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}>حذف</button>
                 </div>
 
-                {/* ⚡ رادار مستويات العرض والطلب الخاص بالسهم */}
                 <div style={{ background: '#07090e', padding: '8px 12px', borderRadius: '8px', border: '1px solid #1f2937', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', fontSize: '11.5px' }}>
                   <span style={{ color: '#4ade80' }}>🛡️ الدعم السيادي: <strong>{zoneInfo.support}</strong></span>
                   <span style={{ color: '#f87171' }}>🎯 المقاومة: <strong>{zoneInfo.resistance}</strong></span>
