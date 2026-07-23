@@ -85,7 +85,7 @@ export default function SniperDashboard() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#0a0b0e', color: '#e2e8f0', fontFamily: 'Tahoma, sans-serif', padding: '20px', direction: 'rtl' }}>
-      {عنصر صوت التنبيه المخفي}
+      
       <audio ref={audioRef} src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto" />
 
       <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
