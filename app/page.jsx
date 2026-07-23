@@ -90,7 +90,7 @@ export default function Home() {
       await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: isEarly ? `⏳ **إنذار استباقي مبكر** 🎯\nاقتراب هدف على السهم: **${sym}**\n\n\`\`\`${analysisText}\`\`\`` : `🚨 **تنبيه عسكري فوري للمنصة** 🎯\nرصد هدف على السهم: **${sym}**\n\n\`\`\`${analysisText}\`\`\`` })
+        body: JSON.stringify({ content: isEarly ? `⏳ **إنذار استباقي مبكر لكابوس الحيتان** 🎯\nاقتراب هدف على السهم: **${sym}**\n\n\`\`\`${analysisText}\`\`\`` : `🚨 **تنبيه عسكري فوري للمنصة** 🎯\nرصد هدف على السهم: **${sym}**\n\n\`\`\`${analysisText}\`\`\`` })
       });
     } catch (e) {}
   };
@@ -121,7 +121,7 @@ export default function Home() {
     } catch (e) {}
     
     if (sym) {
-      speakAlert(isEarly ? `تنبيه استباقي. السهم ${sym} يقترب بشدة من منطقة الهدف` : `تنبيه رادار السنايبر. تم رصد فرصة ذهبية على السهم ${sym}`);
+      speakAlert(isEarly ? `تنبيه استباقي. السهم ${sym} يقترب بشدة من منطقة الهدف` : `تنبيه رادار كابوس الحيتان. تم رصد فرصة ذهبية على السهم ${sym}`);
       sendWebhookAlert(sym, analysisText, isEarly);
       
       const timeNow = new Date().toLocaleTimeString('ar-SA');
@@ -185,7 +185,7 @@ export default function Home() {
           isEarlyAlert = true;
         }
       } catch (err) {
-        newResults[sym] = { error: "فشل الاتصال بمحرك التحليل" };
+        newResults[sym] = { error: "فشل الاتصال بمحرك التحليل الاستخباراتي" };
       }
     }
     setResults(newResults);
@@ -243,7 +243,7 @@ export default function Home() {
       if (data.matched && data.matched.length > 0) {
         const merged = Array.from(new Set([...symbols, ...data.matched]));
         setSymbols(merged);
-        playRadarSound(data.matched[0], "مسح راداري استثماري موسع من السوق الحي");
+        playRadarSound(data.matched[0], "مسح راداري استثماري موسع لكابوس الحيتان");
         alert(`🎯 رادار السوق الحي اصطاد ${data.matched.length} سهم قيادي ونشط بنسبة ثقة مطابقة!`);
         runAnalysis();
       } else {
@@ -283,7 +283,7 @@ export default function Home() {
       symbol: sym,
       entryPrice: p,
       time: timeNow,
-      type: activeTab === 'cluster' ? 'استثمار (كلاستر و FVGs)' : 'سكالبينج (ترند لحظي)',
+      type: activeTab === 'cluster' ? 'استثمار (كلاستر وكابوس الحيتان)' : 'سكالبينج (ترند لحظي)',
       stopLoss: (p * 0.97).toFixed(2),
       targets: {
         t1: (p * 1.025).toFixed(2),
@@ -336,7 +336,7 @@ export default function Home() {
       return;
     }
 
-    let report = `🎯 **تقرير العمليات والذكاء الاصطناعي (${activeTab === 'cluster' ? 'استثمار 4 ساعات' : 'سكالبينج لحظي'})** 📊\n\n`;
+    let report = `🎯 **تقرير العمليات والذكاء الاصطناعي لكابوس الحيتان (${activeTab === 'cluster' ? 'استثمار 4 ساعات' : 'سكالبينج لحظي'})** 📊\n\n`;
     suitableSymbols.forEach((sym, index) => {
       report += `[الهدف #${index + 1}] - الرمز: ${sym}\n${activeRes[sym].analysis}\n-------------------\n\n`;
     });
@@ -358,8 +358,8 @@ export default function Home() {
     if (filterOnlySuitable && (!data || (!data.isSuitable && !data.isEarlyAlert))) return false;
     
     if (activeRadarFilter === 'whales' && (!data || !data.hasWhaleVolume)) return false;
-    if (activeRadarFilter === 'fvg' && (!data || !data.hasFVG)) return false;
     if (activeRadarFilter === 'traps' && (!data || !data.isTrapDetected)) return false;
+    if (activeRadarFilter === 'stealth' && (!data || !data.isStealthAccumulation)) return false;
     if (activeRadarFilter === 'dark_pools' && (!data || !data.darkPoolActivity)) return false;
 
     return true;
@@ -378,16 +378,16 @@ export default function Home() {
         
         {/* العنوان الرئيسي */}
         <div style={{ textAlign: 'center', marginBottom: '15px' }}>
-          <h1 style={{ color: '#38bdf8', fontSize: '26px', fontWeight: '900', margin: '0 0 5px 0' }}>
-            🎯 منصتي سنايبر الاحترافية (النسخة الكونية المدمجة الشاملة 🔥)
+          <h1 style={{ color: '#facc15', fontSize: '26px', fontWeight: '900', margin: '0 0 5px 0' }}>
+            🎯 منصتي سنايبر الاحترافية (نسخة كابوس الحيتان الاستخباراتية 🔥)
           </h1>
           <p style={{ color: '#94a3b8', fontSize: '13px', margin: 0 }}>
-            رادار الثقوب السوداء، الجاذبية الكمومية، التجسس المؤسسي، حاسبة المظلة، شارت TradingView والذكاء الاصطناعي التعلّمي
+            رادار مصائد السيولة (Stop Hunting)، الأوامر المخفية (Iceberg)، الثقوب السوداء، حاسبة المظلة وشارت TradingView
           </p>
         </div>
 
         {/* لوحة التحكم المباشرة */}
-        <div style={{ background: '#0f172a', padding: '18px', borderRadius: '14px', border: '1px solid #38bdf8', marginBottom: '20px' }}>
+        <div style={{ background: '#0f172a', padding: '18px', borderRadius: '14px', border: '1px solid #f59e0b', marginBottom: '20px' }}>
           <h3 style={{ color: '#facc15', fontSize: '13px', fontWeight: 'bold', margin: '0 0 12px 0' }}>
             ⚙️ لوحة التحكم العسكري المباشر:
           </h3>
@@ -439,9 +439,9 @@ export default function Home() {
         <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '15px', flexWrap: 'wrap' }}>
           <button 
             onClick={() => { setActiveTab('cluster'); setFilterOnlySuitable(false); }}
-            style={{ padding: '10px 22px', background: activeTab === 'cluster' ? '#0284c7' : '#0f172a', color: '#fff', border: '1px solid #38bdf8', borderRadius: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
+            style={{ padding: '10px 22px', background: activeTab === 'cluster' ? '#d97706' : '#0f172a', color: '#fff', border: '1px solid #f59e0b', borderRadius: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
           >
-            📊 الكلاستر والاستثمار الآلي [{symbols.length} سهم]
+            📊 الكلاستر وكابوس الحيتان [{symbols.length} سهم]
           </button>
           <button 
             onClick={() => { setActiveTab('scalp'); setFilterOnlySuitable(false); }}
@@ -478,14 +478,14 @@ export default function Home() {
           </div>
         </div>
 
-        {/* شريط فلاتر الرادارات العسكرية المتقدمة */}
+        {/* شريط فلاتر الرادارات العسكرية المتقدمة (كابوس الحيتان) */}
         <div style={{ background: '#0f172a', padding: '12px 18px', borderRadius: '12px', border: '1px solid #1e293b', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 'bold' }}>🎯 فلاتر الرادار:</span>
-            <button onClick={() => setActiveRadarFilter('all')} style={{ background: activeRadarFilter === 'all' ? '#0284c7' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>الكل</button>
+            <span style={{ fontSize: '12px', color: '#facc15', fontWeight: 'bold' }}>🎯 فلاتر كابوس الحيتان:</span>
+            <button onClick={() => setActiveRadarFilter('all')} style={{ background: activeRadarFilter === 'all' ? '#d97706' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>الكل</button>
             <button onClick={() => setActiveRadarFilter('whales')} style={{ background: activeRadarFilter === 'whales' ? '#16a34a' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>🐋 رادار الحيتان</button>
-            <button onClick={() => setActiveRadarFilter('dark_pools')} style={{ background: activeRadarFilter === 'dark_pools' ? '#9333ea' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>🌌 الثقوب السوداء Dark Pools</button>
-            <button onClick={() => setActiveRadarFilter('fvg')} style={{ background: activeRadarFilter === 'fvg' ? '#0d9488' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>🧲 الفراغات FVGs</button>
+            <button onClick={() => setActiveRadarFilter('traps')} style={{ background: activeRadarFilter === 'traps' ? '#dc2626' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>🛑 كاشف الفخاخ (Stop Hunt)</button>
+            <button onClick={() => setActiveRadarFilter('stealth')} style={{ background: activeRadarFilter === 'stealth' ? '#0d9488' : '#1e293b', color: '#fff', border: '1px solid #475569', padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>🧊 التراكم الخفي (Iceberg)</button>
           </div>
           
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -531,12 +531,12 @@ export default function Home() {
               onChange={(e) => setNewSymbol(e.target.value)}
               style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #475569', background: '#0f172a', color: '#fff', outline: 'none', fontSize: '13px', width: '180px' }}
             />
-            <button type="submit" style={{ padding: '10px 16px', background: activeTab === 'cluster' ? '#0284c7' : '#9333ea', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>إضافة</button>
+            <button type="submit" style={{ padding: '10px 16px', background: activeTab === 'cluster' ? '#d97706' : '#9333ea', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>إضافة</button>
           </form>
 
           {activeTab === 'cluster' ? (
             <button onClick={scanMarketForCluster} disabled={scanning} style={{ padding: '10px 16px', background: scanning ? '#475569' : '#059669', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
-              {scanning ? '🔄 جاري جلب السوق الحي...' : '🐋 سحب الأسهم الرابحة من السوق الحي'}
+              {scanning ? '🔄 جاري جلب السوق الحي...' : '🐋 سحب الأسهم الرابحة وكابوس الحيتان'}
             </button>
           ) : (
             <button onClick={scanMarketForScalp} disabled={scanning} style={{ padding: '10px 16px', background: scanning ? '#475569' : '#9333ea', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
@@ -545,7 +545,7 @@ export default function Home() {
           )}
 
           <button onClick={copyAllIntelBriefing} style={{ padding: '10px 16px', background: '#0369a1', color: '#fff', border: '1px solid #38bdf8', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
-            📑 نسخ التقرير الشامل والذكاء الاصطناعي
+            📑 نسخ التقرير الشامل لكابوس الحيتان
           </button>
         </div>
 
@@ -554,9 +554,9 @@ export default function Home() {
           <button 
             onClick={activeTab === 'cluster' ? runAnalysis : runScalpAnalysis} 
             disabled={isCurrentLoading}
-            style={{ padding: '14px 45px', background: isCurrentLoading ? '#475569' : (activeTab === 'cluster' ? '#16a34a' : '#9333ea'), color: '#fff', border: 'none', borderRadius: '12px', fontSize: '16px', cursor: 'pointer', fontWeight: '900', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
+            style={{ padding: '14px 45px', background: isCurrentLoading ? '#475569' : (activeTab === 'cluster' ? '#d97706' : '#9333ea'), color: '#fff', border: 'none', borderRadius: '12px', fontSize: '16px', cursor: 'pointer', fontWeight: '900', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
           >
-            {isCurrentLoading ? '⚡ جاري فحص الرادارات والثقوب السوداء والذكاء الاصطناعي...' : (activeTab === 'cluster' ? '🚀 بدء التحليل العميق (كلاستر، الحيتان، الثقوب السوداء والجاذبية)' : '⚡ بدء الفحص السريع لموجات الترند')}
+            {isCurrentLoading ? '⚡ جاري فحص رادارات كابوس الحيتان وألاعيبهم...' : (activeTab === 'cluster' ? '🚀 بدء التحليل الاستخباراتي العميق (كابوس الحيتان والمصائد)' : '⚡ بدء الفحص السريع لموجات الترند')}
           </button>
         </div>
 
@@ -604,7 +604,7 @@ export default function Home() {
                   </div>
                 ) : (
                   <div style={{ textAlign: 'center', margin: '30px 0' }}>
-                    <p style={{ color: '#64748b', fontSize: '12px', margin: 0 }}>في انتظار فحص الرادار الشامل...</p>
+                    <p style={{ color: '#64748b', fontSize: '12px', margin: 0 }}>في انتظار فحص رادار كابوس الحيتان...</p>
                   </div>
                 )}
               </div>
@@ -615,9 +615,9 @@ export default function Home() {
         {/* نافذة شارت TradingView المتقدم المدمج */}
         {chartModalSymbol && (
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100 }}>
-            <div style={{ background: '#0f172a', padding: '20px', borderRadius: '16px', border: '1px solid #38bdf8', width: '95%', maxWidth: '1000px', height: '80vh', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ background: '#0f172a', padding: '20px', borderRadius: '16px', border: '1px solid #f59e0b', width: '95%', maxWidth: '1000px', height: '80vh', display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid #1e293b', paddingBottom: '10px' }}>
-                <h3 style={{ margin: 0, color: '#38bdf8', fontSize: '18px' }}>📈 الرسم البياني المتقدم (TradingView) - السهم: {chartModalSymbol}</h3>
+                <h3 style={{ margin: 0, color: '#facc15', fontSize: '18px' }}>📈 الرسم البياني المتقدم (TradingView) - السهم: {chartModalSymbol}</h3>
                 <button onClick={() => setChartModalSymbol(null)} style={{ background: '#7f1d1d', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>إغلاق ✕</button>
               </div>
               <div style={{ flex: 1, width: '100%', background: '#000', borderRadius: '10px', overflow: 'hidden' }}>
@@ -666,9 +666,9 @@ export default function Home() {
         {/* نافذة سجل العمليات */}
         {showHistoryModal && (
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
-            <div style={{ background: '#0f172a', padding: '25px', borderRadius: '16px', border: '1px solid #38bdf8', width: '90%', maxWidth: '600px', maxHeight: '80vh', overflowY: 'auto' }}>
+            <div style={{ background: '#0f172a', padding: '25px', borderRadius: '16px', border: '1px solid #f59e0b', width: '90%', maxWidth: '600px', maxHeight: '80vh', overflowY: 'auto' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid #1e293b', paddingBottom: '10px' }}>
-                <h3 style={{ margin: 0, color: '#38bdf8', fontSize: '18px' }}>📜 سجل العمليات الحربية</h3>
+                <h3 style={{ margin: 0, color: '#facc15', fontSize: '18px' }}>📜 سجل العمليات الحربية لكابوس الحيتان</h3>
                 <button onClick={() => setShowHistoryModal(false)} style={{ background: '#7f1d1d', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>إغلاق</button>
               </div>
               {missionHistory.length === 0 ? (
