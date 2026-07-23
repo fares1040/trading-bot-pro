@@ -3,6 +3,10 @@ import { NextResponse } from 'next/server';
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
+// ذاكرة مؤقتة لتخزين وقت آخر تنبيه لكل سهم لمنع التكرار (Cooldown)
+const lastAlertTimes = new Map();
+const COOLDOWN_HOURS = 2; // منع تكرار التنبيه لنفس السهم لمدة ساعتين
+
 export async function GET(request) {
     try {
         const apiKey = 'txQ1pePWvQR7McsjPfZWBCYeDgNYNef8';
@@ -10,43 +14,48 @@ export async function GET(request) {
         const telegramChatId = '896028407';
         const discordWebhookUrl = 'https://discord.com/api/webhooks/1529947770612486345/gR0Qmu-2KLjdeoCtTUPEAIXp4DafjApO8pXR156OGw0-8xBqZmaasvYve9avxTHMOBAC';
         
-        // 1. جلب الأسهم من المصدر الخارجي
-        const stocksApiUrl = `https://api.massive.com/v3/reference/tickers?market=stocks&active=true&limit=10&apiKey=${apiKey}`;
-        const stocksRes = await fetch(stocksApiUrl);
+        // قوائم الأسهم للقسمين (الاستثمار السيادي + سكالبينج الترند)
+        const clusterSymbols = ['VMAR', 'CETX', 'GSIT', 'PRFX', 'BYRN', 'ERNA', 'LNZA', 'HURA', 'KULR', 'ANVS', 'PPSI', 'BJDX'];
+        const scalpSymbols = ['TSLA', 'NVDA', 'AAPL', 'AMD', 'META', 'MSFT', 'SPY', 'QQQ'];
         
-        if (!stocksRes.ok) {
-            throw new Error(`External Stocks API failed with status: ${stocksRes.status}`);
-        }
-
-        const stocksData = await stocksRes.json();
-        const resultsArray = stocksData.results || stocksData;
-        const symbols = resultsArray.map(item => item.ticker || item.symbol).filter(Boolean);
-
-        if (!symbols || symbols.length === 0) {
-            return NextResponse.json({ status: "success", message: "No symbols found to analyze." });
-        }
+        const allTargets = [
+            ...clusterSymbols.map(sym => ({ symbol: sym, type: '👑 استثمار سيادي وكابوس الحيتان' })),
+            ...scalpSymbols.map(sym => ({ symbol: sym, type: '⚡ سكالبينج الترند اللحظي' }))
+        ];
 
         const analysisResults = [];
-        
-        // 2. فحص الأسهم وإرسال التنبيهات في حال رصد الفرصة
-        for (const symbol of symbols) {
+        const now = Date.now();
+
+        for (const item of allTargets) {
+            const { symbol, type } = item;
             try {
-                // محاكاة أو شرط الفحص الحقيقي
-                const isOpportunity = true; // يتم ربطها لاحقاً بشروط التحليل الفعلية لديك
+                // شرط منع التكرار بناءً على الوقت المحدد
+                const lastAlert = lastAlertTimes.get(symbol) || 0;
+                const hoursPassed = (now - lastAlert) / (1000 * 60 * 60);
+
+                if (hoursPassed < COOLDOWN_HOURS) {
+                    analysisResults.push({ symbol, status: "skipped_cooldown", success: true });
+                    continue; // تخطي السهم لعدم مرور الوقت الكافي لتكرار التنبيه
+                }
+
+                // محاكاة أو فحص الشروط الفعلية للفرصة
+                const isOpportunity = true; // ربطها لاحقاً بتحليل مؤشرات RSI أو الملاقط
                 
                 if (isOpportunity) {
-                    const alertMessage = `👑 تنبيه رادار كابوس الحيتان الملكي!\n\n🔹 تم رصد فرصة على السهم: ${symbol}\n⏰ الوقت: ${new Date().toLocaleTimeString('ar-SA')}`;
+                    // تحديث وقت آخر تنبيه لهذا السهم
+                    lastAlertTimes.set(symbol, now);
+
+                    const alertMessage = `👑 تنبيه رادار القصر الملكي!\n\n🔹 القسم: ${type}\n📈 السهم: ${symbol}\n⏰ الوقت: ${new Date().toLocaleTimeString('ar-SA')}`;
                     
-                    // إرسال تنبيه ديبرسود (Discord Webhook)
+                    // إرسال ديسكورد
                     await fetch(discordWebhookUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ content: alertMessage })
                     });
 
-                    // إرسال تنبيه تيليجرام (Telegram Bot)
-                    const telegramUrl = `https://api.telegram.org/bot${telegramToken}/sendMessage`;
-                    await fetch(telegramUrl, {
+                    // إرسال تيليجرام
+                    await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -64,7 +73,7 @@ export async function GET(request) {
 
         return NextResponse.json({ 
             status: "success", 
-            totalAnalyzed: symbols.length,
+            totalChecked: allTargets.length,
             details: analysisResults 
         });
 
