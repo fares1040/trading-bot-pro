@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server';
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
-// 🧠 الذاكرة المستمرة المحسنة (تمنع مسح البيانات بين دورات الكرون على Vercel)
 global.lastAlertTimes = global.lastAlertTimes || new Map();
 global.activePortfolioTracker = global.activePortfolioTracker || new Map();
 global.historicalTradesLog = global.historicalTradesLog || [];
@@ -11,7 +10,6 @@ global.lastHeartbeatHour = global.lastHeartbeatHour || null;
 
 const COOLDOWN_HOURS = 2; 
 
-// 🎯 دالة جلب سعر حقيقية 100% لتجنب أي تعليق أو أرقام افتراضية
 async function getRobustRealPrice(symbol) {
     try {
         const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1m`, {
@@ -32,7 +30,6 @@ async function getRobustRealPrice(symbol) {
         console.error(`Price fetch error for ${symbol}:`, e);
     }
 
-    // أسعار احتياطية واقعية ومحدثة لكل سهم لمنع ثبات الرقم نهائياً
     const livePricesMap = {
         'AMZN': 186.40, 'TSLA': 214.50, 'NVDA': 128.30, 'AAPL': 222.10, 'AMD': 158.90,
         'META': 485.20, 'MSFT': 435.60, 'NFLX': 662.40, 'PLTR': 25.10, 'COIN': 224.00,
@@ -44,102 +41,105 @@ async function getRobustRealPrice(symbol) {
     return livePricesMap[symbol] || 155.00;
 }
 
+// 🛡️ معالجة طلبات POST الواردة من تليجرام (تمنع خطأ 405 تماماً)
+export async function POST(request) {
+    const telegramToken = '8822034470:AAEbooViT3tdkkQqt2lx86GZBWipYUq0MgA';
+    const telegramChatId = '896028407';
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://trading-bot-pro-fwy4.vercel.app';
+
+    try {
+        const bodyJson = await request.json().catch(() => ({}));
+        const messageText = bodyJson?.message?.text || '';
+        const chatId = bodyJson?.message?.chat?.id || telegramChatId;
+
+        if (messageText.startsWith('/status') || messageText.includes('حالة')) {
+            const activeCount = global.activePortfolioTracker.size;
+            const totalLogs = global.historicalTradesLog.length;
+            const statusReply = `👑 *تقرير الحالة الملكية الفورية (منصة عوائد)* 🤖\n\n` +
+                `• 🟢 حالة النظام: *يعمل بكفاءة 100% وأنت في الدوام*\n` +
+                `• 📊 الصفقات النشطة تحت المراقبة: \`${activeCount}\`\n` +
+                `• 📁 سجل الصفقات الإجمالي المسجل: \`${totalLogs} صفقة\`\n` +
+                `• 🎯 رادار السوينقات والسكالبينج: *مفعل وبأقصى جاهزية* 🚀`;
+
+            await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: chatId, text: statusReply, parse_mode: 'Markdown' })
+            });
+            return NextResponse.json({ status: "telegram_status_handled" });
+        }
+
+        if (messageText.startsWith('/hunt ')) {
+            const targetSymbol = messageText.split(' ')[1]?.toUpperCase().trim();
+            if (targetSymbol) {
+                const manualPrice = await getRobustRealPrice(targetSymbol);
+
+                const mATR = manualPrice * 0.025;
+                const mEntry = Number(manualPrice).toFixed(2);
+                const mStop = (manualPrice - (mATR * 1.5)).toFixed(2);
+                const mT1 = (manualPrice + (mATR * 2.0)).toFixed(2);
+                const mT2 = (manualPrice + (mATR * 3.5)).toFixed(2);
+                const mScore = Math.floor(Math.random() * (99 - 92 + 1)) + 92;
+
+                global.activePortfolioTracker.set(targetSymbol, {
+                    symbol: targetSymbol,
+                    entry: Number(mEntry),
+                    stopLoss: Number(mStop),
+                    target1: Number(mT1),
+                    target2: Number(mT2),
+                    hitTarget1: false,
+                    hitTarget2: false,
+                    triggeredHedge: false,
+                    triggeredSmartExit: false
+                });
+
+                const manualMsg = `👑 *🎯 تنبيه المقناص اليدوي الفوري (منصة عوائد)* 👑\n\n` +
+                    `• السهم المُقنص بناءً على طلبك: \`${targetSymbol}\`\n` +
+                    `• 📈 تقييم القنص اليدوي: \`${mScore}/100\` 💎\n` +
+                    `• 📍 سعر الدخول المقترح: \`${mEntry} $\`\n` +
+                    `• 🛑 وقف الخسارة: \`${mStop} $\`\n` +
+                    `• 🎯 الهدف الأول: \`${mT1} $\`\n` +
+                    `• 🚀 الهدف الثاني: \`${mT2} $\`\n\n` +
+                    `✨ *تم إدراج السهم فوراً تحت حماية محفظة عوائد ورادار الخروج الذكي!*`;
+
+                const manualExecUrl = `${baseUrl}/api/webhook/execute?symbol=${targetSymbol}&price=${mEntry}`;
+                const manualTvUrl = `https://www.tradingview.com/chart/?symbol=${targetSymbol}`;
+
+                await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: chatId,
+                        text: manualMsg,
+                        parse_mode: 'Markdown',
+                        reply_markup: {
+                            inline_keyboard: [
+                                [
+                                    { text: "🛒 تنفيذ اليدوي الفوري", url: manualExecUrl },
+                                    { text: "📊 فتح الشارت", url: manualTvUrl }
+                                ]
+                            ]
+                        }
+                    })
+                });
+                return NextResponse.json({ status: "telegram_hunt_handled" });
+            }
+        }
+
+        return NextResponse.json({ status: "telegram_post_received" });
+    } catch (e) {
+        console.error("Telegram POST Error:", e);
+        return NextResponse.json({ status: "error", message: e.toString() }, { status: 500 });
+    }
+}
+
 export async function GET(request) {
     const telegramToken = '8822034470:AAEbooViT3tdkkQqt2lx86GZBWipYUq0MgA';
     const telegramChatId = '896028407';
 
     try {
-        const urlObj = new URL(request.url, `https://${request.headers.get('host')}`);
-        const isTelegramWebhook = urlObj.searchParams.get('type') === 'telegram_webhook';
         const apiKey = 'txQ1pePWvQR7McsjPfZWBCYeDgNYNef8';
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://trading-bot-pro-fwy4.vercel.app';
-
-        // 🎯 سلاح "المقناص اليدوي السريع" عبر تليجرام (استجابة فورية لأمر /hunt SYMBOL)
-        if (isTelegramWebhook) {
-            const bodyJson = await request.json().catch(() => ({}));
-            const messageText = bodyJson?.message?.text || '';
-            const chatId = bodyJson?.message?.chat?.id || telegramChatId;
-
-            if (messageText.startsWith('/status') || messageText.includes('حالة')) {
-                const activeCount = global.activePortfolioTracker.size;
-                const totalLogs = global.historicalTradesLog.length;
-                const statusReply = `👑 *تقرير الحالة الملكية الفورية (منصة عوائد)* 🤖\n\n` +
-                    `• 🟢 حالة النظام: *يعمل بكفاءة 100% وأنت في الدوام*\n` +
-                    `• 📊 الصفقات النشطة تحت المراقبة: \`${activeCount}\`\n` +
-                    `• 📁 سجل الصفقات الإجمالي المسجل: \`${totalLogs} صفقة\`\n` +
-                    `• 🎯 رادار السوينقات والسكالبينج: *مفعل وبأقصى جاهزية* 🚀`;
-
-                await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ chat_id: chatId, text: statusReply, parse_mode: 'Markdown' })
-                });
-                return NextResponse.json({ status: "telegram_status_handled" });
-            }
-
-            if (messageText.startsWith('/hunt ')) {
-                const targetSymbol = messageText.split(' ')[1]?.toUpperCase().trim();
-                if (targetSymbol) {
-                    const manualPrice = await getRobustRealPrice(targetSymbol);
-
-                    const mATR = manualPrice * 0.025;
-                    const mEntry = Number(manualPrice).toFixed(2);
-                    const mStop = (manualPrice - (mATR * 1.5)).toFixed(2);
-                    const mT1 = (manualPrice + (mATR * 2.0)).toFixed(2);
-                    const mT2 = (manualPrice + (mATR * 3.5)).toFixed(2);
-                    const mScore = Math.floor(Math.random() * (99 - 92 + 1)) + 92;
-
-                    global.activePortfolioTracker.set(targetSymbol, {
-                        symbol: targetSymbol,
-                        entry: Number(mEntry),
-                        stopLoss: Number(mStop),
-                        target1: Number(mT1),
-                        target2: Number(mT2),
-                        hitTarget1: false,
-                        hitTarget2: false,
-                        triggeredHedge: false,
-                        triggeredSmartExit: false
-                    });
-
-                    const manualMsg = `👑 *🎯 تنبيه المقناص اليدوي الفوري (منصة عوائد)* 👑\n\n` +
-                        `• السهم المُقنص بناءً على طلبك: \`${targetSymbol}\`\n` +
-                        `• 📈 تقييم القنص اليدوي: \`${mScore}/100\` 💎\n` +
-                        `• 📍 سعر الدخول المقترح: \`${mEntry} $\`\n` +
-                        `• 🛑 وقف الخسارة: \`${mStop} $\`\n` +
-                        `• 🎯 الهدف الأول: \`${mT1} $\`\n` +
-                        `• 🚀 الهدف الثاني: \`${mT2} $\`\n\n` +
-                        `✨ *تم إدراج السهم فوراً تحت حماية محفظة عوائد ورادار الخروج الذكي!*`;
-
-                    const manualExecUrl = `${baseUrl}/api/webhook/execute?symbol=${targetSymbol}&price=${mEntry}`;
-                    const manualTvUrl = `https://www.tradingview.com/chart/?symbol=${targetSymbol}`;
-
-                    await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            chat_id: chatId,
-                            text: manualMsg,
-                            parse_mode: 'Markdown',
-                            reply_markup: {
-                                inline_keyboard: [
-                                    [
-                                        { text: "🛒 تنفيذ اليدوي الفوري", url: manualExecUrl },
-                                        { text: "📊 فتح الشارت", url: manualTvUrl }
-                                    ]
-                                ]
-                            }
-                        })
-                    });
-                    return NextResponse.json({ status: "telegram_hunt_handled" });
-                }
-            }
-            return NextResponse.json({ status: "telegram_handled" });
-        }
-
-        const authHeader = request.headers.get('authorization');
-        if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-            // return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
 
         const nowRiyadh = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Riyadh" }));
         const currentHour = nowRiyadh.getHours();
@@ -160,7 +160,6 @@ export async function GET(request) {
 
         const discordWebhookUrl = 'https://discord.com/api/webhooks/1529947770612486345/gR0Qmu-2KLjdeoCtTUPEAIXp4DafjApO8pXR156OGw0-8xBqZmaasvYve9avxTHMOBAC';
         
-        // 💓 سلاح "نبض الحياة" (Heartbeat Ping - مرتان في الجلسة)
         if ((currentHour === 11 && currentMinute <= 10 && global.lastHeartbeatHour !== 'start') || 
             (currentHour === 17 && currentMinute <= 10 && global.lastHeartbeatHour !== 'mid')) {
             
@@ -175,21 +174,6 @@ export async function GET(request) {
             });
         }
 
-        // 🛡️ درع الهلع العام للسوق (SPY Panic Shield)
-        let isMarketInPanic = false;
-        try {
-            const spyPrice = await getRobustRealPrice('SPY');
-            if (spyPrice < 400) { // مثال تقريبي للتحقق المبدئي أو اعتماداً على السعر
-                // يمكن ترك التحقق أو تركه معتمداً على دالة الأسعار
-            }
-        } catch (e) {
-            console.error("Market Correlation Check Error:", e);
-        }
-
-        const isClosingBellMomentum = currentHour === 23 && currentMinute >= 45;
-        const isPowerHourActive = currentHour === 23;
-
-        // 📊 رادار تتبع المحفظة وتحوط منصة "عوائد" + رادار الخروج الذكي المبكر
         if (global.activePortfolioTracker.size > 0) {
             for (let [symbol, tradeData] of global.activePortfolioTracker.entries()) {
                 try {
@@ -240,7 +224,6 @@ export async function GET(request) {
             }
         }
 
-        // 📈 قوائم ياهو الديناميكية
         const yahooDynamicGainers = ['NVCR', 'CLF', 'MEDP', 'EQPT', 'IMAX', 'LMT', 'VMAR', 'CETX', 'GSIT', 'PRFX', 'BYRN', 'KULR'];
         const scalpSymbols = ['TSLA', 'NVDA', 'AAPL', 'AMD', 'META', 'MSFT'];
         const yahooDynamicSwingPool = ['AMZN', 'GOOGL', 'NFLX', 'PLTR', 'COIN', 'SHOP', 'UBER', 'SNOW', 'META', 'TSLA'];
@@ -289,11 +272,10 @@ export async function GET(request) {
 
                 const bollingerSqueezeScore = Math.floor(Math.random() * (99 - 86 + 1)) + 86;
                 const exitDetectorScore = Math.floor(Math.random() * (99 - 80 + 1)) + 80;
-                if (exitDetectorScore >= 92 && !isClosingBellMomentum && !isSwingTrade) {
+                if (exitDetectorScore >= 92 && isSwingTrade === false) {
                     return { symbol, status: "skipped_smart_money_exit", success: true };
                 }
 
-                // 📐 حساب مستويات الدخول والأهداف بدقة على السعر الحقيقي
                 const atrMultiplierStop = isSwingTrade ? 3.0 : 1.5;
                 const atrMultiplierT1 = isSwingTrade ? 4.0 : 2.0;
                 const atrMultiplierT2 = isSwingTrade ? 7.5 : 3.5;
@@ -379,49 +361,6 @@ export async function GET(request) {
         });
 
         const analysisResults = await Promise.all(analysisPromises);
-
-        // 📁 التقرير اليومي وتصدير CSV
-        const isEndOFDayReportTime = currentHour === 3 && currentMinute >= 15 && currentMinute <= 20;
-        if (isEndOFDayReportTime) {
-            const successfulAlerts = analysisResults.filter(r => r.status === "analyzed_and_alerted").length;
-            
-            let csvContent = "Date,Symbol,Type,EntryPrice,TargetPrice,SniperScore\n";
-            for (const trade of global.historicalTradesLog) {
-                csvContent += `${trade.date},${trade.symbol},"${trade.type}",${trade.entry},${trade.target},${trade.score}\n`;
-            }
-
-            const summaryMessage = `👑 *التقرير الملكي الشامل وملخص الأداء (منصة عوائد)* 👑\n\n` +
-                `• إجمالي الفرص المرصودة اليوم: \`${successfulAlerts} فرصة\`\n` +
-                `• إجمالي السجلات المؤرشفة في الذاكرة: \`${global.historicalTradesLog.length} صفقة\`\n` +
-                `• النظام يعمل بأسعار حقيقية ومستمرة وأنت في الدوام 🚀🔥`;
-
-            await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chat_id: telegramChatId, text: summaryMessage, parse_mode: 'Markdown' })
-            });
-
-            if (global.historicalTradesLog.length > 0) {
-                const base64Csv = Buffer.from(csvContent).toString('base64');
-                const csvDataUrl = `data:text/csv;base64,${base64Csv}`;
-                
-                await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        chat_id: telegramChatId,
-                        text: `📁 *ملف سجل الصفقات بصيغة CSV لجلسة اليوم:* \n\` البيانات جاهزة في الذاكرة المستمرة \``,
-                        parse_mode: 'Markdown',
-                        reply_markup: {
-                            inline_keyboard: [
-                                [{ text: "📥 تحميل سجل CSV الملكي", url: csvDataUrl }]
-                            ]
-                        }
-                    })
-                });
-            }
-        }
-
         return NextResponse.json({ status: "success", totalChecked: uniqueTargets.length, details: analysisResults });
 
     } catch (error) {
