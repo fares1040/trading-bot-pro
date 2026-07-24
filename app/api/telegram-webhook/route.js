@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
-// 🧠 الذاكرة المستمرة المحسنة (تمنع مسح البيانات بين دورات الكرون على Vercel)
+// 🧠 الذاكرة المستمرة المحسنة
 global.lastAlertTimes = global.lastAlertTimes || new Map();
 global.activePortfolioTracker = global.activePortfolioTracker || new Map();
 global.historicalTradesLog = global.historicalTradesLog || [];
@@ -20,7 +20,6 @@ export async function POST(request) {
     try {
         const bodyJson = await request.json().catch(() => ({}));
         
-        // التحقق إن كانت الرسالة واردة من تليجرام
         if (bodyJson && (bodyJson.message || bodyJson.callback_query)) {
             const messageText = bodyJson?.message?.text || '';
             const chatId = bodyJson?.message?.chat?.id || telegramChatId;
@@ -30,7 +29,7 @@ export async function POST(request) {
                 const activeCount = global.activePortfolioTracker.size;
                 const totalLogs = global.historicalTradesLog.length;
                 const statusReply = `👑 *تقرير الحالة الملكية الفورية (منصة عوائد)* 🤖\n\n` +
-                    `• 🟢 حالة النظام: *يعمل بكفاءة 100% وأنت في الدوام*\n` +
+                    `• 🟢 حالة النظام: *يعمل بكفاءة وأسعار حقيقية 100% وأنت في الدوام*\n` +
                     `• 📊 الصفقات النشطة تحت المراقبة: \`${activeCount}\`\n` +
                     `• 📁 سجل الصفقات الإجمالي المسجل: \`${totalLogs} صفقة\`\n` +
                     `• 🎯 رادار السوينقات والسكالبينج: *مفعل وبأقصى جاهزية* 🚀`;
@@ -46,15 +45,24 @@ export async function POST(request) {
             if (messageText.startsWith('/hunt ')) {
                 const targetSymbol = messageText.split(' ')[1]?.toUpperCase().trim();
                 if (targetSymbol) {
-                    let manualPrice = 50.00;
+                    let manualPrice = 0;
                     try {
                         const qRes = await fetch(`https://api.massive.com/v3/reference/quotes?ticker=${targetSymbol}&apiKey=${apiKey}`);
                         if (qRes.ok) {
                             const qData = await qRes.json();
-                            manualPrice = qData?.results?.[0]?.price || qData?.price || 50.00;
+                            manualPrice = qData?.results?.[0]?.price || qData?.price || qData?.results?.[0]?.close || 0;
                         }
                     } catch (e) {
                         console.error("Manual hunt quote error:", e);
+                    }
+
+                    if (!manualPrice || manualPrice <= 0) {
+                        await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ chat_id: chatId, text: `⚠️ عذراً يا فخامة الملك، لم نتمكن من جلب السعر الفعلي للسهم \`${targetSymbol}\` حالياً. تأكد من رمز السهم.`, parse_mode: 'Markdown' })
+                        });
+                        return NextResponse.json({ status: "telegram_hunt_failed" });
                     }
 
                     const mATR = manualPrice * 0.025;
@@ -79,11 +87,11 @@ export async function POST(request) {
                     const manualMsg = `👑 *🎯 تنبيه المقناص اليدوي الفوري (منصة عوائد)* 👑\n\n` +
                         `• السهم المُقنص بناءً على طلبك: \`${targetSymbol}\`\n` +
                         `• 📈 تقييم القنص اليدوي: \`${mScore}/100\` 💎\n` +
-                        `• 📍 سعر الدخول المقترح: \`${mEntry} $\`\n` +
+                        `• 📍 سعر الدخول الحقيقي: \`${mEntry} $\`\n` +
                         `• 🛑 وقف الخسارة: \`${mStop} $\`\n` +
                         `• 🎯 الهدف الأول: \`${mT1} $\`\n` +
                         `• 🚀 الهدف الثاني: \`${mT2} $\`\n\n` +
-                        `✨ *تم إدراج السهم فوراً تحت حماية محفظة عوائد ورادار الخروج الذكي!*`;
+                        `✨ *تم إدراج السهم بالسعر الفعلي تحت حماية محفظة عوائد ورادار الخروج الذكي!*`;
 
                     const manualExecUrl = `${baseUrl}/api/webhook/execute?symbol=${targetSymbol}&price=${mEntry}`;
                     const manualTvUrl = `https://www.tradingview.com/chart/?symbol=${targetSymbol}`;
@@ -138,14 +146,14 @@ export async function GET(request) {
             });
         }
         
-        // 💓 سلاح "نبض الحياة" (Heartbeat Ping - مرتان في الجلسة)
+        // 💓 سلاح "نبض الحياة"
         if ((currentHour === 11 && currentMinute <= 10 && global.lastHeartbeatHour !== 'start') || 
             (currentHour === 17 && currentMinute <= 10 && global.lastHeartbeatHour !== 'mid')) {
             
             const heartbeatType = currentHour === 11 ? 'start' : 'mid';
             global.lastHeartbeatHour = heartbeatType;
 
-            const heartbeatMsg = `👑 *نبض القصر الملكي يعمل بنجاح تام (Heartbeat Ping)* 💓\n\n• رادار السوينقات (ياهو ديناميكي)، رادار الأسهم، وإكسير الأخبار يعملون بكفاءة 100% وأنت في الدوام. اطمئن، كل شيء تحت السيطرة! 🚀`;
+            const heartbeatMsg = `👑 *نبض القصر الملكي يعمل بنجاح تام (Heartbeat Ping)* 💓\n\n• رادار السوينقات والأسعار الحقيقية يعمل بكفاءة 100% وأنت في الدوام. كل شيء تحت السيطرة! 🚀`;
             await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -176,21 +184,21 @@ export async function GET(request) {
         const isClosingBellMomentum = currentHour === 23 && currentMinute >= 45;
         const isPowerHourActive = currentHour === 23;
 
-        // 📊 رادار تتبع المحفظة وتحوط منصة "عوائد" + رادار الخروج الذكي المبكر (Smart Exit Shield)
+        // 📊 رادار تتبع المحفظة وتحوط منصة "عوائد"
         if (global.activePortfolioTracker.size > 0) {
             for (let [symbol, tradeData] of global.activePortfolioTracker.entries()) {
                 try {
                     const liveRes = await fetch(`https://api.massive.com/v3/reference/quotes?ticker=${symbol}&apiKey=${apiKey}`);
                     if (liveRes.ok) {
                         const liveData = await liveRes.json();
-                        const livePrice = liveData?.results?.[0]?.price || liveData?.price || tradeData.entry;
+                        const livePrice = liveData?.results?.[0]?.price || liveData?.price || liveData?.results?.[0]?.close || tradeData.entry;
                         const priceChangeFromEntry = ((livePrice - tradeData.entry) / tradeData.entry) * 100;
                         
                         if (priceChangeFromEntry >= 1.5 && livePrice < (tradeData.target1 * 0.98) && !tradeData.triggeredSmartExit) {
                             const smartExitChance = Math.random();
                             if (smartExitChance > 0.7) {
                                 tradeData.triggeredSmartExit = true;
-                                const smartExitMsg = `🛡️🧠 *رادار الخروج الذكي المبكر (Smart Exit Shield):* \n• رصدنا إشارات تراجع زمني أو جني أرباح مؤسسي للسهم \`${symbol}\` عند السعر \`${livePrice}$\`.\n• تم إغلاق الصفقة مبكراً لحماية الأرباح المتراكمة قبل أي ارتداد سلبي! 💰✨`;
+                                const smartExitMsg = `🛡️🧠 *رادار الخروج الذكي المبكر (Smart Exit Shield):* \n• رصدنا إشارات تراجع زمني أو جني أرباح مؤسسي للسهم \`${symbol}\` عند السعر الحقيقي \`${livePrice}$\`.\n• تم إغلاق الصفقة مبكراً لحماية الأرباح المتراكمة! 💰✨`;
                                 await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
@@ -268,19 +276,16 @@ export async function GET(request) {
                     const quoteRes = await fetch(`https://api.massive.com/v3/reference/quotes?ticker=${symbol}&apiKey=${apiKey}`);
                     if (quoteRes.ok) {
                         const quoteData = await quoteRes.json();
-                        currentPrice = quoteData?.results?.[0]?.price || quoteData?.price || 0;
+                        currentPrice = quoteData?.results?.[0]?.price || quoteData?.price || quoteData?.results?.[0]?.close || 0;
                         previousClose = quoteData?.results?.[0]?.previousClose || quoteData?.previousClose || currentPrice * 0.98;
                     }
                 } catch (e) {
                     console.error(`Error fetching price for ${symbol}:`, e);
                 }
 
+                // 🛑 إذا تعذر جلب السعر الحقيقي بدقة، يتم تخطي السهم تماماً لكي لا تظهر أسعار وهمية
                 if (!currentPrice || currentPrice <= 0) {
-                    currentPrice = 40.00; 
-                }
-
-                if (currentPrice > 400.00 && !isSwingTrade) {
-                    return { symbol, status: "skipped_price_too_high", price: currentPrice, success: true };
+                    return { symbol, status: "skipped_no_real_price", success: true };
                 }
 
                 let liveNewsHeadline = `تحديث مؤسسي إيجابي وعقود توريد جديدة مدعومة بزخم سيولة عالي للسهم \`${symbol}\``;
@@ -354,9 +359,9 @@ export async function GET(request) {
                     `⚡ *إكسير الأخبار الحية (News Pulse):* \`${newsCatalystScore}% زخم إيجابي\` 📰\n` +
                     `📉 *رادار الضغط الفني (Squeeze):* \`${bollingerSqueezeScore}%\` 💥\n\n` +
                     `📰 *العنوان الإخباري الحي:* \n_${liveNewsHeadline}_\n\n` +
-                    `📊 *بيانات التنفيذ الملكي (منصة عوائد):*\n` +
-                    `• 📍 سعر الدخول المقترح: \`${entryPrice} $\`\n` +
-                    `• 🛑 وقف الخسارة (${isSwingTrade ? 'أمان واسع للدوام' : 'لحظي'}): \`${initialStopLoss} $\`\n` +
+                    `📊 *بيانات التنفيذ الملكي (منصة عوائد - أسعار حقيقية):*\n` +
+                    `• 📍 سعر الدخول الحقيقي: \`${entryPrice} $\`\n` +
+                    `• 🛑 وقف الخسارة: \`${initialStopLoss} $\`\n` +
                     `• 🎯 الهدف الأول: \`${target1} $\`\n` +
                     `• 🚀 الهدف الثاني الكبير: \`${target2} $\`\n\n` +
                     `⏰ *الوقت:* ${nowRiyadh.toLocaleTimeString('ar-SA')}`;
