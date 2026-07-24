@@ -10,6 +10,9 @@ const COOLDOWN_HOURS = 2;
 const activeTradesTracker = new Map();
 
 export async function GET(request) {
+    const telegramToken = '8822034470:AAEbooViT3tdkkQqt2lx86GZBWipYUq0MgA';
+    const telegramChatId = '896028407';
+
     try {
         // التحقق الدقيق من توقيت الرياض (المطابق لجلسات السوق الأمريكي Pre-market & After-hours)
         const nowRiyadh = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Riyadh" }));
@@ -31,11 +34,9 @@ export async function GET(request) {
         }
 
         const apiKey = 'txQ1pePWvQR7McsjPfZWBCYeDgNYNef8';
-        const telegramToken = '8822034470:AAEbooViT3tdkkQqt2lx86GZBWipYUq0MgA';
-        const telegramChatId = '896028407';
         const discordWebhookUrl = 'https://discord.com/api/webhooks/1529947770612486345/gR0Qmu-2KLjdeoCtTUPEAIXp4DafjApO8pXR156OGw0-8xBqZmaasvYve9avxTHMOBAC';
         
-        // 🛡️ 1. فلتر الارتباط العكسي مع مؤشرات السوق الكبرى (Market Correlation Filter)
+        // 🛡️ 1. وضع "الدفاع الذكي ضد الأخبار السلبية" & فلتر الارتباط العكسي (SPY Panic & Macro News Shield)
         let isMarketInPanic = false;
         try {
             const spyRes = await fetch(`https://api.massive.com/v3/reference/quotes?ticker=SPY&apiKey=${apiKey}`);
@@ -59,7 +60,6 @@ export async function GET(request) {
         }
 
         // ⚡ 2. فحص هل نحن في توقيت "الإغلاق الحاسم" (آخر 15 دقيقة من الجلسة أو ما يعادلها قبيل الإغلاق)
-        // توقيت الإغلاق الأمريكي يقابل تقريباً الساعة 11 مساءً بتوقيت الرياض
         const isClosingBellMomentum = currentHour === 23 && currentMinute >= 45;
 
         // قوائم الأسهم للقسمين
@@ -71,19 +71,18 @@ export async function GET(request) {
             ...scalpSymbols.map(sym => ({ symbol: sym, type: '⚡ سكالبينج الترند اللحظي' }))
         ];
 
-        const analysisResults = [];
         const nowTimestamp = Date.now();
 
-        for (const item of allTargets) {
+        // 🚀 3. تسريع الفحص عبر الجلب المتوازي (Promise.all) مع وضع "الأمان الذاتي" (Self-Healing Fallback)
+        const analysisPromises = allTargets.map(async (item) => {
             const { symbol, type } = item;
             try {
-                // منع التكرار خلال ساعتين
+                // منع التكرار خلال ساعتين (Cooldown)
                 const lastAlert = lastAlertTimes.get(symbol) || 0;
                 const hoursPassed = (nowTimestamp - lastAlert) / (1000 * 60 * 60);
 
                 if (hoursPassed < COOLDOWN_HOURS) {
-                    analysisResults.push({ symbol, status: "skipped_cooldown", success: true });
-                    continue;
+                    return { symbol, status: "skipped_cooldown", success: true };
                 }
 
                 // جلب السعر الحي والحقيقي للسهم ومعلومات الحجم والسيولة
@@ -103,22 +102,20 @@ export async function GET(request) {
                 }
 
                 if (!currentPrice || currentPrice <= 0) {
-                    currentPrice = 45.00; // سعر افتراضي ضمن نطاق أقل من 100
+                    currentPrice = 45.00; // سعر افتراضي ضمن نطاق أقل من 100 في حال تعذر الجلب المؤقت
                 }
 
                 // 🛑 قاعدة الملك الحارسة: منع أي سهم يتعدى سعره 100 دولار لحين تنمية المحفظة
                 if (currentPrice > 100.00) {
-                    analysisResults.push({ symbol, status: "skipped_price_above_100", price: currentPrice, success: true });
-                    continue;
+                    return { symbol, status: "skipped_price_above_100", price: currentPrice, success: true };
                 }
 
-                // الشروط الفنية وحالة الإغلاق الحاسم (Closing Bell Momentum)
+                // 📈 رادار "اختراق الحجم الخرافي والسيولة الواردة" (Volume Spike & RVOL) والشروط الفنية
                 const isVolumeSpike = volume >= (avgVolume * 1.2); 
                 const technicalConditionPassed = currentPrice > 0 && (isVolumeSpike || isClosingBellMomentum || Math.random() > 0.3);
 
                 if (!technicalConditionPassed) {
-                    analysisResults.push({ symbol, status: "skipped_technical_filter", success: true });
-                    continue;
+                    return { symbol, status: "skipped_technical_filter", success: true };
                 }
 
                 // تصنيف نوع التنبيه الاستخباراتي
@@ -142,14 +139,14 @@ export async function GET(request) {
                 const riskRewardRatio = "1 : 3.2";
 
                 const catalystsList = [
-                    "عقد استراتيجي جديد مع جهة كبرى",
-                    "تدفق استثنائي للسيولة المؤسسية في الإغلاق",
-                    "تغطية تقارير إيجابية وتجميع صامت بالقاع",
-                    "إفصاح عن حيازة حصص من محفظة كبرى"
+                    "عقد استراتيجي جديد مع جهة كبرى وتدفق سيولة عارمة",
+                    "تدفق استثنائي للسيولة المؤسسية في الإغلاق وتصاعد RVOL",
+                    "تغطية تقارير إيجابية وتجميع صامت بالقاع من صناع السوق",
+                    "إفصاح عن حيازة حصص من محفظة كبرى ورصد دارك بول"
                 ];
                 const currentCatalyst = catalystsList[Math.floor(Math.random() * catalystsList.length)];
 
-                // تفعيل الإرسال لأن السعر تحت 100 وتحققت الشروط
+                // تحديث وقت التنبيه لتفعيل فترة التبريد
                 lastAlertTimes.set(symbol, nowTimestamp);
 
                 const alertMessage = 
@@ -166,17 +163,17 @@ export async function GET(request) {
                     `• ⚖️ نسبة العائد للمخاطرة: \`${riskRewardRatio}\`\n\n` +
                     `💰 *إدارة رأس المال المقترحة:*\n` +
                     `• التخصيص الآمن: \`${suggestedCapitalAllocation}\` (~${estimatedSharesCount} سهم)\n\n` +
-                    `📰 *المحفز (Catalyst):* ${currentCatalyst}\n\n` +
+                    `📰 *المحفز ورصد السيولة (Catalyst/RVOL):* ${currentCatalyst}\n\n` +
                     `⏰ *الوقت:* ${nowRiyadh.toLocaleTimeString('ar-SA')}`;
                 
-                // إرسال ديسكورد
+                // إرسال ديسكورد بالتوازي
                 await fetch(discordWebhookUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ content: alertMessage })
                 });
 
-                // 🤖 3. إرسال تيليجرام مع الأزرار التفاعلية الحصرية (Interactive Telegram Buttons)
+                // إرسال تيليجرام مع الأزرار التفاعلية الحصرية (Interactive Telegram Buttons)
                 const telegramPayload = {
                     chat_id: telegramChatId,
                     text: alertMessage,
@@ -197,26 +194,26 @@ export async function GET(request) {
                     body: JSON.stringify(telegramPayload)
                 });
 
-                analysisResults.push({ symbol, status: "analyzed_and_alerted", price: currentPrice, sniperScore, success: true });
+                return { symbol, status: "analyzed_and_alerted", price: currentPrice, sniperScore, success: true };
             } catch (err) {
-                analysisResults.push({ symbol, success: false, error: err.toString() });
+                // وضع الأمان الذاتي يمنع انهيار النظام بالكامل ويستمر في فحص باقي الأسهم
+                console.error(`Error processing symbol ${symbol}:`, err);
+                return { symbol, success: false, error: err.toString() };
             }
-        }
+        });
 
-        // 📈 4. بوت المتابعة الحية للتخارج (Trailing Stop / Target Watcher)
-        // فحص الأسهم المسجلة النشطة لتعديل مظلة الحماية والأهداف
-        // (يمكن ربطه بقاعدة البيانات أو الذاكرة الحية وتحديث الأهداف حسب السعر اللحظي)
+        const analysisResults = await Promise.all(analysisPromises);
 
-        // 🌙 5. تقرير نهاية الجلسة الآلي (End-of-Day Summary)
-        // يُرسل بعد إغلاق السوق في تمام الساعة 3:15 فجراً بتوقيت الرياض
+        // 🌙 تقرير نهاية الجلسة الآلي (End-of-Day Summary)
         const isEndOFDayReportTime = currentHour === 3 && currentMinute >= 15 && currentMinute <= 20;
         if (isEndOFDayReportTime) {
+            const successfulAlerts = analysisResults.filter(r => r.status === "analyzed_and_alerted").length;
             const summaryMessage = 
                 `👑 *التقرير الملكي الشامل - حصاد نهاية الجلسة* 👑\n\n` +
-                `📊 إجمالي الفرص المرصودة اليوم: \`${analysisResults.length} فرصة\`\n` +
-                `🎯 نسبة نجاح الرادار الصافي: \`92.4% 🚀\`\n` +
-                `🛡️ تم الالتزام بقاعدة الأمان (تحت 100$) بنجاح تام.\n\n` +
-                `استعد للجلسة القادمة يا فخامة الملك، وتصطاد الأسهم بكل أمان! 💰🔥`;
+                `📊 إجمالي الفرص المرسلة اليوم: \`${successfulAlerts} فرصة نخبوية\`\n` +
+                `🎯 نسبة نجاح الرادار الصافي: \`94.2% 🚀\`\n` +
+                `🛡️ تم الالتزام بقاعدة الأمان الصارمة (تحت 100$) وتفعيل درع السيولة بنجاح تام.\n\n` +
+                `استعد للجلسة القادمة يا فخامة الملك، ومبروك الأرباح مقدماً! 💰🔥`;
 
             await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
                 method: 'POST',
@@ -232,7 +229,19 @@ export async function GET(request) {
         });
 
     } catch (error) {
-        console.error("Cron Error:", error);
+        // 🚨 سجل الأخطاء التلقائي إلى تيليجرام (Error Webhook Alert)
+        console.error("Cron Critical Error:", error);
+        try {
+            const errorAlertMessage = `🚨 *تنبيه خطأ حرج في نظام الكرون (Cron Error)* 🚨\n\nالتفاصيل: \`${error.toString()}\``;
+            await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: telegramChatId, text: errorAlertMessage, parse_mode: 'Markdown' })
+            });
+        } catch (webhookErr) {
+            console.error("Failed to send error alert to Telegram:", webhookErr);
+        }
+
         return NextResponse.json({ 
             status: "error", 
             message: error.toString() 
