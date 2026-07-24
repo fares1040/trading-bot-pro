@@ -189,7 +189,7 @@ export async function GET(request) {
                             const smartExitChance = Math.random();
                             if (smartExitChance > 0.7) {
                                 tradeData.triggeredSmartExit = true;
-                                const smartExitMsg = `🛡️🧠 *رادار الخروج الذكي المبكر (Smart Exit Shield):* \n• رصدنا إشارات تراجع زمني أو جني أرباح مؤسسي للسهم \\`${symbol}\` عند السعر \`${livePrice}$\`.\n• تم إغلاق الصفقة مبكراً لحماية الأرباح المتراكمة قبل أي ارتداد سلبي! 💰✨`;
+                                const smartExitMsg = `🛡️🧠 *رادار الخروج الذكي المبكر (Smart Exit Shield):* \n• رصدنا إشارات تراجع زمني أو جني أرباح مؤسسي للسهم \`${symbol}\` عند السعر \`${livePrice}$\`.\n• تم إغلاق الصفقة مبكراً لحماية الأرباح المتراكمة قبل أي ارتداد سلبي! 💰✨`;
                                 await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
