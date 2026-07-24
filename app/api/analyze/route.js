@@ -1,206 +1,308 @@
-import { NextResponse } from 'next/server';
+'use client';
+import { useState, useEffect } from 'react';
 
-const lastAlertState = new Map();
-const historicalSniperMemory = new Set();
-
-// دالة جلب بيانات الأسهم مع حساب مؤشر القوة النسبية (RSI) وحجم التداول النسبي (RVol)
-async function fetchLiveStockPrice(symbol) {
-  try {
-    const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=10d`, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
-    });
-    const data = await res.json();
-    const result = data?.chart?.result?.[0];
-    const quotes = result?.indicators?.quote?.[0];
-    const closes = quotes?.close?.filter(c => c !== null) || [];
-    const volumes = quotes?.volume?.filter(v => v !== null) || [];
-    
-    const price = result?.meta?.regularMarketPrice || closes[closes.length - 1];
-    const previousClose = result?.meta?.previousClose || (closes.length > 1 ? closes[closes.length - 2] : price);
-    
-    // حساب حجم التداول النسبي (RVol) مقارنة بمتوسط الأيام السابقة
-    let rvol = 1.0;
-    if (volumes.length >= 5) {
-      const currentVol = volumes[volumes.length - 1];
-      const pastVolumes = volumes.slice(0, volumes.length - 1);
-      const avgVol = pastVolumes.reduce((a, b) => a + b, 0) / pastVolumes.length;
-      rvol = avgVol > 0 ? Number((currentVol / avgVol).toFixed(2)) : 1.0;
+export default function Home() {
+  const [symbols, setSymbols] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sniper_symbols_cluster');
+      if (saved) { try { return JSON.parse(saved); } catch (e) {} }
     }
-    
-    // حساب RSI تقريبي
-    let rsiCalc = 29.1;
-    if (closes.length >= 5) {
-      let gains = 0, losses = 0;
-      for (let i = 1; i < closes.length; i++) {
-        const diff = closes[i] - closes[i - 1];
-        if (diff >= 0) gains += diff;
-        else losses -= diff;
+    return ['VMAR', 'CETX', 'GSIT', 'PRFX', 'BYRN', 'ERNA', 'LNZA', 'HURA', 'KULR', 'ANVS', 'PPSI', 'BJDX'];
+  });
+
+  const [scalpSymbols, setScalpSymbols] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sniper_symbols_scalp');
+      if (saved) { try { return JSON.parse(saved); } catch (e) {} }
+    }
+    return ['TSLA', 'NVDA', 'AAPL', 'AMD', 'META', 'MSFT', 'SPY', 'QQQ'];
+  });
+
+  const [newSymbol, setNewSymbol] = useState('');
+  const [results, setResults] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('cluster'); 
+  const [scalpResults, setScalpResults] = useState({});
+  const [loadingScalp, setLoadingScalp] = useState(false);
+
+  const [minConfidence, setMinConfidence] = useState(82); 
+  const [cooldownMinutes, setCooldownMinutes] = useState(30);
+  const [webhookUrl, setWebhookUrl] = useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('sniper_webhook') || '';
+    return '';
+  });
+
+  const [missionHistory, setMissionHistory] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sniper_mission_history');
+      if (saved) { try { return JSON.parse(saved); } catch (e) {} }
+    }
+    return [];
+  });
+  const [chartModalSymbol, setChartModalSymbol] = useState(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sniper_webhook', webhookUrl);
+      localStorage.setItem('sniper_mission_history', JSON.stringify(missionHistory));
+      localStorage.setItem('sniper_symbols_cluster', JSON.stringify(symbols));
+      localStorage.setItem('sniper_symbols_scalp', JSON.stringify(scalpSymbols));
+    }
+  }, [webhookUrl, missionHistory, symbols, scalpSymbols]);
+
+  const speakAlert = (text) => {
+    try {
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'ar-SA';
+        utterance.rate = 1.0;
+        window.speechSynthesis.speak(utterance);
       }
-      const rs = (gains / (closes.length - 1)) / ((losses / (closes.length - 1)) || 1);
-      rsiCalc = Number((100 - (100 / (1 + rs))).toFixed(1));
-    }
-
-    if (price) {
-      return {
-        price: Number(price.toFixed(2)),
-        isReversed: price < previousClose * 0.985,
-        rsi: rsiCalc,
-        rvol: rvol
-      };
-    }
-  } catch (e) {}
-  return null;
-}
-
-// فحص اتجاه السوق العام (SPY Market Trend Filter)
-async function checkMarketTrend() {
-  try {
-    const marketData = await fetchLiveStockPrice('SPY');
-    if (marketData && marketData.isReversed) {
-      return { isBullish: false, message: '⚠️ تنبيه: السوق العام (SPY) تحت ضغط هبوطي عنيف، يرجى الحذر وتوخي الحيطة.' };
-    }
-  } catch (e) {}
-  return { isBullish: true, message: '🟢 السوق العام مستقر ومناسب للقتال الاستثماري.' };
-}
-
-// 🛡️ نظام التحوط الذكي التلقائي واكتشاف صفقات الـ Dark Pool والكتل المؤسسية الكبرى
-function analyzeInstitutionalActivity(rvol, price, isBullishMarket) {
-  let darkPoolDetected = false;
-  let hedgingAction = 'غير مطلوب (الوضع آمن)';
-
-  // إذا كان حجم التداول ضخماً جداً بشكل مفاجئ (RVol > 3.0)، فهذا يدل على صفقاتكتل ومؤسسات كبرى (Dark Pool)
-  if (rvol >= 3.0) {
-    darkPoolDetected = true;
-  }
-
-  // نظام التحوط التلقائي: إذا كان السوق هابطاً أو هناك تذبذب عالي مع سيولة مؤسسية خفية
-  if (!isBullishMarket || rvol >= 3.5) {
-    const suggestedPutStrike = Number((price * 0.95).toFixed(2));
-    hedgingAction = `🔒 تفعيل التحوط العكسي (شراء عقود حماية Put Strike عند $${suggestedPutStrike})`;
-  } else if (rvol >= 2.5) {
-    hedgingAction = `⚡ تحوط جزئي (تفعيل وقف خسارة متحرك صارم)`;
-  }
-
-  return {
-    darkPoolDetected,
-    darkPoolMsg: darkPoolDetected ? '🚨 [رصد Dark Pool]: تم رصد صفقات كتل مؤسسية ضخمة خلف الكواليس!' : '✨ التدفق المؤسسي طبيعي ومتوازن.',
-    hedgingAction
+    } catch (e) {}
   };
-}
 
-export async function GET(request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const isScan = searchParams.get('scan') === 'true';
-    const isScalp = searchParams.get('scalp') === 'true';
-    const symbolsParam = searchParams.get('symbols') || '';
-
-    if (isScan) {
-      const gainers52W = ['SNDK', 'AXTI', 'ERAS', 'MU', 'BE', 'LITE', 'WDC'];
-      const dayGainers = ['SMCI', 'ARWR', 'WEGZY', 'NG', 'WAB', 'PAG', 'DELL'];
-      const pool = isScalp ? dayGainers : gainers52W;
-      const existingSymbols = symbolsParam.split(',').map(s => s.trim().toUpperCase());
-      const matched = pool.filter(s => !existingSymbols.includes(s) && Math.random() > 0.25);
-
-      return NextResponse.json({ success: true, matched, memoryCount: historicalSniperMemory.size });
+  const playRadarSound = (sym = '', analysisText = '') => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.3);
+    } catch (e) {}
+    
+    if (sym) {
+      speakAlert(`تنبيه رادار القصر الملكي. فرصة نخبويّة على السهم ${sym}`);
+      const timeNow = new Date().toLocaleTimeString('ar-SA');
+      setMissionHistory(prev => [
+        { id: Date.now(), symbol: sym, time: timeNow, details: analysisText },
+        ...prev.slice(0, 49)
+      ]);
     }
-    return NextResponse.json({ error: 'طلب غير مدعوم' }, { status: 400 });
-  } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
+  };
 
-export async function POST(request) {
-  try {
-    const body = await request.json();
-    const { symbol, scalpMode, minConfidence = 78, cooldownMinutes = 60, earlyAlertsEnabled = true, discordWebhook } = body;
+  const runSmartAnalysis = async () => {
+    const yahooPresets = ['NVCR', 'CLF', 'MEDP', 'SNDK', 'AXTI', 'IEP', 'FSK', 'INTC', 'AMKR', 'LMT'];
+    
+    if (activeTab === 'cluster') {
+      setSymbols(Array.from(new Set([...symbols, ...yahooPresets])));
+      setLoading(true);
+    } else {
+      setScalpSymbols(Array.from(new Set([...scalpSymbols, ...yahooPresets])));
+      setLoadingScalp(true);
+    }
 
-    if (!symbol) return NextResponse.json({ error: 'رمز السهم مطلوب' }, { status: 400 });
+    const targetList = Array.from(new Set([...(activeTab === 'cluster' ? symbols : scalpSymbols), ...yahooPresets]));
+    const newResults = {};
+    let matchedCount = 0;
 
-    const telegramToken = process.env.TELEGRAM_BOT_TOKEN || "8822034470:AAEbooViT3tdkkQqt2lx86GZBWipYUq0MgA";
-    const telegramChatId = process.env.TELEGRAM_CHAT_ID || "896028407";
-    const sym = symbol.toUpperCase();
-
-    // فحص اتجاه السوق العام أولاً
-    const marketStatus = await checkMarketTrend();
-
-    let marketData = await fetchLiveStockPrice(sym);
-    let price = marketData ? marketData.price : Number((Math.random() * 80 + 10).toFixed(2));
-    let isReversedMarket = marketData ? marketData.isReversed : false;
-    let rsiValue = marketData ? marketData.rsi : 29.1;
-    let rvolValue = marketData ? marketData.rvol : 1.2;
-
-    // استدعاء نظام التحوط واكتشاف الـ Dark Pool
-    const institutionalAnalysis = analyzeInstitutionalActivity(rvolValue, price, marketStatus.isBullish);
-
-    // مستويات الأهداف ووقف الخسارة المتحرك
-    const stopLoss = Number((price * (rvolValue > 2.0 ? 0.955 : 0.962)).toFixed(2));
-    const t1 = Number((price * 1.035).toFixed(2));
-    const t2 = Number((price * 1.070).toFixed(2));
-    const t3 = Number((price * 1.110).toFixed(2));
-
-    const now = Date.now();
-    const lastData = lastAlertState.get(sym) || { time: 0 };
-    const shouldAlert = (now - lastData.time) > (cooldownMinutes * 60 * 1000) || isReversedMarket || institutionalAnalysis.darkPoolDetected;
-
-    // تقييم الثقة بناءً على سيولة الحيتان والـ Dark Pool
-    let baseConfidence = Math.floor(Math.random() * 12) + 84;
-    if (rvolValue > 2.5) baseConfidence += 5; 
-    if (institutionalAnalysis.darkPoolDetected) baseConfidence += 6; // دفعة قوية لاختراق الحيتان
-    if (!marketStatus.isBullish) baseConfidence -= 10; 
-
-    const confidenceScore = Math.min(Math.max(baseConfidence, 50), 99);
-    const isSuitable = confidenceScore >= minConfidence && !isReversedMarket;
-    const isEarlyAlert = earlyAlertsEnabled && !isSuitable && confidenceScore >= (minConfidence - 6);
-
-    historicalSniperMemory.add(sym);
-
-    const alertMessage = `👑 **منصة سنابير الاستخباراتية - كابوس الحيتان** 👑
-🎯 السهم: **${sym}** (${scalpMode ? 'سكالبينج لحظي ⚡' : 'استثمار 📊'})
-💵 السعر الحالي: **$${price}**
-📊 مؤشر RSI: **${rsiValue}** | ⚡ حجم التداول (RVol): **${rvolValue}x**
-📈 نسبة الثقة السيادية: **${confidenceScore}%**
-🛡️ وقف الخسارة المتحرك: **$${stopLoss}**
-🎯 الأهداف الملكية: T1: **$${t1}** | T2: **$${t2}** | T3: **$${t3}**
-🕵️‍♂️ **${institutionalAnalysis.darkPoolMsg}**
-🛡️ **التحوط التلقائي:** ${institutionalAnalysis.hedgingAction}
-📌 **حالة السوق العام:** ${marketStatus.message}
-🟢 STATUS: ENTRY ACTIVE`;
-
-    if (shouldAlert) {
-      lastAlertState.set(sym, { time: now });
-      if (discordWebhook && discordWebhook.startsWith('http')) {
-        try { 
-          await fetch(discordWebhook, { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify({ content: alertMessage }) 
-          }); 
-        } catch (e) {}
-      }
+    for (let sym of targetList) {
       try {
-        await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+        const res = await fetch('/api/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: telegramChatId, text: alertMessage, parse_mode: 'Markdown' })
+          body: JSON.stringify({ 
+            symbol: sym, 
+            scalpMode: activeTab === 'scalp', 
+            minConfidence, 
+            cooldownMinutes, 
+            discordWebhook: webhookUrl 
+          })
         });
+        const data = await res.json();
+        
+        const priceNum = parseFloat(data.price || 0);
+        const isQualified = (data.confidenceScore >= minConfidence) && (priceNum > 0 && priceNum <= 100);
+
+        if (isQualified) {
+          newResults[sym] = data;
+          matchedCount++;
+          if (matchedCount <= 5) {
+            playRadarSound(sym, data.analysis);
+          }
+        }
       } catch (err) {}
     }
 
-    return NextResponse.json({
-      success: true,
-      symbol: sym,
-      price,
-      confidenceScore,
-      rsiShort: String(rsiValue),
-      rvol: rvolValue,
-      darkPool: institutionalAnalysis.darkPoolDetected,
-      hedgingAction: institutionalAnalysis.hedgingAction,
-      isSuitable,
-      isEarlyAlert,
-      analysis: alertMessage
-    });
-  } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+    if (activeTab === 'cluster') {
+      setResults(newResults);
+      setLoading(false);
+    } else {
+      setScalpResults(newResults);
+      setLoadingScalp(false);
+    }
+    
+    alert(`🎯 انتهى الفحص السيادي الذكي!\n✨ تم العثور على (${matchedCount}) فرصة ذهبية مستوفية لشروط السعر (تحت 100$) والثقة الصارمة.`);
+  };
+
+  const addSymbol = async (e) => {
+    e.preventDefault();
+    if (!newSymbol.trim()) return;
+    const upper = newSymbol.toUpperCase().trim();
+    if (activeTab === 'cluster' && symbols.includes(upper)) { alert('⚠️ السهم موجود بالفعل.'); setNewSymbol(''); return; }
+    if (activeTab === 'scalp' && scalpSymbols.includes(upper)) { alert('⚠️ السهم موجود بالفعل.'); setNewSymbol(''); return; }
+
+    try {
+      const res = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol: upper, scalpMode: activeTab === 'scalp', minConfidence, cooldownMinutes, discordWebhook: webhookUrl })
+      });
+      const data = await res.json();
+
+      if (activeTab === 'cluster') {
+        setSymbols(prev => [...prev, upper]);
+        setResults(prev => ({ ...prev, [upper]: data }));
+      } else {
+        setScalpSymbols(prev => [...prev, upper]);
+        setScalpResults(prev => ({ ...prev, [upper]: data }));
+      }
+      alert(`✅ تم إضافة السهم [${upper}] بنجاح!`);
+    } catch (err) {
+      alert(`🚨 خطأ في جلب السهم.`);
+    }
+    setNewSymbol('');
+  };
+
+  const removeSymbol = (symToRemove) => {
+    if (activeTab === 'cluster') setSymbols(symbols.filter(s => s !== symToRemove));
+    else setScalpSymbols(scalpSymbols.filter(s => s !== symToRemove));
+  };
+
+  const currentRes = activeTab === 'cluster' ? results : scalpResults;
+  const isCurrentLoading = activeTab === 'cluster' ? loading : loadingScalp;
+
+  return (
+    <main style={{ padding: '25px', direction: 'rtl', fontFamily: 'Tahoma, sans-serif', background: '#07090e', color: '#f3f4f6', minHeight: '100vh' }}>
+      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+        
+        {/* شريط العنوان الملكي */}
+        <div style={{ textAlign: 'center', marginBottom: '18px', borderBottom: '1px solid #d4af3733', paddingBottom: '15px' }}>
+          <h1 style={{ color: '#d4af37', fontSize: '28px', fontWeight: '900', margin: '0 0 5px 0' }}>
+            👑 منصة سنابير الاستخباراتية - لوحة القيادة الحية (Live Command Center) 🔥
+          </h1>
+          <p style={{ color: '#9ca3af', fontSize: '13px', margin: 0 }}>
+            المراقبة الحية للسيولة المؤسسية، صفقات الدارك بول، والتحوط التلقائي لحظياً
+          </p>
+        </div>
+
+        {/* لوحة التحكم السيادي ونسبة الثقة */}
+        <div style={{ background: '#0d111a', padding: '16px', borderRadius: '14px', border: '1px solid #21262d', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <span style={{ fontSize: '12.5px', color: '#9ca3af' }}>الحد الأدنى لنسبة الثقة الصارمة: <strong style={{ color: '#d4af37' }}>{minConfidence}%</strong> (لمنع التنبيهات العشوائية)</span>
+          </div>
+          <input type="range" min="70" max="95" value={minConfidence} onChange={(e) => setMinConfidence(Number(e.target.value))} style={{ width: '100%', accentColor: '#d4af37', cursor: 'pointer' }} />
+        </div>
+
+        {/* التبديل بين الأقسام */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '15px', flexWrap: 'wrap' }}>
+          <button onClick={() => setActiveTab('cluster')} style={{ padding: '11px 24px', background: activeTab === 'cluster' ? 'linear-gradient(135deg, #d4af37 0%, #aa820a 100%)' : '#0d111a', color: activeTab === 'cluster' ? '#07090e' : '#fff', border: '1px solid #d4af37', borderRadius: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>
+            👑 الاستثمار السيادي [{symbols.length} سهم]
+          </button>
+          <button onClick={() => setActiveTab('scalp')} style={{ padding: '11px 24px', background: activeTab === 'scalp' ? 'linear-gradient(135deg, #9333ea 0%, #6b21a8 100%)' : '#0d111a', color: '#fff', border: '1px solid #c084fc', borderRadius: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>
+            ⚡ موجات الترند الملكي [{scalpSymbols.length} سهم]
+          </button>
+        </div>
+
+        {/* إضافة سهم فردي */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '15px' }}>
+          <form onSubmit={addSymbol} style={{ display: 'flex', gap: '8px', width: '100%', maxWidth: '500px' }}>
+            <input 
+              type="text" 
+              placeholder="أدخل رمز سهم إضافي (مثال: VMAR)..." 
+              value={newSymbol} 
+              onChange={(e) => setNewSymbol(e.target.value)} 
+              style={{ flex: 1, padding: '10px 14px', background: '#0d111a', border: '1px solid #30363d', borderRadius: '10px', color: '#fff', fontSize: '12.5px' }}
+            />
+            <button type="submit" style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '10px', fontSize: '12.5px', fontWeight: 'bold', cursor: 'pointer' }}>
+              ➕ إضافة
+            </button>
+          </form>
+        </div>
+
+        {/* زر الفحص السيادي الذكي الموحد */}
+        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+          <button onClick={runSmartAnalysis} disabled={isCurrentLoading} style={{ padding: '16px 50px', background: isCurrentLoading ? '#30363d' : 'linear-gradient(135deg, #d4af37 0%, #aa820a 100%)', color: '#07090e', border: 'none', borderRadius: '12px', fontSize: '16px', cursor: 'pointer', fontWeight: '900', boxShadow: '0 4px 20px rgba(212,175,55,0.4)' }}>
+            {isCurrentLoading ? '⚡ جاري سحب قوائم ياهو وفحص السيولة المؤسسية...' : '🚀 بدء الفحص السيادي الذكي (تصفية الفرص النخبوية فقط)'}
+          </button>
+        </div>
+
+        {/* شبكة عرض الأسهم المطابقة للشروط */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px' }}>
+          {Object.keys(currentRes).length === 0 ? (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', background: '#0d111a', padding: '40px', borderRadius: '16px', border: '1px solid #21262d', color: '#9ca3af' }}>
+              🔍 اضغط على <strong style={{ color: '#d4af37' }}>"بدء الفحص السيادي الذكي"</strong> لجلب الأسهم، فلترتها، وعرض الفرص الحقيقية النخبوية فقط.
+            </div>
+          ) : (
+            Object.entries(currentRes).map(([sym, data]) => (
+              <div key={sym} style={{ background: '#0d111a', padding: '20px', borderRadius: '16px', border: '2px solid #d4af37', position: 'relative' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #21262d', paddingBottom: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ background: '#d4af37', color: '#07090e', padding: '5px 10px', borderRadius: '6px', fontWeight: '900', fontSize: '15px' }}>{sym}</div>
+                    <span style={{ fontSize: '11px', color: '#4ade80', fontWeight: 'bold' }}>👑 مطابقة للمعايير (≤ $100)</span>
+                  </div>
+                  <button onClick={() => removeSymbol(sym)} style={{ background: '#7f1d1d', color: '#fca5a5', border: 'none', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer', fontSize: '11px' }}>حذف</button>
+                </div>
+
+                <div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+                    <div style={{ background: '#07090e', padding: '8px', borderRadius: '8px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '9.5px', color: '#9ca3af' }}>السعر الحالي</div>
+                      <div style={{ fontSize: '15px', fontWeight: '900', color: '#4ade80' }}>${data.price}</div>
+                    </div>
+                    <div style={{ background: '#07090e', padding: '8px', borderRadius: '8px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '9.5px', color: '#9ca3af' }}>مؤشر RSI</div>
+                      <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#c084fc' }}>{data.rsiShort || '29.1'}</div>
+                    </div>
+                    <div style={{ background: '#07090e', padding: '8px', borderRadius: '8px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '9.5px', color: '#d4af37' }}>الثقة</div>
+                      <div style={{ fontSize: '15px', fontWeight: '900', color: '#d4af37' }}>{data.confidenceScore || 85}%</div>
+                    </div>
+                  </div>
+
+                  {/* شارات الرصد المؤسسي والتحوط الحية */}
+                  <div style={{ display: 'flex', gap: '6px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                    {data.darkPool && (
+                      <span style={{ background: '#581c87', color: '#e9d5ff', padding: '4px 8px', borderRadius: '6px', fontSize: '10.5px', fontWeight: 'bold' }}>
+                        🚨 رصد Dark Pool مؤسسي
+                      </span>
+                    )}
+                    <span style={{ background: '#1e293b', color: '#38bdf8', padding: '4px 8px', borderRadius: '6px', fontSize: '10.5px' }}>
+                      🛡️ {data.hedgingAction}
+                    </span>
+                  </div>
+
+                  <div style={{ fontSize: '11.5px', color: '#d1d5db', marginBottom: '12px', lineHeight: '1.5' }}>
+                    📊 <strong>التحليل:</strong> {data.analysis || 'تحليل سيادي جاهز ومطابق للمعايير الصارمة.'}
+                  </div>
+
+                  <button onClick={() => setChartModalSymbol(sym)} style={{ width: '100%', background: '#0284c7', color: '#fff', border: 'none', padding: '8px', borderRadius: '8px', fontSize: '11.5px', cursor: 'pointer', fontWeight: 'bold' }}>📈 شارت TradingView</button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* نافذة شارت TradingView */}
+        {chartModalSymbol && (
+          <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100 }}>
+            <div style={{ background: '#0d111a', padding: '20px', borderRadius: '16px', border: '1px solid #d4af37', width: '95%', maxWidth: '1000px', height: '80vh', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid #21262d', paddingBottom: '10px' }}>
+                <h3 style={{ margin: 0, color: '#d4af37', fontSize: '18px' }}>📈 الرسم البياني السيادي (TradingView) - السهم: {chartModalSymbol}</h3>
+                <button onClick={() => setChartModalSymbol(null)} style={{ background: '#7f1d1d', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>إغلاق ✕</button>
+              </div>
+              <div style={{ flex: 1, width: '100%', background: '#000', borderRadius: '10px', overflow: 'hidden' }}>
+                <iframe src={`https://s.tradingview.com/widgetembed/?symbol=${chartModalSymbol}&interval=D&theme=dark&locale=ar`} style={{ width: '100%', height: '100%', border: 'none' }} title="TradingView" />
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </main>
+  );
 }
