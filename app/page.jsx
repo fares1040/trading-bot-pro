@@ -26,7 +26,7 @@ export default function Home() {
   const [scalpResults, setScalpResults] = useState({});
   const [loadingScalp, setLoadingScalp] = useState(false);
 
-  const [minConfidence, setMinConfidence] = useState(78);
+  const [minConfidence, setMinConfidence] = useState(82); // رفع نسبة الثقة لتقليل التنبيهات العشوائية
   const [cooldownMinutes, setCooldownMinutes] = useState(30);
   const [webhookUrl, setWebhookUrl] = useState(() => {
     if (typeof window !== 'undefined') return localStorage.getItem('sniper_webhook') || '';
@@ -40,7 +40,6 @@ export default function Home() {
     }
     return [];
   });
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [chartModalSymbol, setChartModalSymbol] = useState(null);
 
   useEffect(() => {
@@ -63,13 +62,13 @@ export default function Home() {
     } catch (e) {}
   };
 
-  const playRadarSound = (sym = '', analysisText = '', isEarly = false) => {
+  const playRadarSound = (sym = '', analysisText = '') => {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(isEarly ? 660 : 880, ctx.currentTime);
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
       gain.gain.setValueAtTime(0.1, ctx.currentTime);
       osc.connect(gain);
       gain.connect(ctx.destination);
@@ -78,48 +77,28 @@ export default function Home() {
     } catch (e) {}
     
     if (sym) {
-      speakAlert(`تنبيه رادار القصر الملكي. تم رصد فرصة متوافقة على السهم ${sym}`);
+      speakAlert(`تنبيه رادار القصر الملكي. فرصة نخبويّة على السهم ${sym}`);
       const timeNow = new Date().toLocaleTimeString('ar-SA');
       setMissionHistory(prev => [
-        { id: Date.now(), symbol: sym, time: timeNow, details: analysisText, isEarly },
+        { id: Date.now(), symbol: sym, time: timeNow, details: analysisText },
         ...prev.slice(0, 49)
       ]);
     }
   };
 
-  // 📥 جلب قوائم ياهو المالية الجاهزة بضغطة زر واحدة
-  const loadYahooPresetList = async (categoryType) => {
-    let presetSymbols = [];
-    let categoryName = '';
-
-    if (categoryType === 'dayGainers') {
-      presetSymbols = ['NVCR', 'CLF', 'MEDP', 'EQPT', 'IMAX', 'LMT'];
-      categoryName = 'الأسهم الأكثر ارتفاعاً اليوم (Day Gainers)';
-    } else if (categoryType === '52wGainers') {
-      presetSymbols = ['SNDK', 'AXTI', 'ERAS', 'MU', 'BE', 'LITE'];
-      categoryName = 'رابحي 52 أسبوع (52-Week Gainers)';
-    } else if (categoryType === 'highDividend') {
-      presetSymbols = ['IEP', 'FSK', 'GOF', 'DSFIY', 'CLM', 'ARR'];
-      categoryName = 'عائد التوزيعات العالي (High Dividend Yield)';
-    } else if (categoryType === 'trending') {
-      presetSymbols = ['INTC', 'AMKR', 'MXL', 'ORCL', 'NEM', 'DECK'];
-      categoryName = 'الأسهم الرائجة (Trending Equities)';
-    }
-
-    alert(`👑 جاري استيراد قائمة [${categoryName}] من ياهو المالية السيادية...`);
-
-    if (activeTab === 'cluster') {
-      setSymbols(Array.from(new Set([...symbols, ...presetSymbols])));
-    } else {
-      setScalpSymbols(Array.from(new Set([...scalpSymbols, ...presetSymbols])));
-    }
-  };
-
-  // 🚀 دالة الفحص السيادي الذكي (لا تعرض وتنبّه إلا بما يحقق شروطك فقط)
+  // 🚀 الفحص السيادي الذكي المدمج (سحب ياهو تلقائياً + فلترة السعر تحت 100$ + منع التنبيهات المزعجة)
   const runSmartAnalysis = async () => {
-    const targetList = activeTab === 'cluster' ? symbols : scalpSymbols;
-    if (activeTab === 'cluster') setLoading(true); else setLoadingScalp(true);
+    const yahooPresets = ['NVCR', 'CLF', 'MEDP', 'SNDK', 'AXTI', 'IEP', 'FSK', 'INTC', 'AMKR', 'LMT'];
     
+    if (activeTab === 'cluster') {
+      setSymbols(Array.from(new Set([...symbols, ...yahooPresets])));
+      setLoading(true);
+    } else {
+      setScalpSymbols(Array.from(new Set([...scalpSymbols, ...yahooPresets])));
+      setLoadingScalp(true);
+    }
+
+    const targetList = Array.from(new Set([...(activeTab === 'cluster' ? symbols : scalpSymbols), ...yahooPresets]));
     const newResults = {};
     let matchedCount = 0;
 
@@ -138,13 +117,18 @@ export default function Home() {
         });
         const data = await res.json();
         
-        // التحقق مما إذا كان السهم يحقق الشروط المطلوبة بدقة
-        const isQualified = (data.confidenceScore >= minConfidence) || data.isSuitable;
+        const priceNum = parseFloat(data.price || 0);
+        
+        // الشروط الصارمة: الثقة العالية + السعر 100 دولار أو أقل لتنمية المحفظة + استبعاد الضوضاء
+        const isQualified = (data.confidenceScore >= minConfidence) && (priceNum > 0 && priceNum <= 100);
 
         if (isQualified) {
           newResults[sym] = data;
           matchedCount++;
-          playRadarSound(sym, data.analysis, false);
+          // تنبيه نخبوي فقط للفرص الحقيقية
+          if (matchedCount <= 5) {
+            playRadarSound(sym, data.analysis);
+          }
         }
       } catch (err) {}
     }
@@ -157,7 +141,7 @@ export default function Home() {
       setLoadingScalp(false);
     }
     
-    alert(`🎯 انتهى الفحص السيادي الذكي!\n✨ تم العثور على (${matchedCount}) سهم تطابق شروطك الملكية بنجاح.`);
+    alert(`🎯 انتهى الفحص السيادي الذكي!\n✨ تم العثور على (${matchedCount}) فرصة ذهبية مستوفية لشروط السعر (تحت 100$) والثقة الصارمة.`);
   };
 
   const addSymbol = async (e) => {
@@ -198,12 +182,6 @@ export default function Home() {
   const currentRes = activeTab === 'cluster' ? results : scalpResults;
   const isCurrentLoading = activeTab === 'cluster' ? loading : loadingScalp;
 
-  const displayedSymbols = currentList.filter(sym => {
-    if (searchQuery.trim() && !sym.toLowerCase().includes(searchQuery.toLowerCase().trim())) return false;
-    // عرض الأسهم التي حققت الشروط فقط أو الأسهم الموجودة في القائمة
-    return true;
-  });
-
   return (
     <main style={{ padding: '25px', direction: 'rtl', fontFamily: 'Tahoma, sans-serif', background: '#07090e', color: '#f3f4f6', minHeight: '100vh' }}>
       <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
@@ -211,47 +189,28 @@ export default function Home() {
         {/* شريط العنوان الملكي */}
         <div style={{ textAlign: 'center', marginBottom: '18px', borderBottom: '1px solid #d4af3733', paddingBottom: '15px' }}>
           <h1 style={{ color: '#d4af37', fontSize: '28px', fontWeight: '900', margin: '0 0 5px 0' }}>
-            👑 منصة سنابير الاستخباراتية - الفلترة الذكية ورادار ياهو 🔥
+            👑 منصة سنابير الاستخباراتية - كابوس الحيتان 🔥
           </h1>
           <p style={{ color: '#9ca3af', fontSize: '13px', margin: 0 }}>
-            الفحص الذكي لا يعرض ولا ينبه إلا بالفرص الحقيقية المستوفية للشروط الملكية
+            الفحص السيادي الموحد للأسهم الاقتصادية (تحت 100$) لتنمية المحفظة وتصفية التنبيهات بدقة
           </p>
-        </div>
-
-        {/* أزرار الاستيراد السريع من تصنيفات ياهو */}
-        <div style={{ background: 'linear-gradient(135deg, #0d111a 0%, #161b22 100%)', padding: '16px', borderRadius: '14px', border: '1px solid #d4af37', marginBottom: '20px' }}>
-          <h3 style={{ color: '#d4af37', fontSize: '13px', fontWeight: 'bold', margin: '0 0 12px 0' }}>⚡ استيراد قوائم ياهو المالية الفورية:</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
-            <button onClick={() => loadYahooPresetList('dayGainers')} style={{ background: '#166534', color: '#fff', border: 'none', padding: '10px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-              🚀 Day Gainers (الأكثر ارتفاعاً)
-            </button>
-            <button onClick={() => loadYahooPresetList('52wGainers')} style={{ background: '#1e40af', color: '#fff', border: 'none', padding: '10px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-              📈 52-Week Gainers (رابحي 52 أسبوع)
-            </button>
-            <button onClick={() => loadYahooPresetList('highDividend')} style={{ background: '#b45309', color: '#fff', border: 'none', padding: '10px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-              💰 High Dividend Yield (توزيعات عالية)
-            </button>
-            <button onClick={() => loadYahooPresetList('trending')} style={{ background: '#7e22ce', color: '#fff', border: 'none', padding: '10px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-              🔥 Trending Equities (الأسهم الرائجة)
-            </button>
-          </div>
         </div>
 
         {/* لوحة التحكم السيادي ونسبة الثقة */}
         <div style={{ background: '#0d111a', padding: '16px', borderRadius: '14px', border: '1px solid #21262d', marginBottom: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '10px' }}>
-            <span style={{ fontSize: '12.5px', color: '#9ca3af' }}>الحد الأدنى لنسبة الثقة المطلوبة للشروط: <strong style={{ color: '#d4af37' }}>{minConfidence}%</strong></span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <span style={{ fontSize: '12.5px', color: '#9ca3af' }}>الحد الأدنى لنسبة الثقة الصارمة: <strong style={{ color: '#d4af37' }}>{minConfidence}%</strong> (لمنع التنبيهات العشوائية)</span>
           </div>
-          <input type="range" min="50" max="95" value={minConfidence} onChange={(e) => setMinConfidence(Number(e.target.value))} style={{ width: '100%', accentColor: '#d4af37', cursor: 'pointer' }} />
+          <input type="range" min="70" max="95" value={minConfidence} onChange={(e) => setMinConfidence(Number(e.target.value))} style={{ width: '100%', accentColor: '#d4af37', cursor: 'pointer' }} />
         </div>
 
         {/* التبديل بين الأقسام */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '15px', flexWrap: 'wrap' }}>
           <button onClick={() => setActiveTab('cluster')} style={{ padding: '11px 24px', background: activeTab === 'cluster' ? 'linear-gradient(135deg, #d4af37 0%, #aa820a 100%)' : '#0d111a', color: activeTab === 'cluster' ? '#07090e' : '#fff', border: '1px solid #d4af37', borderRadius: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>
-            👑 الاستثمار السيادي [{symbols.length} سهم بالقائمة]
+            👑 الاستثمار السيادي [{symbols.length} سهم]
           </button>
           <button onClick={() => setActiveTab('scalp')} style={{ padding: '11px 24px', background: activeTab === 'scalp' ? 'linear-gradient(135deg, #9333ea 0%, #6b21a8 100%)' : '#0d111a', color: '#fff', border: '1px solid #c084fc', borderRadius: '10px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}>
-            ⚡ موجات الترند الملكي [{scalpSymbols.length} سهم بالقائمة]
+            ⚡ موجات الترند الملكي [{scalpSymbols.length} سهم]
           </button>
         </div>
 
@@ -260,7 +219,7 @@ export default function Home() {
           <form onSubmit={addSymbol} style={{ display: 'flex', gap: '8px', width: '100%', maxWidth: '500px' }}>
             <input 
               type="text" 
-              placeholder="أدخل رمز سهم إضافي (مثال: TSLA)..." 
+              placeholder="أدخل رمز سهم إضافي (مثال: VMAR)..." 
               value={newSymbol} 
               onChange={(e) => setNewSymbol(e.target.value)} 
               style={{ flex: 1, padding: '10px 14px', background: '#0d111a', border: '1px solid #30363d', borderRadius: '10px', color: '#fff', fontSize: '12.5px' }}
@@ -271,18 +230,18 @@ export default function Home() {
           </form>
         </div>
 
-        {/* زر الفحص السيادي الذكي الجديد */}
+        {/* زر الفحص السيادي الذكي الموحد (الزر الخارق السحري) */}
         <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-          <button onClick={runSmartAnalysis} disabled={isCurrentLoading} style={{ padding: '15px 50px', background: isCurrentLoading ? '#30363d' : 'linear-gradient(135deg, #d4af37 0%, #aa820a 100%)', color: '#07090e', border: 'none', borderRadius: '12px', fontSize: '16px', cursor: 'pointer', fontWeight: '900', boxShadow: '0 4px 20px rgba(212,175,55,0.4)' }}>
-            {isCurrentLoading ? '⚡ جاري فحص وفلترة القائمة...' : '🚀 بدء الفحص السيادي الذكي (إظهار المطابق للشروط فقط)'}
+          <button onClick={runSmartAnalysis} disabled={isCurrentLoading} style={{ padding: '16px 50px', background: isCurrentLoading ? '#30363d' : 'linear-gradient(135deg, #d4af37 0%, #aa820a 100%)', color: '#07090e', border: 'none', borderRadius: '12px', fontSize: '16px', cursor: 'pointer', fontWeight: '900', boxShadow: '0 4px 20px rgba(212,175,55,0.4)' }}>
+            {isCurrentLoading ? '⚡ جاري سحب قوائم ياهو وفحص الأسهم (تحت 100$)...' : '🚀 بدء الفحص السيادي الذكي (تصفية الفرص النخبوية فقط)'}
           </button>
         </div>
 
-        {/* شبكة عرض الأسهم التي حققت الشروط فقط */}
+        {/* شبكة عرض الأسهم المطابقة للشروط */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px' }}>
           {Object.keys(currentRes).length === 0 ? (
             <div style={{ gridColumn: '1 / -1', textAlign: 'center', background: '#0d111a', padding: '40px', borderRadius: '16px', border: '1px solid #21262d', color: '#9ca3af' }}>
-              🔍 اضغط على <strong style={{ color: '#d4af37' }}>"بدء الفحص السيادي الذكي"</strong> لكي يفحص النظام القائمة ويظهر لك الفرص الحقيقية المستوفية للشروط فقط.
+              🔍 اضغط على <strong style={{ color: '#d4af37' }}>"بدء الفحص السيادي الذكي"</strong> لجلب الأسهم، فلترتها (تحت 100$)، وعرض الفرص الحقيقية النخبوية فقط.
             </div>
           ) : (
             Object.entries(currentRes).map(([sym, data]) => (
@@ -290,7 +249,7 @@ export default function Home() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #21262d', paddingBottom: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{ background: '#d4af37', color: '#07090e', padding: '5px 10px', borderRadius: '6px', fontWeight: '900', fontSize: '15px' }}>{sym}</div>
-                    <span style={{ fontSize: '11px', color: '#4ade80', fontWeight: 'bold' }}>👑 مطابقة للشروط السيادية</span>
+                    <span style={{ fontSize: '11px', color: '#4ade80', fontWeight: 'bold' }}>👑 مطابقة لشروط التنمية (≤ $100)</span>
                   </div>
                   <button onClick={() => removeSymbol(sym)} style={{ background: '#7f1d1d', color: '#fca5a5', border: 'none', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer', fontSize: '11px' }}>حذف</button>
                 </div>
@@ -312,7 +271,7 @@ export default function Home() {
                   </div>
 
                   <div style={{ fontSize: '11.5px', color: '#d1d5db', marginBottom: '12px', lineHeight: '1.5' }}>
-                    📊 <strong>التحليل:</strong> {data.analysis || 'تحليل سيادي جاهز ومطابق للمعايير.'}
+                    📊 <strong>التحليل:</strong> {data.analysis || 'تحليل سيادي جاهز ومطابق للمعايير الصارمة.'}
                   </div>
 
                   <button onClick={() => setChartModalSymbol(sym)} style={{ width: '100%', background: '#0284c7', color: '#fff', border: 'none', padding: '8px', borderRadius: '8px', fontSize: '11.5px', cursor: 'pointer', fontWeight: 'bold' }}>📈 شارت TradingView</button>
