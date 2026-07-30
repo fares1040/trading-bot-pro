@@ -1,3 +1,4 @@
+// app/api/telegram/route.js
 import { NextResponse } from 'next/server';
 
 export async function POST(request) {
@@ -30,11 +31,7 @@ export async function POST(request) {
         await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: incomingChatId,
-            text: responseReply,
-            parse_mode: 'Markdown'
-          })
+          body: JSON.stringify({ chat_id: incomingChatId, text: responseReply, parse_mode: 'Markdown' })
         });
 
         return NextResponse.json({ success: true, handled: true });
@@ -45,21 +42,14 @@ export async function POST(request) {
       return NextResponse.json({ error: 'معرف محادثة تليجرام غير متاح' }, { status: 400 });
     }
 
-    const url = `https://api.telegram.org/bot${token}/sendMessage`;
-    const response = await fetch(url, {
+    const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: messageText,
-        parse_mode: 'Markdown'
-      })
+      body: JSON.stringify({ chat_id: chatId, text: messageText, parse_mode: 'Markdown' })
     });
 
     const data = await response.json();
-    if (!data.ok) {
-      throw new Error(data.description || 'فشل إرسال الرسالة عبر تلغرام');
-    }
+    if (!data.ok) throw new Error(data.description || 'فشل إرسال الرسالة عبر تلغرام');
 
     return NextResponse.json({ success: true });
   } catch (error) {
