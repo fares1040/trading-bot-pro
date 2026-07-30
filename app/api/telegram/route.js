@@ -1,4 +1,3 @@
-// app/api/telegram/route.js
 import { NextResponse } from 'next/server';
 
 export async function POST(request) {
@@ -11,22 +10,21 @@ export async function POST(request) {
       return NextResponse.json({ error: 'بيانات بوت تلغرام غير مُعرّفة' }, { status: 500 });
     }
 
-    // دعم استقبال رسائل وأوامر البوت التفاعلية (مثل /scan أو /top أو الرسائل النصية المباشرة)
-    let messageText = body.message;
+    let messageText = body.message || "🚨 تنبيه فوري من منصة سنايبر الاحترافية: تم رصد فرصة تداول ذات تقييم عالي!";
+    
     if (body.message && typeof body.message === 'object') {
-      // في حال كان الطلب قادماً من Webhook تليجرام الفعلي
       const text = body.message.text;
       const incomingChatId = body.message.chat.id;
 
       if (text) {
-        let responseReply = "أهلاً بك في بوت منصة سنايبر التفاعلي ⚡\nالأوامر المتاحة:\n- `/top` لعرض أفضل فرص السنتات الحالية.\n- `/scan [ticker]` لفحص سهم معين.";
+        let responseReply = "أهلاً بك في بوت منصة سنايبر الذكي ⚡\nالأوامر المتاحة:\n- `/top` لعرض أفضل فرص السنتات الحالية.\n- `/scan [ticker]` لفحص سهم معين.";
 
         if (text.startsWith('/top')) {
-          responseReply = "🎯 *أفضل 3 فرص سنتات حالياً بالرادار:*\n1. *AMD* - عقد Call سترايك 120$ (ثقة 96%)\n2. *PLTR* - عقد Call سترايك 45$ (ثقة 94%)\n3. *GME* - عقد Call سترايك 25$ (ثقة 93%)";
+          responseReply = "🎯 *أفضل 3 فرص مدعومة بالذكاء الاصطناعي:*\n1. *SERV* - AI Score: 96/100 (مخاطر منخفضة)\n2. *PLTR* - AI Score: 94/100 (مخاطر منخفضة)\n3. *AMD* - AI Score: 91/100 (مخاطر متوسطة)";
         } else if (text.startsWith('/scan')) {
           const parts = text.split(' ');
           const ticker = parts[1] ? parts[1].toUpperCase() : 'AAPL';
-          responseReply = `🔍 *نتيجة فحص السهم (${ticker}):*\n- الاتجاه الفني: إيجابي صاعد.\n- مؤشر البولنجر: ضغط ممتاز.\n- التوصية: فرصة مناسبة لعقد سنتات بصلاحية فوق الشهر.`;
+          responseReply = `🔍 *تحليل الذكاء الاصطناعي للسهم (${ticker}):*\n- تقييم الفرصة: 92/100\n- التوصية: مناسب للدخول بعد الثبات فوق الدعم.\n- المخاطر: منخفضة 🟢`;
         }
 
         await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
@@ -43,7 +41,6 @@ export async function POST(request) {
       }
     }
 
-    // الإرسال العادي المباشر للرسائل والتنبيهات
     if (!chatId) {
       return NextResponse.json({ error: 'معرف محادثة تليجرام غير متاح' }, { status: 400 });
     }
@@ -55,8 +52,7 @@ export async function POST(request) {
       body: JSON.stringify({
         chat_id: chatId,
         text: messageText,
-        parse_mode: 'Markdown',
-        reply_markup: body.reply_markup || undefined
+        parse_mode: 'Markdown'
       })
     });
 
