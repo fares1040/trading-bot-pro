@@ -8,7 +8,6 @@ export default function HomePage() {
   const [riyadhTime, setRiyadhTime] = useState('');
   const [marketStatus, setMarketStatus] = useState('جاري الفحص...');
   
-  // مؤشرات السوق الحية
   const [indices, setIndices] = useState([
     { name: 'NASDAQ', value: '18,420.50', change: '+1.24%', isUp: true },
     { name: 'S&P 500', value: '5,580.20', change: '+0.68%', isUp: true },
@@ -16,7 +15,6 @@ export default function HomePage() {
     { name: 'VIX', value: '12.40', change: '-5.12%', isUp: false },
   ]);
 
-  // تحديث وقت الرياض وحالة السوق الحية
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
@@ -33,7 +31,7 @@ export default function HomePage() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#07090E', color: '#F8FAFC', fontFamily: 'sans-serif', direction: 'rtl', padding: '20px 30px' }}>
       
-      {/* 8) مباشر Widget شريط المؤشرات العالمي المباشر في أعلى الصفحة */}
+      {/* شريط المؤشرات العالمي المباشر */}
       <div style={{ display: 'flex', gap: '16px', overflowX: 'auto', marginBottom: '16px', paddingBottom: '4px' }}>
         {indices.map((idx, i) => (
           <div key={i} style={{ flex: '1', minWidth: '150px', backgroundColor: '#0B0F17', border: '1px solid #1F2636', borderRadius: '10px', padding: '8px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -48,13 +46,13 @@ export default function HomePage() {
         ))}
       </div>
 
-      {/* الشريط العلوي للهوية والتوقيت */}
+      {/* الشريط العلوي */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', backgroundColor: '#0B0F17', padding: '16px 24px', borderRadius: '16px', border: '1px solid #1F2636' }}>
         <div>
           <h1 style={{ color: '#FBBF24', fontSize: '22px', fontWeight: '900', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>🎯</span> منصة سنايبر الاحترافية <span style={{ fontSize: '12px', backgroundColor: '#2563EB', color: '#FFF', padding: '2px 8px', borderRadius: '6px' }}>COMMAND CENTER</span>
+            <span>🎯</span> منصة سنايبر الاحترافية <span style={{ fontSize: '12px', backgroundColor: '#2563EB', color: '#FFF', padding: '2px 8px', borderRadius: '6px' }}>AI COPILOT COMMAND</span>
           </h1>
-          <p style={{ color: '#94A3B8', fontSize: '12px' }}>رادار صائدي السنتات وعقود الخيارات طويلة المدى للتحوط الفوري واقتناص السيولة المخفية.</p>
+          <p style={{ color: '#94A3B8', fontSize: '12px' }}>مساعد التداول الذكي: يفسر، يقترح اتخاذ القرار، ويحلل السيولة المخفية لحظياً.</p>
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <div style={{ backgroundColor: '#07090E', padding: '8px 14px', borderRadius: '10px', border: '1px solid #1F2636', fontSize: '11px', color: '#34D399', fontWeight: 'bold' }}>
@@ -66,54 +64,55 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 3) لوحة التحكم الذكية العريضة في البداية AI Market Status */}
+      {/* لوحة تحكم الذكاء الاصطناعي العامة AI Market Status */}
       <div style={{ background: 'linear-gradient(90deg, #1E1B4B 0%, #0B0F17 100%)', border: '1px solid #3730A3', borderRadius: '16px', padding: '18px 24px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>
         <div>
-          <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px', color: '#818CF8', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>🧠 AI COMMAND STATION</span>
+          <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px', color: '#818CF8', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>🧠 AI COPILOT STATUS</span>
           <h2 style={{ fontSize: '18px', fontWeight: '900', color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            حالة السوق العامة: <span style={{ color: '#34D399' }}>🟢 إيجابي جداً (Bullish)</span>
+            حالة السوق العامة: <span style={{ color: '#34D399' }}>🟢 إيجابي جداً (Bullish) - 82%</span>
           </h2>
         </div>
-        <div style={{ display: 'flex', gap: '24px', textArrign: 'center' }}>
+        <div style={{ display: 'flex', gap: '24px', textAlign: 'center' }}>
           <div>
-            <div style={{ fontSize: '10px', color: '#94A3B8' }}>الزخم العام</div>
-            <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#38BDF8' }}>82%</div>
+            <div style={{ fontSize: '10px', color: '#94A3B8' }}>أفضل 3 فرص مقترحة</div>
+            <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#38BDF8' }}>SERV, PLTR, SOUN</div>
           </div>
           <div>
-            <div style={{ fontSize: '10px', color: '#94A3B8' }}>مستوى المخاطرة</div>
-            <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#34D399' }}>منخفض 🛡️</div>
-          </div>
-          <div>
-            <div style={{ fontSize: '10px', color: '#94A3B8' }}>أفضل قطاع اليوم</div>
-            <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#FBBF24' }}>Technology 💻</div>
+            <div style={{ fontSize: '10px', color: '#94A3B8' }}>مستوى المخاطرة العام</div>
+            <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#34D399' }}>منخفض 🟢</div>
           </div>
         </div>
       </div>
 
-      {/* 2) هيكل الكروت المتفاوتة (Bloomberg Style) - كرت رئيسي ضخم وكرتين جانبية */}
+      {/* الرادار والتحليلات المتقدمة */}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '20px' }}>
         
-        {/* الكرت الرئيسي الأكبر: الرادار والنبض الذكي */}
+        {/* الكرت الرئيسي: توصيات AI Copilot الفورية */}
         <div style={{ backgroundColor: '#0B0F17', border: '1px solid #1F2636', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative', overflow: 'hidden' }}>
-          {/* تأثير نبضة حية علوية لجلب الانتباه البصري */}
           <div style={{ position: 'absolute', top: '16px', left: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#EF4444', display: 'inline-block', animate: 'pulse 1s infinite' }}></span>
-            <span style={{ fontSize: '10px', color: '#EF4444', fontWeight: 'bold', fontFamily: 'monospace' }}>LIVE PULSE</span>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#34D399', display: 'inline-block' }}></span>
+            <span style={{ fontSize: '10px', color: '#34D399', fontWeight: 'bold', fontFamily: 'monospace' }}>AI COPILOT ACTIVE</span>
           </div>
 
           <div>
-            <div style={{ fontSize: '36px', marginBottom: '8px' }}>⚡</div>
-            <h3 style={{ color: '#FBBF24', fontSize: '20px', fontWeight: '900', marginBottom: '8px' }}>لوحة تحليلات الرادار والباكتيست المتقدمة</h3>
-            <p style={{ color: '#94A3B8', fontSize: '13px', lineHeight: '1.6', marginBottom: '24px', maxWidth: '80%' }}>
-              المحرك متصل الآن بمكتبة ياهو ترند لفحص أعلى سيولة حية، واقتناص انفجارات الـ 52 أسبوعاً مع احتساب أهداف الكلاستر وجدران الجاما ديناميكياً.
+            <div style={{ fontSize: '36px', marginBottom: '8px' }}>🤖</div>
+            <h3 style={{ color: '#FBBF24', fontSize: '20px', fontWeight: '900', marginBottom: '8px' }}>مساعد التداول الذكي (AI Copilot Recommendation)</h3>
+            <p style={{ color: '#94A3B8', fontSize: '13px', lineHeight: '1.6', marginBottom: '16px' }}>
+              السوق اليوم إيجابي بنسبة 82%. الذكاء الاصطناعي يحلل السيولة ويقترح أفضل قرار بناءً على الأرقام الحية:
             </p>
 
-            {/* إشعار عاجل منبثق مدمج يكسر جمود اللوحة */}
-            <div style={{ backgroundColor: '#07090E', borderLeft: '4px solid #FBBF24', padding: '12px 16px', borderRadius: '8px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ fontSize: '16px' }}>🚀</span>
-              <span style={{ fontSize: '12px', color: '#E2E8F0' }}>
-                تنبيه ذكي فوري: سهم <strong style={{ color: '#FBBF24' }}>SERV</strong> يسجل انفجار تداول حجم <strong style={{ color: '#34D399' }}>x5</strong> مع زخم أوبشن صاعد!
-              </span>
+            {/* تفاصيل التوصية المثالية المقترحة */}
+            <div style={{ backgroundColor: '#07090E', border: '1px solid #3730A3', padding: '16px', borderRadius: '12px', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ color: '#FBBF24', fontWeight: 'bold' }}>⭐ التوصية الأولى: SERV (AI Score: 97/100)</span>
+                <span style={{ color: '#34D399', fontSize: '11px', fontWeight: 'bold' }}>⬆️ صعود احتمالية 78%</span>
+              </div>
+              <div style={{ fontSize: '12px', color: '#E2E8F0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div>🔹 أفضل دخول: <strong style={{ color: '#38BDF8' }}>بعد اختراق 18.45</strong></div>
+                <div>🛡️ وقف الخسارة: <strong style={{ color: '#EF4444' }}>17.80</strong></div>
+                <div>🎯 الهدف الأول: <strong style={{ color: '#34D399' }}>19.60</strong></div>
+                <div>📊 تقييم المخاطر: <strong style={{ color: '#34D399' }}>منخفض 🟢</strong></div>
+              </div>
             </div>
           </div>
 
@@ -125,53 +124,49 @@ export default function HomePage() {
           </Link>
         </div>
 
-        {/* الكروت الجانبية المتوسطة - مرتبة عمودياً كملخص سريع */}
+        {/* الكروت الجانبية */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           
-          {/* كرت إحصائيات الفرص المفصل المحدث */}
           <div style={{ backgroundColor: '#0B0F17', border: '1px solid #1F2636', borderRadius: '16px', padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
               <h4 style={{ color: '#38BDF8', fontSize: '14px', fontWeight: 'bold' }}>🎯 حالة الرادار الفوري</h4>
-              <span style={{ backgroundColor: '#1E293B', color: '#38BDF8', padding: '2px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: 'bold' }}>تحديث لحظي</span>
+              <span style={{ backgroundColor: '#1E293B', color: '#38BDF8', padding: '2px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: 'bold' }}>AI Filtered</span>
             </div>
             
-            <div style={{ color: '#34D399', fontSize: '24px', fontWeight: '900', marginBottom: '12px' }}>🔥 10 فرص نشطة</div>
+            <div style={{ color: '#34D399', fontSize: '24px', fontWeight: '900', marginBottom: '12px' }}>🔥 10 فرص ذكية</div>
             
-            {/* تفصيل الفرص الذكي بناءً على مستوى الجودة */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px', color: '#94A3B8' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', backgroundColor: '#07090E', borderRadius: '6px' }}>
-                <span>🔴 فرص عالية الجودة والأمان:</span>
-                <strong style={{ color: '#EF4444' }}>3 صفقات</strong>
+                <span>🟢 AI Score 90+:</span>
+                <strong style={{ color: '#34D399' }}>3 صفقات</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', backgroundColor: '#07090E', borderRadius: '6px' }}>
-                <span>🟠 فرص متوسطة المخاطرة:</span>
+                <span>🟡 AI Score 80-89:</span>
                 <strong style={{ color: '#FBBF24' }}>4 صفقات</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', backgroundColor: '#07090E', borderRadius: '6px' }}>
-                <span>🟢 فرص ارتداد منخفضة:</span>
-                <strong style={{ color: '#34D399' }}>3 صفقات</strong>
+                <span>🟠 AI Score تحت 80:</span>
+                <strong style={{ color: '#EF4444' }}>3 صفقات</strong>
               </div>
             </div>
           </div>
 
-          {/* كرت إدارة المخاطر */}
           <div style={{ backgroundColor: '#0B0F17', border: '1px solid #1F2636', borderRadius: '16px', padding: '20px', flex: '1', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             <div>
-              <h4 style={{ color: '#C084FC', fontSize: '14px', fontWeight: 'bold', marginBottom: '6px' }}>🛡️ إدارة أمان المحفظة</h4>
-              <p style={{ color: '#94A3B8', fontSize: '11px', lineHeight: '1.5' }}>تتبع العقود الحالية وحساب نسب التآكل الزمني تلقائياً لحمايتك أثناء الدوام الرسمي.</p>
+              <h4 style={{ color: '#C084FC', fontSize: '14px', fontWeight: 'bold', marginBottom: '6px' }}>🛡️ حماية رأس المال الذكية</h4>
+              <p style={{ color: '#94A3B8', fontSize: '11px', lineHeight: '1.5' }}>الذكاء الاصطناعي يراقب الـ Theta Decay وتآكل العقود تلقائياً لحمايتك.</p>
             </div>
             <div style={{ color: '#FBBF24', fontSize: '12px', fontWeight: 'bold', backgroundColor: '#07090E', padding: '10px', borderRadius: '8px', border: '1px solid #1F2636', textAlign: 'center', marginTop: '10px' }}>
-              خوارزمية حماية رأس المال: نشطة ✅
+              حماية التوصيات: نشطة ✅
             </div>
           </div>
 
         </div>
       </div>
 
-      {/* قسم الإرشادات السفلي */}
       <div style={{ backgroundColor: '#0B0F17', border: '1px solid #1F2636', borderRadius: '16px', padding: '16px 24px', textAlign: 'center' }}>
         <p style={{ color: '#94A3B8', fontSize: '12px', margin: '0' }}>
-          💡 <strong>إشعار هندسي:</strong> تم ربط المنصة بذكاء اصطناعي تحليلي يستبعد قطاعات البيوتك الضعيفة تلقائياً، مع توليد تواريخ انتهاء مرنة تتجاوز 30 يوماً لتفادي الـ Theta Decay.
+          💡 <strong>AI Copilot Note:</strong> تم تحويل المنصة بنجاح إلى مساعد تداول يعتمد على تحليل القرار والتقييمات الرقمية الذكية (AI Score) بدلاً من مجرد عرض الأرقام العادية.
         </p>
       </div>
 
