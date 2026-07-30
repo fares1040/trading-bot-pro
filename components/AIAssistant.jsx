@@ -42,7 +42,7 @@ export default function SmartManagementHub() {
   return (
     <div className="space-y-6 p-6 bg-[#090A0F] text-slate-100 rounded-2xl border border-slate-800">
       
-      {/* 10) إضافة لوحة استراتيجية الذكاء الاصطناعي اليومية الدائمة الفعالة الصريحة */}
+      {/* توجيهات مستشار سنايبر اليومية */}
       <div className="p-4 rounded-xl border border-indigo-500/30 bg-indigo-950/20">
         <h4 className="text-sm font-black text-indigo-400 flex items-center gap-2 mb-2">
           🤖 توجيهات مستشار سنايبر الـ AI لليوم
@@ -118,7 +118,7 @@ export default function SmartManagementHub() {
           </button>
         ) : (
           <div className="w-80 h-96 bg-slate-950 border border-indigo-500/50 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-            <div className="bg-slate-900 p-3 border-b border-slate-800 flex justify-between items-center">
+            <div className="w-full bg-slate-900 p-3 border-b border-slate-800 flex justify-between items-center">
               <span className="text-xs font-bold text-indigo-400">🤖 لوحة محادثة سنايبر AI</span>
               <button onClick={() => setIsOpenAI(false)} className="text-slate-400 hover:text-white text-xs">✕</button>
             </div>
