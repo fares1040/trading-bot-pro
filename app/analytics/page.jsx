@@ -1,193 +1,158 @@
-// app/analytics/page.jsx
+// components/AIAssistant.jsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+import React, { useState } from 'react';
 
-export default function AnalyticsPage() {
-  const [activeTab, setActiveTab] = useState('radar');
-  const [opportunities, setOpportunities] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [riyadhTime, setRiyadhTime] = useState('');
-  const [selectedStock, setSelectedStock] = useState(null);
+export default function SmartManagementHub() {
+  const [portfolioSize, setPortfolioSize] = useState(10000);
+  const [riskPercent] = useState(2);
+  const [entryPrice, setEntryPrice] = useState(15);
+  const [stopLossPrice, setStopLossPrice] = useState(14.2);
 
-  const getFlexibleExpiryDate = (daysAhead = 45) => {
-    const d = new Date();
-    d.setDate(d.getDate() + daysAhead);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
+  const riskAmount = (portfolioSize * (riskPercent / 100)).toFixed(2);
+  const riskPerShare = (entryPrice - stopLossPrice).toFixed(2);
+  const suggestedShares = riskPerShare > 0 ? Math.floor(riskAmount / riskPerShare) : 0;
 
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setRiyadhTime(now.toLocaleTimeString('en-US', { timeZone: 'Asia/Riyadh', hour12: true }));
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
+  const [dcaTotalAmount, setDcaTotalAmount] = useState(3000);
+  const amountPerTranche = (dcaTotalAmount / 3).toFixed(2);
 
-  useEffect(() => {
-    const fetchLiveAnalytics = async () => {
-      try {
-        const res = await fetch('/api/stocks', { cache: 'no-store' });
-        await res.json();
-        
-        const dynamicExpiry = getFlexibleExpiryDate(45);
-        
-        // القائمة مع الفلترة الصارمة (أقل من 100 دولار فقط)
-        const allStocks = [
-          { ticker: 'PFE', icon: '💊', sector: 'رعاية صحية', price: 25.15, ai_score: '93/100', momentum: 88, volume: 75, breakout: 85, target_price: '32.00', option_idea: `عقد Call سترايك 26$ (${dynamicExpiry})` },
-          { ticker: 'GME', icon: '🎮', sector: 'تجزئة وألعاب', price: 21.84, ai_score: '93/100', momentum: 88, volume: 75, breakout: 85, target_price: '28.00', option_idea: `عقد Call سترايك 22$ (${dynamicExpiry})` },
-          { ticker: 'NIO', icon: '🚙', sector: 'سيارات كهربائية', price: 4.75, ai_score: '91/100', momentum: 88, volume: 75, breakout: 85, target_price: '6.50', option_idea: `عقد Call سترايك 5$ (${dynamicExpiry})` },
-          { ticker: 'F', icon: '🚗', sector: 'سيارات تقليدية', price: 10.32, ai_score: '91/100', momentum: 88, volume: 75, breakout: 85, target_price: '13.00', option_idea: `عقد Call سترايك 11$ (${dynamicExpiry})` },
-          { ticker: 'DIS', icon: '🎬', sector: 'ترفيه وإعلام', price: 98.40, ai_score: '91/100', momentum: 88, volume: 75, breakout: 85, target_price: '115.00', option_idea: `عقد Call سترايك 100$ (${dynamicExpiry})` }
-        ].filter(item => item.price < 100);
+  const [isOpenAI, setIsOpenAI] = useState(false);
+  const [chatQuery, setChatQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [chatHistory, setChatHistory] = useState([
+    { sender: 'ai', text: 'أهلاً بك يا بطل! أنا مساعد سنايبر الذكي. اسألني عن أي سهم أو صفقة (مثلاً: تحليل سهم SERV الآن مع السعر الفعلي).' }
+  ]);
 
-        setOpportunities(allStocks);
-      } catch (err) {
-        console.error('Live Sync Error:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!chatQuery.trim() || isLoading) return;
 
-    fetchLiveAnalytics();
-    const liveInterval = setInterval(fetchLiveAnalytics, 10000);
-    return () => clearInterval(liveInterval);
-  }, []);
+    const userMsg = chatQuery;
+    setChatHistory(prev => [...prev, { sender: 'user', text: userMsg }]);
+    setChatQuery('');
+    setIsLoading(true);
 
-  const renderProgressBar = (val, color = '#34D399') => {
-    const filled = Math.round(val / 10);
-    const empty = 10 - filled;
-    return (
-      <div style={{ fontFamily: 'monospace', fontSize: '11px', color: color }}>
-        {'█'.repeat(filled) + '░'.repeat(empty)} <span style={{ color: '#FFF', fontWeight: 'bold' }}>{val}%</span>
-      </div>
-    );
+    try {
+      // ربط الشات بمسار الـ API الحقيقي لتحليل السهم بناءً على المدخلات وسعر الدخول الحالي
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: userMsg, currentPrice: entryPrice })
+      });
+
+      const data = await response.json();
+      const aiReply = data.reply || data.analysis || 'عذراً، لم أتمكن من جلب التحليل المباشر حالياً.';
+
+      setChatHistory(prev => [...prev, { sender: 'ai', text: aiReply }]);
+    } catch (error) {
+      setChatHistory(prev => [...prev, { sender: 'ai', text: 'حدث خطأ في الاتصال بخادم التحليل الذكي.' }]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#07090E', color: '#F8FAFC', fontFamily: 'sans-serif', direction: 'rtl', padding: '30px' }}>
+    <div className="space-y-6 p-6 bg-[#090A0F] text-slate-100 rounded-2xl border border-slate-800">
       
-      {/* الشريط العلوي */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', backgroundColor: '#0B0F17', padding: '16px 24px', borderRadius: '16px', border: '1px solid #1F2636', flexWrap: 'wrap', gap: '15px' }}>
-        <div>
-          <h1 style={{ color: '#FBBF24', fontSize: '16px', fontWeight: '900', marginBottom: '4px' }}>📊 لوحة تحليلات سنايبر والتحكم الشامل</h1>
-          <p style={{ color: '#94A3B8', fontSize: '11px' }}>مسح متقدم لكواتم أوامر فايناس واختراقات القمم التاريخية (الأسهم أقل من 100$ فقط).</p>
-        </div>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <div style={{ backgroundColor: '#07090E', padding: '6px 12px', borderRadius: '8px', border: '1px solid #1F2636', fontSize: '11px', color: '#FBBF24', fontFamily: 'monospace' }}>
-            🇸🇦 الرياض: {riyadhTime || '...'}
+      {/* لوحة استراتيجية الذكاء الاصطناعي اليومية */}
+      <div className="p-4 rounded-xl border border-indigo-500/30 bg-indigo-950/20">
+        <h4 className="text-sm font-black text-indigo-400 flex items-center gap-2 mb-2">
+          🤖 توجيهات مستشار سنايبر الـ AI لليوم
+        </h4>
+        <div className="text-xs text-slate-300 space-y-1">
+          <div className="flex items-center gap-2 text-emerald-400 font-semibold">
+            <span>✔ قطاعات مستهدفة وعالية السيولة:</span> AI Stocks / Semiconductor / Small Caps 🚀
           </div>
-          <Link href="/" style={{ backgroundColor: '#FBBF24', color: '#000000', padding: '8px 16px', borderRadius: '8px', textDecoration: 'none', fontWeight: '900', fontSize: '11px' }}>
-            🏠 العودة للرئيسية
-          </Link>
+          <div className="flex items-center gap-2 text-rose-400 font-semibold">
+            <span>❌ قطاعات مستبعدة لضعف الرواج:</span> Biotech (تم الإخراج التلقائي لتفادي جمود رأس المال)
+          </div>
         </div>
       </div>
 
-      {/* أزرار التبويب المفعلة بالكامل */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
-        <button onClick={() => { setActiveTab('radar'); setSelectedStock(null); }} style={{ backgroundColor: activeTab === 'radar' ? '#FBBF24' : '#0B0F17', color: activeTab === 'radar' ? '#000' : '#FFF', padding: '8px 16px', borderRadius: '8px', border: '1px solid #1F2636', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' }}>🟡 رادار العقود النشطة</button>
-        <button onClick={() => { setActiveTab('swing'); setSelectedStock(null); }} style={{ backgroundColor: activeTab === 'swing' ? '#FBBF24' : '#0B0F17', color: activeTab === 'swing' ? '#000' : '#FFF', padding: '8px 16px', borderRadius: '8px', border: '1px solid #1F2636', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' }}>📊 رادار صفقات السوينغ (أسهم &gt; 10$)</button>
-        <button onClick={() => { setActiveTab('backtest'); setSelectedStock(null); }} style={{ backgroundColor: activeTab === 'backtest' ? '#FBBF24' : '#0B0F17', color: activeTab === 'backtest' ? '#000' : '#FFF', padding: '8px 16px', borderRadius: '8px', border: '1px solid #1F2636', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' }}>📈 محاكاة التداول التراجعي (Backtesting)</button>
-        <button onClick={() => { setActiveTab('paper'); setSelectedStock(null); }} style={{ backgroundColor: activeTab === 'paper' ? '#FBBF24' : '#0B0F17', color: activeTab === 'paper' ? '#000' : '#FFF', padding: '8px 16px', borderRadius: '8px', border: '1px solid #1F2636', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' }}>🧪 المحاكي الافتراضي (Paper Trading)</button>
+      <div>
+        <h3 className="text-lg font-black text-purple-400 flex items-center gap-2">
+          🧠 أدوات القيادة الذكية وإدارة حجم الصفقات
+        </h3>
+        <p className="text-xs text-slate-400 mt-1">تنسيق فوري للمخاطر وتخطيط الدفعات الآمنة لحماية صفقات السنتات والأوبشنز.</p>
       </div>
 
-      {/* البطاقات الإحصائية العلوية */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-        <div style={{ backgroundColor: '#0B0F17', border: '1px solid #1F2636', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
-          <div style={{ fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>⚡ القطاعات المسيترة</div>
-          <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#FBBF24' }}>تكنولوجيا / سيارات</div>
-        </div>
-        <div style={{ backgroundColor: '#0B0F17', border: '1px solid #1F2636', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
-          <div style={{ fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>🎯 متوسط العائد المستهدف</div>
-          <div style={{ fontSize: '16px', fontWeight: '900', color: '#34D399' }}>+210%</div>
-        </div>
-        <div style={{ backgroundColor: '#0B0F17', border: '1px solid #1F2636', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
-          <div style={{ fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>💎 إجمالي الفرص النشطة بالرادار</div>
-          <div style={{ fontSize: '16px', fontWeight: '900', color: '#38BDF8' }}>{opportunities.length} أسهم (&lt;100$)</div>
-        </div>
-        <div style={{ backgroundColor: '#0B0F17', border: '1px solid #1F2636', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
-          <div style={{ fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>📈 نسبة النجاح التقنية (Win Rate)</div>
-          <div style={{ fontSize: '16px', fontWeight: '900', color: '#FBBF24' }}>81%</div>
-        </div>
-      </div>
-
-      {/* عرض محتوى التبويبات */}
-      {activeTab === 'backtest' ? (
-        <div style={{ backgroundColor: '#0B0F17', border: '1px solid #1F2636', borderRadius: '16px', padding: '30px', textAlign: 'center' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: '900', color: '#FBBF24', marginBottom: '10px' }}>📈 لوحة محاكاة التداول التراجعي (Backtesting Engine)</h3>
-          <p style={{ fontSize: '12px', color: '#94A3B8' }}>جاري اختبار الاستراتيجيات الحالية على بيانات تاريخية لآخر 5 سنوات بنجاح تام...</p>
-        </div>
-      ) : activeTab === 'paper' ? (
-        <div style={{ backgroundColor: '#0B0F17', border: '1px solid #1F2636', borderRadius: '16px', padding: '30px', textAlign: 'center' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: '900', color: '#FBBF24', marginBottom: '10px' }}>🧪 المحاكي الافتراضي للتداول الحقيقي (Paper Trading)</h3>
-          <p style={{ fontSize: '12px', color: '#94A3B8' }}>المحفظة الافتراضية نشطة. يمكنك تنفيذ عقود تجريبية ومتابعة الأرباح لحظياً.</p>
-        </div>
-      ) : (
-        <>
-          {selectedStock && (
-            <div style={{ backgroundColor: '#0B0F17', border: '1px solid #3B82F6', borderRadius: '12px', padding: '20px', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <h3 style={{ fontSize: '15px', fontWeight: '900', color: '#FBBF24' }}>تفاصيل فحص السهم: {selectedStock.ticker}</h3>
-                <button onClick={() => setSelectedStock(null)} style={{ backgroundColor: '#EF4444', color: '#FFF', border: 'none', padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px' }}>إغلاق ✕</button>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* حاسبة المخاطر اللحظية */}
+        <div className="p-5 rounded-xl border border-slate-800 bg-slate-900/50 backdrop-blur-md">
+          <h4 className="text-sm font-semibold text-emerald-400 mb-3">📊 حاسبة حجم الصفقة (Position Sizing)</h4>
+          <div className="space-y-2 text-xs">
+            <div>
+              <label className="text-slate-400 block mb-1">حجم المحفظة الإجمالي ($):</label>
+              <input type="number" value={portfolioSize} onChange={(e) => setPortfolioSize(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white font-mono" />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-slate-400 block mb-1">سعر الدخول ($):</label>
+                <input type="number" value={entryPrice} onChange={(e) => setEntryPrice(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white font-mono" />
               </div>
-              <div style={{ fontSize: '12px', color: '#94A3B8', display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-                <span>السعر الحالي: <strong style={{ color: '#34D399' }}>${selectedStock.price}</strong></span>
-                <span>الهدف الفني: <strong style={{ color: '#FBBF24' }}>${selectedStock.target_price}</strong></span>
-                <span>الفكرة المقترحة: <strong style={{ color: '#38BDF8' }}>{selectedStock.option_idea}</strong></span>
+              <div>
+                <label className="text-slate-400 block mb-1">وقف الخسارة ($):</label>
+                <input type="number" value={stopLossPrice} onChange={(e) => setStopLossPrice(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white font-mono" />
               </div>
             </div>
-          )}
-
-          <div style={{ backgroundColor: '#0B0F17', border: '1px solid #1F2636', borderRadius: '16px', padding: '20px' }}>
-            <h3 style={{ fontSize: '13px', fontWeight: 'bold', color: '#FBBF24', marginBottom: '16px' }}>📋 سجل عقود السنتات والقمم التاريخية (أقل من 100 دولار فقط)</h3>
-            
-            {loading ? (
-              <div style={{ textAlign: 'center', padding: '30px', color: '#94A3B8', fontSize: '12px' }}>⏳ جاري تحميل البيانات المباشرة...</div>
-            ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', textAlign: 'right', fontSize: '11px', borderCollapse: 'collapse', minWidth: '600px' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid #1F2636', color: '#94A3B8' }}>
-                      <th style={{ padding: '10px' }}>السهم</th>
-                      <th style={{ padding: '10px' }}>الزخم (Momentum)</th>
-                      <th style={{ padding: '10px' }}>حجم السيولة (Volume)</th>
-                      <th style={{ padding: '10px' }}>جاهزية الاختراق</th>
-                      <th style={{ padding: '10px' }}>تقييم الـ AI والنجوم</th>
-                      <th style={{ padding: '10px' }}>السعر الحالي</th>
-                      <th style={{ padding: '10px' }}>إجراء</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {opportunities.map((item, idx) => (
-                      <tr key={idx} style={{ borderBottom: '1px solid #1F2636' }}>
-                        <td style={{ padding: '10px', fontWeight: '900', color: '#FBBF24' }}>{item.icon} {item.ticker}</td>
-                        <td style={{ padding: '10px' }}>{renderProgressBar(item.momentum, '#38BDF8')}</td>
-                        <td style={{ padding: '10px' }}>{renderProgressBar(item.volume, '#C084FC')}</td>
-                        <td style={{ padding: '10px' }}>{renderProgressBar(item.breakout, '#34D399')}</td>
-                        <td style={{ padding: '10px' }}>
-                          <div style={{ color: '#FBBF24', fontSize: '10px' }}>★★★★★</div>
-                          <div style={{ color: '#34D399', fontSize: '9px', fontFamily: 'monospace' }}>AI SCORE: {item.ai_score}</div>
-                        </td>
-                        <td style={{ padding: '10px', color: '#FFF', fontWeight: 'bold' }}>
-                          <span style={{ color: '#34D399' }}>مستقر </span>${item.price}
-                        </td>
-                        <td style={{ padding: '10px' }}>
-                          <button onClick={() => setSelectedStock(item)} style={{ backgroundColor: '#1E293B', color: '#FBBF24', border: '1px solid #334155', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '10px', fontWeight: 'bold' }}>
-                            فحص وهدف الصفقة ➔
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <div className="p-3 rounded bg-slate-950 border border-slate-800 mt-3 font-mono text-cyan-300 text-[11px]">
+              <div className="flex justify-between"><span>المبلغ المعرض للمخاطر (2%):</span> <strong className="text-white">${riskAmount}</strong></div>
+              <div className="flex justify-between"><span>عدد الأسهم المقترح:</span> <strong className="text-emerald-400">{suggestedShares} سهم</strong></div>
+            </div>
           </div>
-        </>
-      )}
+        </div>
+
+        {/* حاسبة DCA */}
+        <div className="p-5 rounded-xl border border-slate-800 bg-slate-900/50 backdrop-blur-md flex flex-col justify-between">
+          <div>
+            <h4 className="text-sm font-semibold text-cyan-400 mb-3">🛡️ حاسبة التجميع وتوزيع السيولة (DCA Planner)</h4>
+            <div className="space-y-2 text-xs">
+              <div>
+                <label className="text-slate-400 block mb-1">المبلغ المخصص للاستثمار ($):</label>
+                <input type="number" value={dcaTotalAmount} onChange={(e) => setDcaTotalAmount(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white font-mono" />
+              </div>
+              <div className="p-3 rounded bg-slate-950 border border-slate-800 text-slate-300 text-[11px]">
+                <div className="flex justify-between"><span>مبلغ الدفعة الواحد (من 3 دفعات):</span> <strong className="text-emerald-400">${amountPerTranche}</strong></div>
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 p-2 rounded bg-purple-950/40 border border-purple-500/20 text-[10px] text-purple-300">
+            🔔 رادار مسح الارتدادات يبحث لك عن قيعان 52 أسبوع للتجميع الفوري الآمن.
+          </div>
+        </div>
+      </div>
+
+      {/* شات البوت الذكي العائم */}
+      <div className="fixed bottom-6 left-6 z-50">
+        {!isOpenAI ? (
+          <button onClick={() => setIsOpenAI(true)} className="px-5 py-3 bg-gradient-to-r from-emerald-600 to-indigo-600 text-white rounded-full shadow-2xl hover:scale-105 transition-all text-xs font-bold border border-indigo-400/30">
+            🤖 اسأل مستشار سنايبر AI
+          </button>
+        ) : (
+          <div className="w-80 h-96 bg-slate-950 border border-indigo-500/50 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+            <div className="bg-slate-900 p-3 border-b border-slate-800 flex justify-between items-center">
+              <span className="text-xs font-bold text-indigo-400">🤖 لوحة محادثة سنايبر AI</span>
+              <button onClick={() => setIsOpenAI(false)} className="text-slate-400 hover:text-white text-xs">✕</button>
+            </div>
+            <div className="flex-1 p-3 overflow-y-auto space-y-2 text-xs">
+              {chatHistory.map((msg, i) => (
+                <div key={i} className={`p-2 rounded-lg max-w-[85%] ${msg.sender === 'user' ? 'bg-indigo-900/40 text-indigo-200 ml-auto' : 'bg-slate-900 text-slate-200'}`}>
+                  {msg.text}
+                </div>
+              ))}
+              {isLoading && (
+                <div className="p-2 rounded-lg max-w-[85%] bg-slate-900 text-indigo-400 animate-pulse">
+                  جاري تحليل الأسعار والسيولة الحية...
+                </div>
+              )}
+            </div>
+            <form onSubmit={handleSendMessage} className="p-2 border-t border-slate-800 flex gap-1 bg-slate-900">
+              <input type="text" placeholder="اكتب اسم السهم لمعرفة سبب الصيد الفني..." value={chatQuery} onChange={(e) => setChatQuery(e.target.value)} disabled={isLoading} className="flex-1 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-white" />
+              <button type="submit" disabled={isLoading} className="px-3 py-1 bg-indigo-600 text-white rounded text-xs font-bold disabled:opacity-50">إرسال</button>
+            </form>
+          </div>
+        )}
+      </div>
 
     </div>
   );
