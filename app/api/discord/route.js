@@ -1,3 +1,4 @@
+// app/api/discord/route.js
 import { NextResponse } from 'next/server';
 
 export async function POST(request) {
@@ -15,9 +16,7 @@ export async function POST(request) {
       body: JSON.stringify({ content: message || "🚨 تنبيه تداول ذكي جديد من منصة سنايبر." }),
     });
 
-    if (!response.ok) {
-      throw new Error('فشل الإرسال إلى ديسكورد');
-    }
+    if (!response.ok) throw new Error('فشل الإرسال إلى ديسكورد');
 
     return NextResponse.json({ success: true, message: 'تم إرسال التقرير لديسكورد بنجاح!' });
   } catch (error) {
