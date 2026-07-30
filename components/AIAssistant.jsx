@@ -18,31 +18,42 @@ export default function SmartManagementHub() {
 
   const [isOpenAI, setIsOpenAI] = useState(false);
   const [chatQuery, setChatQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [chatHistory, setChatHistory] = useState([
-    { sender: 'ai', text: 'أهلاً بك يا بطل! أنا مساعد سنايبر الذكي. اسألني عن أي سهم أو صفقة (مثلاً: لماذا اخترت سهم SERV الآن؟)' }
+    { sender: 'ai', text: 'أهلاً بك يا بطل! أنا مساعد سنايبر الذكي. اسألني عن أي سهم أو صفقة (مثلاً: تحليل سهم SERV الآن مع السعر الفعلي).' }
   ]);
 
-  const handleSendMessage = (e) => {
+  const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!chatQuery.trim()) return;
+    if (!chatQuery.trim() || isLoading) return;
 
     const userMsg = chatQuery;
     setChatHistory(prev => [...prev, { sender: 'user', text: userMsg }]);
     setChatQuery('');
+    setIsLoading(true);
 
-    setTimeout(() => {
-      let aiReply = 'بناءً على مسح ياهو للسيولة، السهم مستقر فوق مناطق الدعم الفنية وتجميع الكلاستر الهيكلي ممتاز.';
-      if (userMsg.toUpperCase().includes('SERV')) {
-        aiReply = 'سهم SERV يمتلك AI Score يبلغ 98/100 نتيجة لانفجار الفوليوم التداولي بمعدل 5 أضعاف مع تدفق سيولة دارك بول غير معلنة.';
-      }
+    try {
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: userMsg, currentPrice: entryPrice })
+      });
+
+      const data = await response.json();
+      const aiReply = data.reply || data.analysis || 'عذراً، لم أتمكن من جلب التحليل المباشر حالياً.';
+
       setChatHistory(prev => [...prev, { sender: 'ai', text: aiReply }]);
-    }, 800);
+    } catch (error) {
+      setChatHistory(prev => [...prev, { sender: 'ai', text: 'حدث خطأ في الاتصال بخادم التحليل الذكي.' }]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="space-y-6 p-6 bg-[#090A0F] text-slate-100 rounded-2xl border border-slate-800">
+    <div className="min-h-screen space-y-6 p-6 bg-[#090A0F] text-slate-100 rounded-2xl border border-slate-800">
       
-      {/* توجيهات مستشار سنايبر اليومية */}
+      {/* لوحة استراتيجية الذكاء الاصطناعي اليومية */}
       <div className="p-4 rounded-xl border border-indigo-500/30 bg-indigo-950/20">
         <h4 className="text-sm font-black text-indigo-400 flex items-center gap-2 mb-2">
           🤖 توجيهات مستشار سنايبر الـ AI لليوم
@@ -118,7 +129,7 @@ export default function SmartManagementHub() {
           </button>
         ) : (
           <div className="w-80 h-96 bg-slate-950 border border-indigo-500/50 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-            <div className="w-full bg-slate-900 p-3 border-b border-slate-800 flex justify-between items-center">
+            <div className="bg-slate-900 p-3 border-b border-slate-800 flex justify-between items-center">
               <span className="text-xs font-bold text-indigo-400">🤖 لوحة محادثة سنايبر AI</span>
               <button onClick={() => setIsOpenAI(false)} className="text-slate-400 hover:text-white text-xs">✕</button>
             </div>
@@ -128,10 +139,15 @@ export default function SmartManagementHub() {
                   {msg.text}
                 </div>
               ))}
+              {isLoading && (
+                <div className="p-2 rounded-lg max-w-[85%] bg-slate-900 text-indigo-400 animate-pulse">
+                  جاري تحليل الأسعار والسيولة الحية...
+                </div>
+              )}
             </div>
             <form onSubmit={handleSendMessage} className="p-2 border-t border-slate-800 flex gap-1 bg-slate-900">
-              <input type="text" placeholder="اكتب اسم السهم لمعرفة سبب الصيد الفني..." value={chatQuery} onChange={(e) => setChatQuery(e.target.value)} className="flex-1 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-white" />
-              <button type="submit" className="px-3 py-1 bg-indigo-600 text-white rounded text-xs font-bold">إرسال</button>
+              <input type="text" placeholder="اكتب اسم السهم لمعرفة سبب الصيد الفني..." value={chatQuery} onChange={(e) => setChatQuery(e.target.value)} disabled={isLoading} className="flex-1 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-white" />
+              <button type="submit" disabled={isLoading} className="px-3 py-1 bg-indigo-600 text-white rounded text-xs font-bold disabled:opacity-50">إرسال</button>
             </form>
           </div>
         )}
