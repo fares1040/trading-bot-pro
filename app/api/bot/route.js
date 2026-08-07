@@ -39,24 +39,4 @@ export async function POST(request) {
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-}        details: `ChatID: ${chatId} | Command: ${text}`
-      }
-    ]);
-
-    return NextResponse.json({ status: 'Success', reply: responseText, chatId }, { status: 200 });
-    
-  } catch (error) {
-    console.error('Error processing request:', error);
-    
-    // تسجيل الخطأ في القاعدة أيضاً
-    await supabase.from('execution_logs').insert([
-      {
-        task_name: 'telegram_bot_error',
-        status: 'error',
-        details: error.message
-      }
-    ]);
-
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-  }
 }
