@@ -105,7 +105,7 @@ export async function GET(request) {
 
           swingOpportunities.push(swingObj);
 
-          if (Bolt Database) {
+          if (supabase) {
             await supabase.from('swing_signals').insert([swingObj]).catch(() => {});
           }
         }
