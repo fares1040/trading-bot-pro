@@ -11,7 +11,7 @@ async function fetchLiveStockData(symbol) {
     });
     const json = await res.json();
     const meta = json?.chart?.result?.[0]?.meta;
-    
+
     const currentPrice = meta?.regularMarketPrice || meta?.chartPreviousClose || 100;
     const prevClose = meta?.chartPreviousClose || currentPrice;
     const volume = meta?.regularMarketVolume || meta?.volume || 5000000;
@@ -28,6 +28,76 @@ async function fetchLiveStockData(symbol) {
   }
 }
 
+const radarConfigs = {
+  cents: {
+    tickers: ['SERV', 'NVDA', 'TSLA', 'PLTR', 'AMD', 'SOFI'],
+    title: 'رادار مركز القيادة الذكي للفرص',
+    promptIntro: 'You are an elite quantitative trading AI copilot. Analyze the following real-time stock data for an advanced breakout scanner.',
+    schemaExample: `[
+          {
+            "ticker": "SYMBOL",
+            "aiScore": 94,
+            "momentum": 85,
+            "volumeMultiplier": "x3.2",
+            "riskLevel": "منخفض",
+            "directionProbability": "⬆️ صعود 78%",
+            "recommendation": "الدخول بعد الاختراق المؤكد",
+            "signal": "اختراق حاد للمقاومة مع تدفق سيولة"
+          }
+        ]`
+  },
+  darkpool_under_100: {
+    tickers: ['NVDA', 'AMD', 'SOFI', 'PLTR', 'INTC', 'MARA', 'RIOT', 'CLSK', 'GME', 'AMC', 'HOOD', 'NIO', 'LCID', 'RIVN', 'SNDL', 'TLRY'],
+    title: 'رادار السيولة المؤسسية (Dark Pool) — أسهم تحت 100$',
+    promptIntro: 'You are an elite institutional flow analyst. Analyze the following real-time stock data to detect potential dark pool accumulation and institutional interest signals.',
+    schemaExample: `[
+          {
+            "ticker": "SYMBOL",
+            "aiScore": 90,
+            "momentum": 82,
+            "volumeMultiplier": "x2.8",
+            "riskLevel": "متوسط",
+            "directionProbability": "⬆️ صعود 75% / ⬇️ هبوط 25%",
+            "recommendation": "مراقبة تدفق السيولة المؤسسية قبل الدخول",
+            "signal": "حجم غير معتاد يشير لتجميع مؤسسي محتمل"
+          }
+        ]`
+  },
+  gaps: {
+    tickers: ['NVDA', 'AMD', 'TSLA', 'SOFI', 'PLTR', 'HOOD', 'MARA', 'RIOT', 'GME', 'AMC', 'NIO', 'LCID', 'RIVN', 'SNAP', 'INTC'],
+    title: 'رادار الفجوات السعرية (Gaps) — فرص الصباح',
+    promptIntro: 'You are an expert gap-trading analyst. Analyze the following real-time stock data to identify significant price gaps (opening gaps vs previous close) and assess fill/continuation probability.',
+    schemaExample: `[
+          {
+            "ticker": "SYMBOL",
+            "aiScore": 88,
+            "momentum": 80,
+            "gapPercent": "+3.5%",
+            "riskLevel": "متوسط",
+            "directionProbability": "⬆️ صعود 70% / ⬇️ هبوط 30%",
+            "recommendation": "الدخول عند استقرار السعر فوق فجوة الصباح",
+            "signal": "فجوة صعودية مع حجم تداول مرتفع"
+          }
+        ]`
+  },
+  reversal: {
+    tickers: ['NVDA', 'AMD', 'TSLA', 'SOFI', 'PLTR', 'INTC', 'SNAP', 'HOOD', 'NIO', 'LCID', 'RIVN', 'GME', 'AMC', 'MARA', 'RIOT'],
+    title: 'رادار الانعكاسات (Reversals) — فرص الارتداد',
+    promptIntro: 'You are an expert reversal-pattern analyst. Analyze the following real-time stock data to detect potential reversal setups (oversold bounces, overbought fades, divergence signals).',
+    schemaExample: `[
+          {
+            "ticker": "SYMBOL",
+            "aiScore": 86,
+            "momentum": 78,
+            "riskLevel": "منخفض",
+            "directionProbability": "⬆️ صعود 68% / ⬇️ هبوط 32%",
+            "recommendation": "انتظر تأكيد شمعة الانعكاس قبل الدخول",
+            "signal": "تشبع بيعي مع ارتداد من الدعم"
+          }
+        ]`
+  }
+};
+
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -37,16 +107,20 @@ export async function POST(request) {
       return NextResponse.json({ error: "Missing GEMINI_API_KEY in environment variables." }, { status: 500 });
     }
 
-    // 1. رادار عقود السنتات وتصفية أعلى سيولة واحتساب AI Score الذكي والمتكامل
-    if (mode === 'cents') {
-      const targetTickers = ['SERV', 'NVDA', 'TSLA', 'PLTR', 'AMD', 'SOFI'];
+    const radarConfig = radarConfigs[mode];
+
+    // ─── 1. جميع أوضاع الرادار (cents, darkpool, gaps, reversal) ───
+    if (radarConfig) {
       const stocksMarketData = [];
 
-      for (const t of targetTickers) {
-        const data = await fetchLiveStockData(t);
+      const marketDataResults = await Promise.all(
+        radarConfig.tickers.map(t => fetchLiveStockData(t).then(data => ({ ticker: t, data })))
+      );
+
+      for (const { ticker, data } of marketDataResults) {
         if (data.price) {
           stocksMarketData.push({
-            ticker: t,
+            ticker,
             price: data.price.toFixed(2),
             changePercent: data.changePercent.toFixed(2),
             volume: data.volume
@@ -54,8 +128,12 @@ export async function POST(request) {
         }
       }
 
-      const centsPrompt = `
-        You are an elite quantitative trading AI copilot. Analyze the following real-time stock data for an advanced breakout scanner:
+      if (stocksMarketData.length === 0) {
+        return NextResponse.json({ error: 'لم يتم جلب أي بيانات حية للأسهم' }, { status: 400 });
+      }
+
+      const radarPrompt = `
+        ${radarConfig.promptIntro}
         ${JSON.stringify(stocksMarketData)}
 
         For each stock, calculate sophisticated metrics:
@@ -68,29 +146,18 @@ export async function POST(request) {
         7. signal: (Brief professional Arabic technical insight)
 
         Return response STRICTLY as a JSON array:
-        [
-          {
-            "ticker": "SYMBOL",
-            "aiScore": 94,
-            "momentum": 85,
-            "volumeMultiplier": "x3.2",
-            "riskLevel": "منخفض",
-            "directionProbability": "⬆️ صعود 78%",
-            "recommendation": "الدخول بعد الاختراق المؤكد",
-            "signal": "اختراق حاد للمقاومة مع تدفق سيولة"
-          }
-        ]
+        ${radarConfig.schemaExample}
       `;
 
       const aiResponse = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
-        contents: centsPrompt,
+        contents: radarPrompt,
         config: { responseMimeType: 'application/json' }
       });
 
       const aiEvaluations = JSON.parse(aiResponse.text);
 
-      const centItems = stocksMarketData.map(stock => {
+      const radarItems = stocksMarketData.map(stock => {
         const aiEval = aiEvaluations.find(e => e.ticker === stock.ticker) || {};
         return {
           ticker: stock.ticker,
@@ -99,6 +166,7 @@ export async function POST(request) {
           aiScore: aiEval.aiScore || 88,
           momentum: aiEval.momentum || 80,
           volumeMultiplier: aiEval.volumeMultiplier || 'x2.0',
+          gapPercent: aiEval.gapPercent || `${stock.changePercent >= 0 ? '+' : ''}${stock.changePercent}%`,
           riskLevel: aiEval.riskLevel || 'متوسط',
           directionProbability: aiEval.directionProbability || '⬆️ صعود 70%',
           recommendation: aiEval.recommendation || 'راقب مستوى الدعم الحالي',
@@ -108,15 +176,15 @@ export async function POST(request) {
 
       return NextResponse.json({
         type: 'cent_options',
-        title: 'رادار مركز القيادة الذكي للفرص',
-        items: centItems
+        title: radarConfig.title,
+        items: radarItems
       });
     }
 
-    // 2. الفحص الفردي المعمق
+    // ─── 2. الفحص الفردي المعمق ───
     const upperSym = (symbol || 'SPY').toUpperCase().trim();
     const data = await fetchLiveStockData(upperSym);
-    
+
     if (!data.price) {
       return NextResponse.json({ error: 'عذراً، لم نتمكن من جلب بيانات السهم' }, { status: 400 });
     }
@@ -124,7 +192,8 @@ export async function POST(request) {
     const changePercent = data.changePercent.toFixed(2);
 
     const singlePrompt = `
-      You are an expert market analyst. Analyze the live stock data for ${upperSym}:       Current Price: $${data.price.toFixed(2)}
+      You are an expert market analyst. Analyze the live stock data for ${upperSym}:
+      Current Price: $${data.price.toFixed(2)}
       Daily Change: ${changePercent}%
       Volume: ${data.volume.toLocaleString()}
 
