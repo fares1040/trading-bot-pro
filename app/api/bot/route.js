@@ -18,8 +18,18 @@ export async function POST(request) {
     const chatId = message.chat.id;
     const text = message.text.trim();
     
-    // محاولة تسجيل العملية في قاعدة البيانات وفحص النتيجة
-    const { error: dbError } = await supabase.from('execution_logs').insert([
+    // تحديد رد البوت حسب الأمر
+    let responseText = 'أهلاً بك في بوت منصة سناير 🚀، استخدم الأوامر: /analyze أو /alerts';
+    if (text.startsWith('/analyze')) {
+      responseText = '📈 التحليل الفوري: الاتجاه العام صاعد ومناسب للمضاربة.';
+    } else if (text === '/alerts') {
+      responseText = '🔔 التنبيهات الحالية: السوق مستقر وجاري مراقبة الفرص.';
+    } else if (text === '/start') {
+      responseText = '👋 أهلاً بك! تم ربط بوت منصة سناير بنجاح وجاهز لخدمتك.';
+    }
+
+    // تسجيل العملية في قاعدة البيانات
+    await supabase.from('execution_logs').insert([
       {
         task_name: 'telegram_bot_response',
         status: 'success',
@@ -27,14 +37,18 @@ export async function POST(request) {
       }
     ]);
 
-    let responseText = 'أهلاً بك في بوت منصة سناير 🚀';
-    if (dbError) {
-      responseText = `⚠️ خطأ في قاعدة البيانات: ${dbError.message}`;
-    } else {
-      responseText = `✅ تم الحفظ بنجاح في قاعدة البيانات!\nالرسالة: ${text}`;
-    }
+    // إرسال الرد فعلياً إلى تيليجرام
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: responseText
+      })
+    });
 
-    return NextResponse.json({ status: 'Success', reply: responseText, chatId }, { status: 200 });
+    return NextResponse.json({ status: 'Success' }, { status: 200 });
     
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
