@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/Bolt Database-js';
+import { createClient } from '@supabase/supabase-js';
 
 const symbolSectors = {
-  'NVDA': 'تكنولوجيا وذكاء اصطناعي', 'AMD': 'تكنولوجيا وذكاء اصطناعي', 'PLTR': 'تكنولوجيا وذكاء اصطناعi', 'SOFI': 'تكنولوجيا مالية وزخم',
+  'NVDA': 'تكنولوجيا وذكاء اصطناعي', 'AMD': 'تكنولوجيا وذكاء اصطناعي', 'PLTR': 'تكنولوجيا وذكاء اصطناعي', 'SOFI': 'تكنولوجيا مالية وزخم',
   'INTC': 'أشباه موصلات', 'SNAP': 'تواصل اجتماعي', 'HOOD': 'منصات مالية',
   'NIO': 'سيارات كهربائية', 'RIVN': 'سيارات كهربائية', 'LCID': 'سيارات كهربائية',
   'BAC': 'بنوك ومالية', 'WFC': 'مالية وبنوك', 'PBR': 'طاقة ونفط', 'OXY': 'طاقة ونفط',
@@ -24,15 +24,14 @@ export async function GET(request) {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    let Bolt Database = null;
+    let supabase = null;
 
     if (supabaseUrl && supabaseKey) {
-      Bolt Database = createClient(supabaseUrl, supabaseKey);
+      supabase = createClient(supabaseUrl, supabaseKey);
     }
 
     const symbols = Object.keys(symbolSectors);
 
-    // ─── معالجة كل سهم بشكل مستقل (extracted function) ───
     async function analyzeSymbol(symbol) {
       try {
         const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1y`);
@@ -157,7 +156,7 @@ export async function GET(request) {
           created_at: new Date().toISOString()
         };
 
-        if (Bolt Database) {
+        if (supabase) {
           await supabase.from('auto_signals').insert([opportunityObj]);
         }
 
@@ -167,7 +166,6 @@ export async function GET(request) {
       }
     }
 
-    // ─── معالجة الأسهم بالتوازي على دفعات لتجنب انتهاء المهلة ───
     const BATCH_SIZE = 10;
     let detectedOpportunities = [];
 
@@ -177,7 +175,6 @@ export async function GET(request) {
       detectedOpportunities.push(...batchResults.filter(r => r !== null));
     }
 
-    // 🚀 إرسال التنبيهات الفورية إلى تليجرام وديسكورد تلقائياً
     if (detectedOpportunities.length > 0) {
       const botToken = process.env.TELEGRAM_BOT_TOKEN;
       const chatId = process.env.TELEGRAM_CHAT_ID;
