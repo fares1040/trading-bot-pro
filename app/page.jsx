@@ -15,13 +15,23 @@ export default function HomePage() {
     { name: 'VIX', value: '12.40', change: '-5.12%', isUp: false },
   ]);
 
+  // [تم التعديل]: مطابقة دقيقة لأوقات السوق (البري والآفتر ماركت) بتوقيت السعودية ليتوافق مع الكرون
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
       setRiyadhTime(now.toLocaleTimeString('en-US', { timeZone: 'Asia/Riyadh', hour12: true }));
       
-      const hour = now.getHours();
-      setMarketStatus(hour >= 16 && hour < 23 ? '🟢 السوق الأمريكي مفتوح (سيولة نشطة)' : '🔴 السوق مغلق (بانتظار الافتتاح)');
+      const riyadhTimeStr = now.toLocaleString('en-US', { timeZone: 'Asia/Riyadh', hour12: false });
+      const riyadhDate = new Date(riyadhTimeStr);
+      const dayOfWeek = riyadhDate.getDay();
+      const hour = riyadhDate.getHours();
+      const minute = riyadhDate.getMinutes();
+      const currentMinutesTime = hour * 60 + minute;
+
+      const isWorkingDay = (dayOfWeek >= 0 && dayOfWeek <= 4) || dayOfWeek === 5;
+      const isOpen = isWorkingDay && (currentMinutesTime >= 660 || currentMinutesTime <= 180);
+
+      setMarketStatus(isOpen ? '🟢 السوق الأمريكي مفتوح (سيولة نشطة)' : '🔴 السوق مغلق (بانتظار الافتتاح)');
     };
     updateTime();
     const interval = setInterval(updateTime, 1000);
