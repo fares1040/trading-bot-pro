@@ -22,6 +22,26 @@ const symbolSectors = {
 
 export async function GET(request) {
   try {
+    // --- التحقق من أوقات السوق (توقيت السعودية) ---
+    const now = new Date();
+    const riyadhTimeStr = now.toLocaleString('en-US', { timeZone: 'Asia/Riyadh', hour12: false });
+    const riyadhDate = new Date(riyadhTimeStr);
+    const dayOfWeek = riyadhDate.getDay(); // الأحد = 0, الجمعة = 5, السبت = 6
+    const hour = riyadhDate.getHours();
+    const minute = riyadhDate.getMinutes();
+    const currentMinutesTime = hour * 60 + minute;
+
+    // البري ماركت يبدأ الساعة 11:00 صباحاً (660 دقيقة)
+    // الآفتر ماركت ينتهي الساعة 03:00 فجراً من اليوم التالي (180 دقيقة)
+    // أيام العمل: من الأحد (0) إلى الخميس (4)، والجمعة (5) حتى 3 فجراً.
+    const isWorkingDay = (dayOfWeek >= 0 && dayOfWeek <= 4) || dayOfWeek === 5;
+    const isMarketTimeActive = isWorkingDay && (currentMinutesTime >= 660 || currentMinutesTime <= 180);
+
+    // إذا أردت إيقاف التنفيذ تلقائياً عندما يكون السوق مغلقاً، قم بإلغاء تفعيل السطر أدناه:
+    // if (!isMarketTimeActive) {
+    //   return NextResponse.json({ success: false, message: 'السوق مغلق حالياً بتوقيت السعودية.' }, { status: 200 });
+    // }
+
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     let supabase = null;
@@ -224,7 +244,7 @@ export async function GET(request) {
       }
     }
 
-    return NextResponse.json({ success: true, count: detectedOpportunities.length, data: detectedOpportunities });
+    return NextResponse.json({ success: true, count: detectedOpportunities.length, data: detectedOpportunities, market_active: isMarketTimeActive });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
