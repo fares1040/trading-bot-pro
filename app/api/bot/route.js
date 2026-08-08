@@ -28,14 +28,18 @@ export async function POST(request) {
       responseText = '👋 أهلاً بك! تم ربط بوت منصة سناير بنجاح وجاهز لخدمتك.';
     }
 
-    // تسجيل العملية في قاعدة البيانات
-    await supabase.from('execution_logs').insert([
+    // تسجيل العملية في قاعدة البيانات مع فحص الخطأ إن وجد
+    const { error: dbError } = await supabase.from('execution_logs').insert([
       {
         task_name: 'telegram_bot_response',
         status: 'success',
         details: `ChatID: ${chatId} | Command: ${text}`
       }
     ]);
+
+    if (dbError) {
+      console.error('Supabase Insert Error:', dbError.message);
+    }
 
     // إرسال الرد فعلياً إلى تيليجرام
     const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -51,6 +55,7 @@ export async function POST(request) {
     return NextResponse.json({ status: 'Success' }, { status: 200 });
     
   } catch (error) {
+    console.error('Server Error:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
