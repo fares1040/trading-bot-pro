@@ -1808,31 +1808,45 @@ export async function GET(
         .CRON_SECRET;
 
     if (
-      cronSecret
+      !cronSecret
     ) {
-      const authorization =
-        request.headers.get(
-          'authorization'
-        );
+      return NextResponse.json(
+        {
+          success:
+            false,
 
-      if (
-        authorization !==
-        `Bearer ${cronSecret}`
-      ) {
-        return NextResponse.json(
-          {
-            success:
-              false,
+          error:
+            'CRON_SECRET is not configured',
+        },
+        {
+          status:
+            500,
+        }
+      );
+    }
 
-            error:
-              'Unauthorized',
-          },
-          {
-            status:
-              401,
-          }
-        );
-      }
+    const authorization =
+      request.headers.get(
+        'authorization'
+      );
+
+    if (
+      authorization !==
+      `Bearer ${cronSecret}`
+    ) {
+      return NextResponse.json(
+        {
+          success:
+            false,
+
+          error:
+            'Unauthorized',
+        },
+        {
+          status:
+            401,
+        }
+      );
     }
 
     /*
