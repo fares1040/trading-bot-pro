@@ -1,50 +1,8 @@
-
+// app/api/stocks/route.js
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-
-/*
-|--------------------------------------------------------------------------
-| HUNTER AI — STOCKS / DISCOVERY ENGINE
-|--------------------------------------------------------------------------
-|
-| مسؤولية هذا المسار:
-|
-| Universe
-|   ↓
-| Market Gate
-|   ↓
-| Technical Analysis
-|   ↓
-| Discovery Score
-|   ↓
-| Setup Score
-|   ↓
-| Radar
-|
-| لا يتم اختراع:
-| - Options
-| - Dark Pool
-| - Institutional Flow
-|
-| Official analysis:
-| /api/analyze
-|
-| Market data:
-| /api/market-data
-|
-| هذا الملف مخصص أساساً لـ:
-| - Stock Universe
-| - Discovery
-| - Radar ranking
-| - Candidate filtering
-|--------------------------------------------------------------------------
-*/
-
-/* =========================================================
-   CONFIG
-========================================================= */
 
 const YAHOO_HEADERS = {
   'User-Agent':
@@ -52,150 +10,71 @@ const YAHOO_HEADERS = {
   Accept: 'application/json',
 };
 
+const SYMBOL_REGEX = /^[A-Z][A-Z0-9.^=-]{0,11}$/;
+
+const MIN_HISTORY = 60;
 const MIN_PRICE = 0.5;
 const MAX_PRICE = 100;
+const MIN_AVERAGE_VOLUME = 100_000;
 
-const MIN_AVG_VOLUME = 100000;
-const MIN_HISTORY = 60;
-
-const MAX_UNIVERSE = 100;
-
-const FINNHUB_API_BASE =
-  'https://finnhub.io/api/v1';
-
-const FINNHUB_TIMEOUT_MS = 8000;
-const FINNHUB_CONCURRENCY = 4;
-
-/* =========================================================
-   FINNHUB
-========================================================= */
-
-function getFinnhubToken() {
-  return (
-    process.env.FINNHUB_API_KEY ||
-    process.env.FINNHUB_TOKEN ||
-    ''
-  );
+function num(value, fallback = null) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
 }
 
-function createProviderStatus() {
-  const configured =
-    Boolean(getFinnhubToken());
-
-  return {
-    finnhub: {
-      configured,
-      available: configured,
-      reason: configured
-        ? null
-        : 'FINNHUB_API_KEY غير مهيأ',
-    },
-
-    yahoo: {
-      configured: true,
-      available: true,
-      reason: null,
-    },
-  };
-}
-
-/* =========================================================
-   HELPERS
-========================================================= */
-
-function number(value, fallback = null) {
+function round(value, decimals = 2) {
   const n = Number(value);
 
-  return Number.isFinite(n)
-    ? n
-    : fallback;
-}
-
-function average(values) {
-  if (!Array.isArray(values)) {
+  if (!Number.isFinite(n)) {
     return null;
   }
 
-  const valid =
-    values.filter(Number.isFinite);
-
-  if (!valid.length) {
-    return null;
-  }
-
-  return (
-    valid.reduce(
-      (sum, value) =>
-        sum + value,
-      0
-    ) / valid.length
-  );
+  return Number(n.toFixed(decimals));
 }
 
-function clamp(
-  value,
-  min = 0,
-  max = 100
-) {
+function clamp(value, min = 0, max = 100) {
   const n = Number(value);
 
   if (!Number.isFinite(n)) {
     return min;
   }
 
-  return Math.max(
-    min,
-    Math.min(max, n)
-  );
+  return Math.max(min, Math.min(max, n));
 }
 
-function round(
-  value,
-  decimals = 2
-) {
-  const n = Number(value);
+function average(values) {
+  const valid = values
+    .map(Number)
+    .filter(Number.isFinite);
 
-  if (!Number.isFinite(n)) {
+  if (!valid.length) {
     return null;
   }
 
-  return Number(
-    n.toFixed(decimals)
+  return (
+    valid.reduce((sum, value) => sum + value, 0) /
+    valid.length
   );
 }
 
-function isValidSymbol(symbol) {
-  return /^[A-Z][A-Z0-9.^=-]{0,11}$/.test(
-    symbol || ''
-  );
+function calculateSma(values, period) {
+  if (values.length < period) {
+    return null;
+  }
+
+  return average(values.slice(-period));
 }
 
-/* =========================================================
-   RSI
-========================================================= */
-
-function calculateRSI(
-  closes,
-  period = 14
-) {
-  if (
-    !Array.isArray(closes) ||
-    closes.length <= period
-  ) {
+function calculateRsi(closes, period = 14) {
+  if (closes.length <= period) {
     return null;
   }
 
   let gains = 0;
   let losses = 0;
 
-  for (
-    let i = 1;
-    i <= period;
-    i += 1
-  ) {
-    const delta =
-      closes[i] -
-      closes[i - 1];
+  for (let i = 1; i <= period; i += 1) {
+    const delta = closes[i] - closes[i - 1];
 
     if (delta >= 0) {
       gains += delta;
@@ -204,160 +83,75 @@ function calculateRSI(
     }
   }
 
-  let avgGain =
-    gains / period;
+  let averageGain = gains / period;
+  let averageLoss = losses / period;
 
-  let avgLoss =
-    losses / period;
+  for (let i = period + 1; i < closes.length; i += 1) {
+    const delta = closes[i] - closes[i - 1];
 
-  for (
-    let i = period + 1;
-    i < closes.length;
-    i += 1
-  ) {
-    const delta =
-      closes[i] -
-      closes[i - 1];
+    const gain = delta > 0 ? delta : 0;
+    const loss = delta < 0 ? Math.abs(delta) : 0;
 
-    const gain =
-      delta > 0 ? delta : 0;
-
-    const loss =
-      delta < 0
-        ? Math.abs(delta)
-        : 0;
-
-    avgGain =
-      ((avgGain *
-        (period - 1)) +
-        gain) /
+    averageGain =
+      ((averageGain * (period - 1)) + gain) /
       period;
 
-    avgLoss =
-      ((avgLoss *
-        (period - 1)) +
-        loss) /
+    averageLoss =
+      ((averageLoss * (period - 1)) + loss) /
       period;
   }
 
-  if (avgLoss === 0) {
+  if (averageLoss === 0) {
     return 100;
   }
 
   return (
     100 -
-    100 /
-      (1 +
-        avgGain /
-          avgLoss)
+    100 / (1 + averageGain / averageLoss)
   );
 }
 
-/* =========================================================
-   BOLLINGER
-========================================================= */
+function calculateRsiScore(rsi) {
+  const value = Number(rsi);
 
-function calculateBollinger(
-  closes,
-  period = 20
-) {
-  if (
-    !Array.isArray(closes) ||
-    closes.length < period
-  ) {
-    return {
-      bandwidth: null,
-      squeeze: false,
-      squeezeScore: 0,
-    };
+  if (!Number.isFinite(value)) {
+    return 50;
   }
 
-  const slice =
-    closes.slice(-period);
-
-  const middle =
-    average(slice);
-
-  if (
-    middle == null ||
-    middle <= 0
-  ) {
-    return {
-      bandwidth: null,
-      squeeze: false,
-      squeezeScore: 0,
-    };
+  // أفضل منطقة للـsetup الصاعد ليست التشبع الشرائي.
+  if (value >= 45 && value <= 65) {
+    return 100;
   }
 
-  const variance =
-    average(
-      slice.map(
-        (value) =>
-          (value - middle) ** 2
-      )
-    ) || 0;
-
-  const stdDev =
-    Math.sqrt(variance);
-
-  const upper =
-    middle +
-    2 * stdDev;
-
-  const lower =
-    middle -
-    2 * stdDev;
-
-  const bandwidth =
-    ((upper - lower) /
-      middle) *
-    100;
-
-  let squeezeScore = 20;
-
-  if (bandwidth < 5) {
-    squeezeScore = 100;
-  } else if (bandwidth < 7) {
-    squeezeScore = 90;
-  } else if (bandwidth < 9) {
-    squeezeScore = 75;
-  } else if (bandwidth < 12) {
-    squeezeScore = 50;
+  if (value > 65 && value <= 70) {
+    return 85;
   }
 
-  return {
-    bandwidth,
-    squeeze:
-      bandwidth < 9,
-    squeezeScore,
-  };
+  if (value >= 35 && value < 45) {
+    return 75;
+  }
+
+  if (value > 70) {
+    return 45;
+  }
+
+  if (value < 30) {
+    return 55;
+  }
+
+  return 65;
 }
 
-/* =========================================================
-   MOMENTUM
-========================================================= */
-
-function calculateMomentum(
-  closes,
-  period = 5
-) {
-  if (
-    !Array.isArray(closes) ||
-    closes.length <= period
-  ) {
+function calculateMomentum(closes, period = 5) {
+  if (closes.length <= period) {
     return {
       percent: null,
       score: 50,
     };
   }
 
-  const current =
-    closes.at(-1);
-
-  const base =
-    closes.at(
-      -(period + 1)
-    );
+  const current = closes.at(-1);
+  const base = closes.at(-(period + 1));
 
   if (
     !Number.isFinite(current) ||
@@ -371,104 +165,82 @@ function calculateMomentum(
   }
 
   const percent =
-    ((current - base) /
-      base) *
-    100;
+    ((current - base) / base) * 100;
 
   return {
     percent,
-
-    score: clamp(
-      50 +
-        percent * 8
-    ),
+    score: clamp(50 + percent * 8),
   };
 }
 
-/* =========================================================
-   VOLUME
-========================================================= */
-
-function calculateVolume(
-  volumes
+function calculateVolumeMetrics(
+  volumes,
+  currentVolume,
+  period = 20
 ) {
-  if (
-    !Array.isArray(volumes) ||
-    volumes.length < 21
-  ) {
+  if (!volumes.length) {
     return {
-      current: 0,
-      average20: null,
-      relative: null,
-      score: 0,
+      averageVolume: null,
+      relativeVolume: null,
+      volumeScore: 0,
       liquidityScore: 0,
     };
   }
 
-  const current =
-    number(
-      volumes.at(-1),
-      0
-    );
+  const previousVolumes =
+    volumes.length > period
+      ? volumes.slice(-(period + 1), -1)
+      : volumes.slice(-period);
 
-  const average20 =
-    average(
-      volumes.slice(
-        -21,
-        -1
-      )
-    );
+  const averageVolume =
+    average(previousVolumes);
 
-  const relative =
-    average20 &&
-    average20 > 0
-      ? current /
-        average20
+  const current = Number(currentVolume);
+
+  const relativeVolume =
+    Number.isFinite(current) &&
+    averageVolume > 0
+      ? current / averageVolume
       : null;
 
-  const score =
-    relative == null
-      ? 0
-      : clamp(
+  const volumeScore =
+    relativeVolume != null
+      ? clamp(
           45 +
-            (relative - 1) *
-              35
-        );
+            (relativeVolume - 1) * 35
+        )
+      : 50;
 
   let liquidityScore = 25;
 
-  if (average20 >= 1000000) {
+  if (averageVolume >= 1_000_000) {
     liquidityScore = 100;
-  } else if (average20 >= 500000) {
+  } else if (averageVolume >= 500_000) {
     liquidityScore = 85;
-  } else if (average20 >= 250000) {
+  } else if (averageVolume >= 250_000) {
     liquidityScore = 70;
-  } else if (average20 >= 100000) {
+  } else if (averageVolume >= 100_000) {
     liquidityScore = 55;
   }
 
   return {
-    current,
-    average20,
-    relative,
-    score,
+    averageVolume,
+    relativeVolume,
+    volumeScore,
     liquidityScore,
   };
 }
 
-/* =========================================================
-   TREND
-========================================================= */
-
-function calculateTrend(
+function calculateTrendScore(
   price,
   sma20,
   sma50
 ) {
   if (
-    !price ||
-    !sma20 ||
-    !sma50
+    !Number.isFinite(price) ||
+    !Number.isFinite(sma20) ||
+    !Number.isFinite(sma50) ||
+    sma50 <= 0
   ) {
     return 50;
   }
@@ -487,13 +259,11 @@ function calculateTrend(
     score += 15;
   }
 
-  const distance =
-    ((price - sma50) /
-      sma50) *
-    100;
+  const distanceFromSma50 =
+    ((price - sma50) / sma50) * 100;
 
   score += clamp(
-    distance * 2,
+    distanceFromSma50 * 2,
     -20,
     20
   );
@@ -501,151 +271,219 @@ function calculateTrend(
   return clamp(score);
 }
 
-/* =========================================================
-   BREAKOUT
-========================================================= */
+function calculateBollinger(
+  closes,
+  period = 20,
+  multiplier = 2
+) {
+  if (closes.length < period) {
+    return {
+      middle: null,
+      upper: null,
+      lower: null,
+      bandwidth: null,
+      squeeze: false,
+      squeezeScore: 0,
+    };
+  }
+
+  const window = closes.slice(-period);
+  const middle = average(window);
+
+  if (!middle || middle <= 0) {
+    return {
+      middle: null,
+      upper: null,
+      lower: null,
+      bandwidth: null,
+      squeeze: false,
+      squeezeScore: 0,
+    };
+  }
+
+  const variance =
+    average(
+      window.map(
+        (value) =>
+          (value - middle) ** 2
+      )
+    ) || 0;
+
+  const standardDeviation =
+    Math.sqrt(variance);
+
+  const upper =
+    middle +
+    multiplier * standardDeviation;
+
+  const lower =
+    middle -
+    multiplier * standardDeviation;
+
+  const bandwidth =
+    ((upper - lower) / middle) * 100;
+
+  let squeezeScore = 20;
+
+  if (bandwidth < 5) {
+    squeezeScore = 100;
+  } else if (bandwidth < 7) {
+    squeezeScore = 90;
+  } else if (bandwidth < 9) {
+    squeezeScore = 75;
+  } else if (bandwidth < 12) {
+    squeezeScore = 50;
+  }
+
+  return {
+    middle,
+    upper,
+    lower,
+    bandwidth,
+    squeeze: bandwidth < 9,
+    squeezeScore,
+  };
+}
+
+function calculateLevels(
+  highs,
+  lows,
+  closes,
+  lookback = 20
+) {
+  const priorHighs =
+    highs.length >= lookback + 1
+      ? highs.slice(
+          -(lookback + 1),
+          -1
+        )
+      : [];
+
+  const priorLows =
+    lows.length >= lookback + 1
+      ? lows.slice(
+          -(lookback + 1),
+          -1
+        )
+      : [];
+
+  const priorCloses =
+    closes.length >= lookback + 1
+      ? closes.slice(
+          -(lookback + 1),
+          -1
+        )
+      : [];
+
+  const resistance =
+    priorHighs.length
+      ? Math.max(...priorHighs)
+      : priorCloses.length
+        ? Math.max(...priorCloses)
+        : null;
+
+  const support =
+    priorLows.length
+      ? Math.min(...priorLows)
+      : priorCloses.length
+        ? Math.min(...priorCloses)
+        : null;
+
+  return {
+    resistance,
+    support,
+  };
+}
 
 function calculateBreakout(
   price,
   resistance
 ) {
   if (
-    !price ||
-    !resistance
+    !Number.isFinite(price) ||
+    !Number.isFinite(resistance) ||
+    price <= 0
   ) {
     return {
-      distance: null,
+      distancePercent: null,
       score: 50,
     };
   }
 
-  const distance =
-    ((resistance - price) /
-      price) *
-    100;
+  const distancePercent =
+    ((resistance - price) / price) * 100;
 
   let score = 25;
 
-  if (distance <= 0) {
+  if (distancePercent <= 0) {
     score = 100;
-  } else if (distance <= 1) {
+  } else if (distancePercent <= 1) {
     score = 95;
-  } else if (distance <= 2) {
+  } else if (distancePercent <= 2) {
     score = 88;
-  } else if (distance <= 4) {
+  } else if (distancePercent <= 4) {
     score = 75;
-  } else if (distance <= 6) {
+  } else if (distancePercent <= 6) {
     score = 60;
-  } else if (distance <= 10) {
+  } else if (distancePercent <= 10) {
     score = 45;
   }
 
   return {
-    distance,
+    distancePercent,
     score,
   };
 }
-
-/* =========================================================
-   RSI SCORE
-========================================================= */
-
-function calculateRSIScore(value) {
-  if (value == null) {
-    return 50;
-  }
-
-  if (
-    value >= 45 &&
-    value <= 65
-  ) {
-    return 100;
-  }
-
-  if (
-    value > 65 &&
-    value <= 70
-  ) {
-    return 85;
-  }
-
-  if (
-    value >= 35 &&
-    value < 45
-  ) {
-    return 75;
-  }
-
-  if (value > 70) {
-    return 45;
-  }
-
-  if (value < 30) {
-    return 55;
-  }
-
-  return 65;
-}
-
-/* =========================================================
-   CLUSTER
-========================================================= */
 
 function calculateCluster(
   price,
   highs,
   lows,
-  relativeVolume
+  relativeVolume,
+  lookback = 5
 ) {
   if (
-    !price ||
-    highs.length < 5 ||
-    lows.length < 5
+    !Number.isFinite(price) ||
+    price <= 0 ||
+    highs.length < lookback ||
+    lows.length < lookback
   ) {
     return {
-      range: null,
+      rangePercent: null,
       isCluster: false,
       score: 0,
     };
   }
 
   const recentHighs =
-    highs.slice(-5);
+    highs.slice(-lookback);
 
   const recentLows =
-    lows.slice(-5);
+    lows.slice(-lookback);
 
   const high =
-    Math.max(
-      ...recentHighs
-    );
+    Math.max(...recentHighs);
 
   const low =
-    Math.min(
-      ...recentLows
-    );
+    Math.min(...recentLows);
 
-  const range =
-    ((high - low) /
-      price) *
-    100;
+  const rangePercent =
+    ((high - low) / price) * 100;
 
   const rvol =
-    Number(
-      relativeVolume
-    ) || 0;
+    Number(relativeVolume) || 0;
 
   const isCluster =
-    range <= 3.5 &&
+    rangePercent <= 3.5 &&
     rvol >= 1.1;
 
   let score = 25;
 
-  if (range <= 2) {
+  if (rangePercent <= 2) {
     score = 100;
-  } else if (range <= 3.5) {
+  } else if (rangePercent <= 3.5) {
     score = 85;
-  } else if (range <= 5) {
+  } else if (rangePercent <= 5) {
     score = 60;
   }
 
@@ -654,15 +492,11 @@ function calculateCluster(
   }
 
   return {
-    range,
+    rangePercent,
     isCluster,
     score: clamp(score),
   };
 }
-
-/* =========================================================
-   RISK / REWARD
-========================================================= */
 
 function calculateRiskReward(
   price,
@@ -670,9 +504,10 @@ function calculateRiskReward(
   resistance
 ) {
   if (
-    !price ||
-    !support ||
-    !resistance
+    !Number.isFinite(price) ||
+    !Number.isFinite(support) ||
+    !Number.isFinite(resistance) ||
+    price <= 0
   ) {
     return {
       stopLoss: null,
@@ -684,11 +519,10 @@ function calculateRiskReward(
     };
   }
 
-  const stopLoss =
-    Math.min(
-      price * 0.97,
-      support * 0.995
-    );
+  const stopLoss = Math.min(
+    price * 0.97,
+    support * 0.995
+  );
 
   if (
     stopLoss <= 0 ||
@@ -726,229 +560,180 @@ function calculateRiskReward(
     };
   }
 
-  const riskReward =
+  const riskRewardRatio =
     reward / risk;
 
   let score = 25;
 
-  if (riskReward >= 3) {
+  if (riskRewardRatio >= 3) {
     score = 100;
-  } else if (riskReward >= 2.5) {
+  } else if (riskRewardRatio >= 2.5) {
     score = 90;
-  } else if (riskReward >= 2) {
+  } else if (riskRewardRatio >= 2) {
     score = 80;
-  } else if (riskReward >= 1.5) {
+  } else if (riskRewardRatio >= 1.5) {
     score = 65;
-  } else if (riskReward >= 1) {
+  } else if (riskRewardRatio >= 1) {
     score = 45;
   }
 
   return {
     stopLoss: round(stopLoss),
-
-    targetPrice:
-      round(resistance),
-
+    targetPrice: round(resistance),
     riskPercent: round(
       (risk / price) * 100
     ),
-
     rewardPercent: round(
       (reward / price) * 100
     ),
-
     riskReward: round(
-      riskReward
+      riskRewardRatio
     ),
-
     score,
   };
 }
 
-/* =========================================================
-   DISCOVERY SCORE
-========================================================= */
-
-function calculateDiscoveryScore({
-  rank,
+function buildDecision({
+  setupScore,
   relativeVolume,
-  changePercent,
-  volume,
-}) {
-  let rankScore = 50;
-
-  if (rank != null) {
-    rankScore =
-      clamp(
-        100 -
-          rank * 2.5,
-        40,
-        100
-      );
-  }
-
-  const rvol =
-    Number(
-      relativeVolume
-    ) || 0;
-
-  const rvolScore =
-    clamp(
-      30 +
-        rvol * 25,
-      30,
-      100
-    );
-
-  const change =
-    Number(
-      changePercent
-    ) || 0;
-
-  const activityScore =
-    clamp(
-      40 +
-        Math.abs(change) *
-          5,
-      40,
-      100
-    );
-
-  let liquidityScore = 30;
-
-  if (volume >= 1000000) {
-    liquidityScore = 100;
-  } else if (volume >= 500000) {
-    liquidityScore = 80;
-  } else if (volume >= 100000) {
-    liquidityScore = 60;
-  }
-
-  return Math.round(
-    clamp(
-      rankScore * 0.25 +
-        rvolScore * 0.35 +
-        activityScore * 0.15 +
-        liquidityScore * 0.25
-    )
-  );
-}
-
-/* =========================================================
-   TECHNICAL SCORE
-========================================================= */
-
-function calculateTechnicalScore({
-  momentum,
-  volume,
-  trend,
-  breakout,
-  rsi,
-  squeeze,
+  riskReward,
+  resistanceDistancePercent,
   cluster,
-  risk,
-  resistancePenalty,
+  squeeze,
+  rsi,
 }) {
-  const raw =
-    momentum * 0.15 +
-    volume * 0.15 +
-    trend * 0.15 +
-    breakout * 0.15 +
-    rsi * 0.10 +
-    squeeze * 0.10 +
-    cluster * 0.10 +
-    risk * 0.10 -
-    resistancePenalty;
+  const reasons = [];
+  const risks = [];
+  const blockers = [];
 
-  return Math.round(
-    clamp(raw)
-  );
-}
-
-/* =========================================================
-   SIGNAL
-========================================================= */
-
-function getSignal(score) {
-  if (score >= 85) {
-    return {
-      signal: 'STRONG_BUY',
-      strength: 'HIGH',
-    };
+  if (
+    Number(relativeVolume) >= 1.5
+  ) {
+    reasons.push(
+      'Volume أعلى من المتوسط بشكل واضح'
+    );
+  } else if (
+    Number(relativeVolume) >= 1.1
+  ) {
+    reasons.push(
+      'Volume يدعم الحركة'
+    );
   }
 
-  if (score >= 75) {
-    return {
-      signal: 'BUY',
-      strength: 'HIGH',
-    };
+  if (cluster) {
+    reasons.push(
+      'السعر داخل Cluster ضيق'
+    );
   }
 
-  if (score >= 65) {
-    return {
-      signal: 'BUY',
-      strength: 'MEDIUM',
-    };
+  if (squeeze) {
+    reasons.push(
+      'Bollinger Squeeze موجود'
+    );
   }
 
-  if (score >= 50) {
-    return {
-      signal: 'NEUTRAL',
-      strength: 'LOW',
-    };
+  if (
+    Number(rsi) >= 45 &&
+    Number(rsi) <= 65
+  ) {
+    reasons.push(
+      'RSI في منطقة مناسبة للـsetup'
+    );
+  }
+
+  if (
+    Number(riskReward) >= 2
+  ) {
+    reasons.push(
+      `Risk/Reward جيد (${riskReward}x)`
+    );
+  }
+
+  if (
+    resistanceDistancePercent != null &&
+    resistanceDistancePercent < 2
+  ) {
+    risks.push(
+      'المقاومة قريبة'
+    );
+  }
+
+  if (
+    Number(rsi) > 70
+  ) {
+    risks.push(
+      'RSI في منطقة تشبع شرائي'
+    );
+  }
+
+  if (
+    Number(relativeVolume) < 1
+  ) {
+    risks.push(
+      'الحجم أقل من متوسطه'
+    );
+  }
+
+  if (
+    riskReward != null &&
+    riskReward < 1.5
+  ) {
+    risks.push(
+      'Risk/Reward ضعيف'
+    );
+    blockers.push(
+      'لا توجد مساحة مخاطرة/عائد كافية'
+    );
+  }
+
+  if (
+    resistanceDistancePercent != null &&
+    resistanceDistancePercent >= 0 &&
+    resistanceDistancePercent < 1
+  ) {
+    blockers.push(
+      'السهم قريب جدًا من المقاومة'
+    );
+  }
+
+  let decision = 'REJECT';
+
+  if (
+    setupScore >= 80 &&
+    blockers.length === 0
+  ) {
+    decision = 'BUY';
+  } else if (
+    setupScore >= 60 &&
+    blockers.length === 0
+  ) {
+    decision = 'WATCH';
+  } else if (
+    setupScore >= 70 &&
+    blockers.length <= 1
+  ) {
+    decision = 'WATCH';
   }
 
   return {
-    signal: 'AVOID',
-    strength: 'LOW',
+    decision,
+    reasons: reasons.slice(0, 5),
+    risks: risks.slice(0, 5),
+    blockers: blockers.slice(0, 3),
   };
 }
 
-/* =========================================================
-   MARKET STATE
-========================================================= */
-
-function getMarketState(
-  price,
-  sma20,
-  sma50
-) {
-  if (
-    !price ||
-    !sma20 ||
-    !sma50
-  ) {
-    return 'UNKNOWN';
-  }
-
-  if (
-    price > sma20 &&
-    sma20 > sma50
-  ) {
-    return 'BULLISH';
-  }
-
-  if (
-    price < sma20 &&
-    sma20 < sma50
-  ) {
-    return 'BEARISH';
-  }
-
-  return 'MIXED';
-}
-
-/* =========================================================
-   ANALYTICS
-========================================================= */
-
 function buildAnalytics(
   meta,
-  quote,
-  rank = null
+  quote
 ) {
   const closes =
     (quote?.close || [])
+      .map(Number)
+      .filter(Number.isFinite);
+
+  const volumes =
+    (quote?.volume || [])
       .map(Number)
       .filter(Number.isFinite);
 
@@ -962,86 +747,54 @@ function buildAnalytics(
       .map(Number)
       .filter(Number.isFinite);
 
-  const volumes =
-    (quote?.volume || [])
-      .map(Number)
-      .filter(Number.isFinite);
-
   const price =
-    number(
+    num(
       meta?.regularMarketPrice,
       closes.at(-1)
     );
 
   const previousClose =
-    number(
+    num(
       meta?.previousClose ??
         meta?.chartPreviousClose,
       closes.at(-2)
     );
 
-  const volume =
-    number(
+  const currentVolume =
+    num(
       meta?.regularMarketVolume,
       volumes.at(-1)
     );
 
-  if (
-    closes.length < MIN_HISTORY ||
-    !price ||
-    !previousClose
-  ) {
-    return {
-      technicalReady: false,
-      dataQuality:
-        'بيانات غير مكتملة',
-      price,
-      previousClose,
-      setupScore: null,
-    };
-  }
-
   const sma20 =
-    average(
-      closes.slice(-20)
-    );
+    calculateSma(closes, 20);
 
   const sma50 =
-    average(
-      closes.slice(-50)
-    );
+    calculateSma(closes, 50);
 
   const rsi =
-    calculateRSI(closes);
+    calculateRsi(closes);
 
   const volumeMetrics =
-    calculateVolume(volumes);
+    calculateVolumeMetrics(
+      volumes,
+      currentVolume,
+      20
+    );
 
   const momentum =
-    calculateMomentum(closes);
+    calculateMomentum(closes, 5);
 
-  const resistance =
-    closes.length >= 21
-      ? Math.max(
-          ...closes.slice(
-            -21,
-            -1
-          )
-        )
-      : null;
-
-  const support =
-    lows.length >= 21
-      ? Math.min(
-          ...lows.slice(
-            -21,
-            -1
-          )
-        )
-      : null;
+  const levels =
+    calculateLevels(
+      highs,
+      lows,
+      closes,
+      20
+    );
 
   const trendScore =
-    calculateTrend(
+    calculateTrendScore(
       price,
       sma20,
       sma50
@@ -1050,141 +803,273 @@ function buildAnalytics(
   const breakout =
     calculateBreakout(
       price,
-      resistance
+      levels.resistance
     );
 
-  const rsiScore =
-    calculateRSIScore(rsi);
-
   const bollinger =
-    calculateBollinger(closes);
+    calculateBollinger(
+      closes,
+      20
+    );
 
   const cluster =
     calculateCluster(
       price,
       highs,
       lows,
-      volumeMetrics.relative
+      volumeMetrics.relativeVolume,
+      5
     );
 
   const riskReward =
     calculateRiskReward(
       price,
-      support,
-      resistance
+      levels.support,
+      levels.resistance
     );
 
-  const resistanceDistance =
-    resistance
-      ? ((resistance - price) /
-          price) *
-        100
-      : null;
+  const technicalReady =
+    closes.length >= MIN_HISTORY &&
+    Number.isFinite(price) &&
+    price > 0 &&
+    Number.isFinite(previousClose) &&
+    previousClose > 0 &&
+    Number.isFinite(
+      volumeMetrics.averageVolume
+    ) &&
+    volumeMetrics.averageVolume > 0 &&
+    Number.isFinite(sma20) &&
+    Number.isFinite(sma50) &&
+    rsi != null;
 
-  let resistancePenalty = 0;
+  if (!technicalReady) {
+    return {
+      technicalReady: false,
+      dataQuality:
+        'بيانات فنية غير مكتملة',
 
-  if (
-    resistanceDistance != null &&
-    resistanceDistance >= 0 &&
-    resistanceDistance < 1
-  ) {
-    resistancePenalty = 12;
-  } else if (
-    resistanceDistance != null &&
-    resistanceDistance < 2
-  ) {
-    resistancePenalty = 7;
+      price,
+      previousClose,
+      change: null,
+      changePercent: null,
+
+      volume: currentVolume,
+      averageVolume20:
+        volumeMetrics.averageVolume
+          ? Math.round(
+              volumeMetrics.averageVolume
+            )
+          : null,
+
+      relativeVolume: null,
+      momentumPercent: null,
+      momentum: null,
+      momentumScore: null,
+
+      volumeScore: null,
+      liquidityScore: null,
+      trendScore: null,
+      breakout: null,
+      breakoutScore: null,
+
+      rsi:
+        rsi == null
+          ? null
+          : round(rsi),
+
+      rsiScore: null,
+
+      sma20:
+        sma20 == null
+          ? null
+          : round(sma20),
+
+      sma50:
+        sma50 == null
+          ? null
+          : round(sma50),
+
+      resistance20:
+        levels.resistance == null
+          ? null
+          : round(levels.resistance),
+
+      support20:
+        levels.support == null
+          ? null
+          : round(levels.support),
+
+      resistanceDistancePercent: null,
+
+      targetPrice: null,
+      stopLoss: null,
+      riskPercent: null,
+      rewardPercent: null,
+      riskReward: null,
+      riskScore: 0,
+
+      bollingerBandwidth: null,
+      squeeze: false,
+      squeezeScore: 0,
+
+      cluster: false,
+      clusterRangePercent: null,
+      clusterScore: 0,
+
+      technicalScore: null,
+      discoveryScore: null,
+      setupScore: null,
+
+      signal: 'INSUFFICIENT_DATA',
+      decision: 'REJECT',
+
+      reasons: [],
+      risks: [
+        'البيانات التاريخية غير كافية'
+      ],
+      blockers: [
+        'لا يمكن تقييم السهم بشكل موثوق'
+      ],
+
+      marketState:
+        meta?.marketState || 'UNKNOWN',
+
+      currency:
+        meta?.currency || 'USD',
+
+      dataAvailability: {
+        price: Number.isFinite(price),
+        volume:
+          Number.isFinite(
+            currentVolume
+          ),
+        technicals: false,
+        options: false,
+        darkPool: false,
+        institutionalFlow: false,
+      },
+    };
   }
 
-  const technicalScore =
-    calculateTechnicalScore({
-      momentum: momentum.score,
-      volume: volumeMetrics.score,
-      trend: trendScore,
-      breakout: breakout.score,
-      rsi: rsiScore,
-      squeeze:
-        bollinger.squeezeScore,
-      cluster: cluster.score,
-      risk: riskReward.score,
-      resistancePenalty,
-    });
+  const change =
+    price - previousClose;
 
   const changePercent =
-    ((price - previousClose) /
-      previousClose) *
-    100;
+    (change / previousClose) * 100;
 
-  /*
-   * Discovery score:
-   * لا يحل محل Technical Score.
-   */
+  const technicalScore =
+    clamp(
+      momentum.score * 0.15 +
+        volumeMetrics.volumeScore * 0.15 +
+        trendScore * 0.15 +
+        breakout.score * 0.15 +
+        calculateRsiScore(rsi) * 0.10 +
+        bollinger.squeezeScore * 0.10 +
+        cluster.score * 0.10 +
+        riskReward.score * 0.10
+    );
+
+  let adjustedTechnicalScore =
+    technicalScore;
+
+  if (
+    breakout.distancePercent != null &&
+    breakout.distancePercent >= 0 &&
+    breakout.distancePercent < 1
+  ) {
+    adjustedTechnicalScore -= 12;
+  } else if (
+    breakout.distancePercent != null &&
+    breakout.distancePercent < 2
+  ) {
+    adjustedTechnicalScore -= 7;
+  }
+
+  adjustedTechnicalScore =
+    clamp(adjustedTechnicalScore);
 
   const discoveryScore =
-    calculateDiscoveryScore({
-      rank,
-      relativeVolume:
-        volumeMetrics.relative,
-      changePercent,
-      volume,
-    });
-
-  /*
-   * الرسمي للرادار:
-   *
-   * Technical = 85%
-   * Discovery = 15%
-   */
+    clamp(
+      50 * 0.25 +
+        clamp(
+          30 +
+            (volumeMetrics.relativeVolume || 0) *
+              25,
+          30,
+          100
+        ) *
+          0.35 +
+        clamp(
+          40 +
+            Math.abs(changePercent) * 5,
+          40,
+          100
+        ) *
+          0.15 +
+        (
+          currentVolume >= 1_000_000
+            ? 100
+            : currentVolume >= 500_000
+              ? 80
+              : currentVolume >= 100_000
+                ? 60
+                : 30
+        ) *
+          0.25
+    );
 
   const setupScore =
     Math.round(
-      technicalScore * 0.85 +
+      adjustedTechnicalScore * 0.85 +
         discoveryScore * 0.15
     );
 
+  const decision =
+    buildDecision({
+      setupScore,
+      relativeVolume:
+        volumeMetrics.relativeVolume,
+      riskReward:
+        riskReward.riskReward,
+      resistanceDistancePercent:
+        breakout.distancePercent,
+      cluster:
+        cluster.isCluster,
+      squeeze:
+        bollinger.squeeze,
+      rsi,
+    });
+
   const signal =
-    getSignal(setupScore);
+    decision.decision === 'BUY'
+      ? 'BUY'
+      : decision.decision === 'WATCH'
+        ? 'WATCH'
+        : 'REJECT';
 
   return {
     technicalReady: true,
-
     dataQuality:
-      volumeMetrics.average20 >=
-      MIN_AVG_VOLUME
-        ? 'HIGH'
-        : 'MEDIUM',
+      'بيانات فنية مكتملة',
 
-    price:
-      round(price, 4),
-
+    price: round(price, 4),
     previousClose:
       round(previousClose, 4),
 
-    change:
-      round(
-        price - previousClose,
-        4
-      ),
-
+    change: round(change, 4),
     changePercent:
       round(changePercent),
 
-    volume,
+    volume: currentVolume,
 
     averageVolume20:
       Math.round(
-        volumeMetrics.average20 || 0
+        volumeMetrics.averageVolume
       ),
 
     relativeVolume:
       round(
-        volumeMetrics.relative,
-        2
-      ),
-
-    liquidityScore:
-      Math.round(
-        volumeMetrics.liquidityScore
+        volumeMetrics.relativeVolume
       ),
 
     momentumPercent:
@@ -1198,7 +1083,12 @@ function buildAnalytics(
 
     volumeScore:
       Math.round(
-        volumeMetrics.score
+        volumeMetrics.volumeScore
+      ),
+
+    liquidityScore:
+      Math.round(
+        volumeMetrics.liquidityScore
       ),
 
     trendScore:
@@ -1211,12 +1101,12 @@ function buildAnalytics(
       Math.round(breakout.score),
 
     rsi:
-      rsi == null
-        ? null
-        : round(rsi),
+      round(rsi),
 
     rsiScore:
-      Math.round(rsiScore),
+      Math.round(
+        calculateRsiScore(rsi)
+      ),
 
     sma20:
       round(sma20),
@@ -1225,38 +1115,15 @@ function buildAnalytics(
       round(sma50),
 
     resistance20:
-      round(resistance),
+      round(levels.resistance),
 
     support20:
-      round(support),
+      round(levels.support),
 
     resistanceDistancePercent:
-      round(resistanceDistance),
-
-    resistanceDistance:
-      round(resistanceDistance),
-
-    squeeze:
-      bollinger.squeeze,
-
-    bollingerBandwidth:
       round(
-        bollinger.bandwidth
+        breakout.distancePercent
       ),
-
-    squeezeScore:
-      Math.round(
-        bollinger.squeezeScore
-      ),
-
-    cluster:
-      cluster.isCluster,
-
-    clusterRangePercent:
-      round(cluster.range),
-
-    clusterScore:
-      Math.round(cluster.score),
 
     targetPrice:
       riskReward.targetPrice,
@@ -1276,30 +1143,71 @@ function buildAnalytics(
     riskScore:
       riskReward.score,
 
-    technicalScore,
+    bollingerBandwidth:
+      round(
+        bollinger.bandwidth
+      ),
 
-    discoveryScore,
+    squeeze:
+      bollinger.squeeze,
 
-    /*
-     * لا يوجد مصدر مؤسسي فعلي.
-     */
+    squeezeScore:
+      bollinger.squeezeScore,
 
-    institutionalScore: null,
+    cluster:
+      cluster.isCluster,
+
+    clusterRangePercent:
+      round(
+        cluster.rangePercent
+      ),
+
+    clusterScore:
+      Math.round(cluster.score),
+
+    technicalScore:
+      Math.round(
+        adjustedTechnicalScore
+      ),
+
+    discoveryScore:
+      Math.round(discoveryScore),
 
     setupScore,
 
-    signal:
-      signal.signal,
+    signal,
+
+    decision: decision.decision,
 
     signalStrength:
-      signal.strength,
+      setupScore >= 75
+        ? 'HIGH'
+        : setupScore >= 60
+          ? 'MEDIUM'
+          : 'LOW',
 
-    marketState:
-      getMarketState(
-        price,
-        sma20,
-        sma50
-      ),
+    directionBias:
+      setupScore >= 65
+        ? 'ميل فني صاعد'
+        : setupScore <= 40
+          ? 'ميل فني هابط'
+          : 'ميل فني محايد',
+
+    riskLevel:
+      setupScore >= 75
+        ? 'متوسط'
+        : setupScore >= 55
+          ? 'متوسط إلى مرتفع'
+          : 'مرتفع',
+
+    reasons:
+      decision.reasons,
+
+    risks:
+      decision.risks,
+
+    blockers:
+      decision.blockers,
 
     dayHigh:
       round(
@@ -1311,13 +1219,21 @@ function buildAnalytics(
         lows.at(-1) || price
       ),
 
+    marketState:
+      meta?.marketState || 'UNKNOWN',
+
     currency:
       meta?.currency || 'USD',
 
     dataAvailability: {
       price: true,
-      volume: true,
+      volume:
+        Number.isFinite(
+          currentVolume
+        ),
       technicals: true,
+
+      // لا ندعي توفر بيانات غير موجودة.
       options: false,
       darkPool: false,
       institutionalFlow: false,
@@ -1325,61 +1241,51 @@ function buildAnalytics(
   };
 }
 
-/* =========================================================
-   YAHOO CHART
-========================================================= */
-
-async function fetchYahooChart(
-  symbol
+async function fetchChart(
+  symbol,
+  range = '6mo'
 ) {
   const clean =
     String(symbol || '')
       .trim()
       .toUpperCase();
 
-  if (
-    !isValidSymbol(clean)
-  ) {
+  if (!SYMBOL_REGEX.test(clean)) {
     throw new Error(
-      `Invalid symbol: ${clean}`
+      'رمز سهم غير صالح'
     );
   }
 
   const url =
-    `https://query1.finance.yahoo.com/v8/finance/chart/` +
-    `${encodeURIComponent(clean)}` +
-    `?interval=1d&range=6mo&events=div%2Csplits`;
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
+      clean
+    )}?interval=1d&range=${range}&events=div%2Csplits`;
 
   const response =
     await fetch(url, {
-      headers:
-        YAHOO_HEADERS,
+      headers: YAHOO_HEADERS,
       cache: 'no-store',
-      signal:
-        AbortSignal.timeout(8000),
     });
 
   if (!response.ok) {
     throw new Error(
-      `Yahoo Finance ${response.status}`
+      `Yahoo Finance ${response.status} for ${clean}`
     );
   }
 
-  const json =
+  const data =
     await response.json();
 
   const result =
-    json?.chart?.result?.[0];
+    data?.chart?.result?.[0];
 
   if (!result?.meta) {
     throw new Error(
-      `No data for ${clean}`
+      `No market data for ${clean}`
     );
   }
 
   return {
-    provider: 'yahoo',
-
     symbol:
       result.meta.symbol ||
       clean,
@@ -1387,580 +1293,24 @@ async function fetchYahooChart(
     meta:
       result.meta,
 
+    timestamps:
+      result.timestamp || [],
+
     quote:
       result.indicators
         ?.quote?.[0] || {},
   };
 }
 
-/* =========================================================
-   FINNHUB
-========================================================= */
-
-function unixDaysAgo(days) {
-  return Math.floor(
-    (
-      Date.now() -
-      days *
-        24 *
-        60 *
-        60 *
-        1000
-    ) / 1000
-  );
-}
-
-async function fetchFinnhubChart(
-  symbol,
-  providerStatus
-) {
-  const token =
-    getFinnhubToken();
-
-  if (
-    !token ||
-    !providerStatus.finnhub.available
-  ) {
-    const error =
-      new Error(
-        providerStatus.finnhub.reason ||
-          'Finnhub غير متاح'
-      );
-
-    error.code =
-      'FINNHUB_UNAVAILABLE';
-
-    throw error;
-  }
-
-  const clean =
-    String(symbol || '')
-      .trim()
-      .toUpperCase();
-
-  if (
-    !isValidSymbol(clean)
-  ) {
-    throw new Error(
-      `Invalid symbol: ${clean}`
-    );
-  }
-
-  const url =
-    new URL(
-      `${FINNHUB_API_BASE}/stock/candle`
-    );
-
-  url.searchParams.set(
-    'symbol',
-    clean
-  );
-
-  url.searchParams.set(
-    'resolution',
-    'D'
-  );
-
-  url.searchParams.set(
-    'from',
-    String(
-      unixDaysAgo(190)
-    )
-  );
-
-  url.searchParams.set(
-    'to',
-    String(
-      Math.floor(
-        Date.now() / 1000
-      )
-    )
-  );
-
-  url.searchParams.set(
-    'token',
-    token
-  );
-
-  const controller =
-    new AbortController();
-
-  const timeout =
-    setTimeout(
-      () =>
-        controller.abort(),
-      FINNHUB_TIMEOUT_MS
-    );
-
-  try {
-    const response =
-      await fetch(url, {
-        cache: 'no-store',
-        signal:
-          controller.signal,
-      });
-
-    if (response.status === 429) {
-      providerStatus.finnhub.available =
-        false;
-
-      providerStatus.finnhub.reason =
-        'Finnhub rate limit (HTTP 429)';
-
-      const error =
-        new Error(
-          providerStatus.finnhub.reason
-        );
-
-      error.code =
-        'FINNHUB_RATE_LIMIT';
-
-      throw error;
-    }
-
-    if (!response.ok) {
-      const error =
-        new Error(
-          `Finnhub ${response.status}`
-        );
-
-      error.code =
-        response.status === 401 ||
-        response.status === 403
-          ? 'FINNHUB_UNAVAILABLE'
-          : 'FINNHUB_REQUEST_FAILED';
-
-      if (
-        error.code ===
-        'FINNHUB_UNAVAILABLE'
-      ) {
-        providerStatus.finnhub.available =
-          false;
-
-        providerStatus.finnhub.reason =
-          `Finnhub unavailable (HTTP ${response.status})`;
-      }
-
-      throw error;
-    }
-
-    const data =
-      await response.json();
-
-    if (
-      data?.s !== 'ok' ||
-      !Array.isArray(data?.c)
-    ) {
-      const error =
-        new Error(
-          'Finnhub returned no daily candle data'
-        );
-
-      error.code =
-        'FINNHUB_NO_CANDLES';
-
-      throw error;
-    }
-
-    const closes =
-      data.c
-        .map(Number)
-        .filter(
-          Number.isFinite
-        );
-
-    const highs =
-      (data.h || [])
-        .map(Number)
-        .filter(
-          Number.isFinite
-        );
-
-    const lows =
-      (data.l || [])
-        .map(Number)
-        .filter(
-          Number.isFinite
-        );
-
-    const volumes =
-      (data.v || [])
-        .map(Number)
-        .filter(
-          Number.isFinite
-        );
-
-    if (
-      closes.length < MIN_HISTORY ||
-      highs.length !== closes.length ||
-      lows.length !== closes.length ||
-      volumes.length !== closes.length
-    ) {
-      const error =
-        new Error(
-          'Finnhub returned insufficient daily OHLCV data'
-        );
-
-      error.code =
-        'FINNHUB_NO_CANDLES';
-
-      throw error;
-    }
-
-    return {
-      provider: 'finnhub',
-
-      symbol: clean,
-
-      meta: {
-        regularMarketPrice:
-          closes.at(-1),
-
-        previousClose:
-          closes.at(-2),
-
-        regularMarketVolume:
-          volumes.at(-1),
-
-        currency: 'USD',
-
-        quoteType: 'EQUITY',
-
-        exchangeTimezoneName:
-          'America/New_York',
-      },
-
-      quote: {
-        close: closes,
-        high: highs,
-        low: lows,
-        volume: volumes,
-      },
-    };
-  } catch (error) {
-    if (
-      error?.name ===
-      'AbortError'
-    ) {
-      providerStatus.finnhub.available =
-        false;
-
-      providerStatus.finnhub.reason =
-        `Finnhub timeout after ${FINNHUB_TIMEOUT_MS}ms`;
-
-      const timeoutError =
-        new Error(
-          providerStatus.finnhub.reason
-        );
-
-      timeoutError.code =
-        'FINNHUB_TIMEOUT';
-
-      throw timeoutError;
-    }
-
-    throw error;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-/* =========================================================
-   CHART PROVIDER
-========================================================= */
-
-async function fetchChart(
-  symbol,
-  providerStatus
-) {
-  if (
-    providerStatus.finnhub.available
-  ) {
-    try {
-      return await fetchFinnhubChart(
-        symbol,
-        providerStatus
-      );
-    } catch (error) {
-      console.warn(
-        `Finnhub failed for ${symbol}; using Yahoo fallback.`,
-        error?.message ||
-          error
-      );
-    }
-  }
-
-  return fetchYahooChart(
-    symbol
-  );
-}
-
-/* =========================================================
-   US EQUITY CHECK
-========================================================= */
-
 function isUsEquity(meta) {
-  const type =
-    meta?.instrumentType ||
-    meta?.quoteType;
-
-  if (
-    type !== 'EQUITY'
-  ) {
-    return false;
-  }
-
-  const exchange =
-    String(
-      meta?.fullExchangeName ||
-        meta?.exchangeName ||
-        ''
-    ).toUpperCase();
-
-  if (
-    exchange.includes('NASDAQ') ||
-    exchange.includes('NYSE') ||
-    exchange.includes('AMEX') ||
-    exchange.includes('NYSEARCA') ||
-    exchange.includes('NYSE MKT')
-  ) {
-    return true;
-  }
-
   return (
-    meta?.exchangeTimezoneName ===
-    'America/New_York'
+    meta?.quoteType === 'EQUITY' &&
+    Boolean(
+      meta?.exchangeTimezoneName ||
+        meta?.fullExchangeName
+    )
   );
 }
-
-/* =========================================================
-   CONFIGURED UNIVERSE
-========================================================= */
-
-async function getConfiguredUniverse() {
-  const raw =
-    process.env.HUNTER_UNIVERSE ||
-    '';
-
-  if (!raw.trim()) {
-    return [];
-  }
-
-  const symbols =
-    raw
-      .split(',')
-      .map(
-        (item) =>
-          item
-            .trim()
-            .toUpperCase()
-      )
-      .filter(
-        isValidSymbol
-      );
-
-  return [
-    ...new Set(symbols),
-  ];
-}
-
-/* =========================================================
-   YAHOO DISCOVERY FALLBACK
-========================================================= */
-
-async function getYahooDiscoveryUniverse() {
-  const response =
-    await fetch(
-      'https://query1.finance.yahoo.com/v1/finance/trending/US?count=50',
-      {
-        headers:
-          YAHOO_HEADERS,
-        cache:
-          'no-store',
-        signal:
-          AbortSignal.timeout(8000),
-      }
-    );
-
-  if (!response.ok) {
-    throw new Error(
-      `Yahoo trending ${response.status}`
-    );
-  }
-
-  const data =
-    await response.json();
-
-  return (
-    data?.finance
-      ?.result?.[0]
-      ?.quotes || []
-  )
-    .map(
-      (item) =>
-        item?.symbol
-    )
-    .filter(
-      (symbol) =>
-        isValidSymbol(symbol)
-    );
-}
-
-/* =========================================================
-   SCAN UNIVERSE
-========================================================= */
-
-async function scanUniverse(
-  symbols,
-  providerStatus
-) {
-  const results = [];
-
-  const batchSize =
-    providerStatus.finnhub.available
-      ? FINNHUB_CONCURRENCY
-      : 6;
-
-  for (
-    let i = 0;
-    i < symbols.length;
-    i += batchSize
-  ) {
-    const batch =
-      symbols.slice(
-        i,
-        i + batchSize
-      );
-
-    const settled =
-      await Promise.allSettled(
-        batch.map(
-          async (
-            symbol,
-            index
-          ) => {
-            try {
-              const chart =
-                await fetchChart(
-                  symbol,
-                  providerStatus
-                );
-
-              if (
-                !isUsEquity(
-                  chart.meta
-                )
-              ) {
-                return null;
-              }
-
-              const analytics =
-                buildAnalytics(
-                  chart.meta,
-                  chart.quote,
-                  i + index + 1
-                );
-
-              return {
-                symbol:
-                  chart.symbol,
-
-                quoteType:
-                  chart.meta
-                    ?.quoteType ||
-                  null,
-
-                exchange:
-                  chart.meta
-                    ?.fullExchangeName ||
-                  chart.meta
-                    ?.exchangeName ||
-                  null,
-
-                provider:
-                  chart.provider,
-
-                ...analytics,
-              };
-            } catch (error) {
-              console.warn(
-                `Stock scan failed for ${symbol}:`,
-                error?.message ||
-                  error
-              );
-
-              return null;
-            }
-          }
-        )
-      );
-
-    results.push(
-      ...settled
-        .filter(
-          (item) =>
-            item.status ===
-            'fulfilled'
-        )
-        .map(
-          (item) =>
-            item.value
-        )
-        .filter(Boolean)
-    );
-  }
-
-  return results;
-}
-
-/* =========================================================
-   MARKET GATE
-========================================================= */
-
-function passesMarketGate(item) {
-  if (
-    !item?.technicalReady
-  ) {
-    return false;
-  }
-
-  if (
-    !Number.isFinite(
-      item.price
-    )
-  ) {
-    return false;
-  }
-
-  if (
-    item.price <= MIN_PRICE ||
-    item.price >= MAX_PRICE
-  ) {
-    return false;
-  }
-
-  if (
-    !Number.isFinite(
-      item.averageVolume20
-    ) ||
-    item.averageVolume20 <
-      MIN_AVG_VOLUME
-  ) {
-    return false;
-  }
-
-  if (
-    item.relativeVolume == null
-  ) {
-    return false;
-  }
-
-  return true;
-}
-
-/* =========================================================
-   GET API
-========================================================= */
 
 export async function GET(
   request
@@ -1972,62 +1322,21 @@ export async function GET(
       request.url
     );
 
-    const requestedSymbol =
+    const symbol =
       searchParams
         .get('symbol')
         ?.trim()
         .toUpperCase();
 
-    /*
-     * =====================================================
-     * SINGLE STOCK
-     * /api/stocks?symbol=SOFI
-     * =====================================================
-     */
+    // -----------------------------------------
+    // SINGLE SYMBOL
+    // -----------------------------------------
 
-    if (requestedSymbol) {
-      if (
-        !isValidSymbol(
-          requestedSymbol
-        )
-      ) {
-        return NextResponse.json(
-          {
-            status: 'error',
-            error:
-              'رمز السهم غير صالح',
-          },
-          {
-            status: 400,
-          }
-        );
-      }
-
-      const providerStatus =
-        createProviderStatus();
-
+    if (symbol) {
       const chart =
         await fetchChart(
-          requestedSymbol,
-          providerStatus
+          symbol
         );
-
-      if (
-        !isUsEquity(
-          chart.meta
-        )
-      ) {
-        return NextResponse.json(
-          {
-            status: 'error',
-            error:
-              'الرمز ليس سهماً أمريكياً',
-          },
-          {
-            status: 422,
-          }
-        );
-      }
 
       const analytics =
         buildAnalytics(
@@ -2038,7 +1347,6 @@ export async function GET(
       return NextResponse.json(
         {
           status: 'success',
-
           timestamp:
             new Date().toISOString(),
 
@@ -2054,48 +1362,9 @@ export async function GET(
                   ?.quoteType ||
                 null,
 
-              exchange:
-                chart.meta
-                  ?.fullExchangeName ||
-                chart.meta
-                  ?.exchangeName ||
-                null,
-
-              provider:
-                chart.provider,
-
               ...analytics,
             },
           ],
-
-          source:
-            chart.provider ===
-            'finnhub'
-              ? 'Finnhub daily candles'
-              : 'Yahoo Finance chart',
-
-          providers:
-            providerStatus,
-
-          dataAvailability: {
-            price: true,
-            volume: true,
-            technicals: true,
-            options: false,
-            darkPool: false,
-            institutionalFlow:
-              false,
-          },
-
-          limitations: {
-            options: false,
-            darkPool: false,
-            institutionalFlow:
-              false,
-
-            note:
-              'لا يتم احتساب أي بيانات غير متوفرة فعلياً.',
-          },
         },
         {
           headers: {
@@ -2106,109 +1375,115 @@ export async function GET(
       );
     }
 
-    /*
-     * =====================================================
-     * UNIVERSE
-     * =====================================================
-     */
+    // -----------------------------------------
+    // DISCOVERY
+    // -----------------------------------------
 
-    const providerStatus =
-      createProviderStatus();
+    const trendingResponse =
+      await fetch(
+        'https://query1.finance.yahoo.com/v1/finance/trending/US?count=25',
+        {
+          headers:
+            YAHOO_HEADERS,
 
-    const configured =
-      await getConfiguredUniverse();
+          cache:
+            'no-store',
+        }
+      );
 
-    let symbols =
-      configured;
-
-    let universeSource =
-      'HUNTER_UNIVERSE';
-
-    /*
-     * Yahoo Trending:
-     * Discovery fallback فقط.
-     */
-
-    if (!symbols.length) {
-      symbols =
-        await getYahooDiscoveryUniverse();
-
-      universeSource =
-        'Yahoo Trending Discovery Fallback';
+    if (
+      !trendingResponse.ok
+    ) {
+      throw new Error(
+        `Yahoo trending ${trendingResponse.status}`
+      );
     }
 
-    const uniqueSymbols =
-      [
-        ...new Set(
-          symbols
-        ),
-      ].slice(
-        0,
-        MAX_UNIVERSE
+    const trendingData =
+      await trendingResponse.json();
+
+    const symbols =
+      (
+        trendingData
+          ?.finance
+          ?.result?.[0]
+          ?.quotes || []
+      )
+        .map(
+          (item) =>
+            item?.symbol
+        )
+        .filter(
+          (item) =>
+            SYMBOL_REGEX.test(
+              item || ''
+            )
+        )
+        .slice(0, 25);
+
+    const settled =
+      await Promise.allSettled(
+        symbols.map(
+          (item) =>
+            fetchChart(item)
+        )
       );
 
-    /*
-     * =====================================================
-     * SCAN
-     * =====================================================
-     */
+    const results =
+      settled
+        .filter(
+          (item) =>
+            item.status ===
+            'fulfilled'
+        )
+        .map(
+          (item) =>
+            item.value
+        )
+        .filter(
+          (chart) =>
+            isUsEquity(
+              chart.meta
+            )
+        )
+        .map(
+          (chart) => ({
+            symbol:
+              chart.symbol,
 
-    const scanned =
-      await scanUniverse(
-        uniqueSymbols,
-        providerStatus
-      );
+            quoteType:
+              chart.meta
+                ?.quoteType ||
+              null,
 
-    /*
-     * =====================================================
-     * MARKET GATE
-     * =====================================================
-     */
-
-    const gated =
-      scanned.filter(
-        passesMarketGate
-      );
-
-    /*
-     * =====================================================
-     * SORT
-     * =====================================================
-     *
-     * Setup Score:
-     *
-     * Technical 85%
-     * Discovery 15%
-     *
-     * ثم RVOL كعامل كسر تعادل.
-     */
-
-    gated.sort(
-      (a, b) => {
-        const scoreDiff =
-          (b.setupScore ?? -1) -
-          (a.setupScore ?? -1);
-
-        if (
-          scoreDiff !== 0
-        ) {
-          return scoreDiff;
-        }
-
-        return (
-          (b.relativeVolume ??
-            0) -
-          (a.relativeVolume ??
-            0)
-        );
-      }
-    );
-
-    /*
-     * =====================================================
-     * RESPONSE
-     * =====================================================
-     */
+            ...buildAnalytics(
+              chart.meta,
+              chart.quote
+            ),
+          })
+        )
+        .filter(
+          (item) =>
+            item.technicalReady &&
+            item.price >=
+              MIN_PRICE &&
+            item.price <=
+              MAX_PRICE &&
+            Number(
+              item.averageVolume20
+            ) >=
+              MIN_AVERAGE_VOLUME
+        )
+        .sort(
+          (a, b) =>
+            Number(
+              b.setupScore || 0
+            ) -
+            Number(
+              a.setupScore || 0
+            )
+        )
+        .slice(0, 25);
 
     return NextResponse.json(
       {
@@ -2218,57 +1493,16 @@ export async function GET(
           new Date().toISOString(),
 
         count:
-          gated.length,
-
-        scanned:
-          uniqueSymbols.length,
+          results.length,
 
         data:
-          gated,
+          results,
 
         universe:
-          universeSource,
-
-        providers:
-          providerStatus,
-
-        marketGate: {
-          price:
-            `$${MIN_PRICE} - $${MAX_PRICE}`,
-
-          averageVolume:
-            `>= ${MIN_AVG_VOLUME.toLocaleString()}`,
-
-          history:
-            `>= ${MIN_HISTORY} sessions`,
-        },
-
-        scoring: {
-          technical:
-            '85%',
-
-          discovery:
-            '15%',
-
-          setupScore:
-            'Technical 85% + Discovery 15%',
-
-          institutional:
-            'غير محتسب حتى يتوفر مصدر فعلي',
-        },
-
-        dataAvailability: {
-          price: true,
-          volume: true,
-          technicals: true,
-          options: false,
-          darkPool: false,
-          institutionalFlow:
-            false,
-        },
+          'Yahoo Finance US trending equities, price $0.50-$100, average volume >= 100K',
 
         limitations:
-          'هذا المسار مسؤول عن Discovery وRadar. Yahoo Trending يستخدم كـ fallback فقط إذا لم يتم تعريف HUNTER_UNIVERSE. لا يتم اعتبار Trending تدفقاً مؤسسياً، ولا يتم اختلاق Options أو Dark Pool أو Institutional Flow.',
+          'المصدر الحالي يوفر سعر/حجم/بيانات تاريخية، وليس Options أو Dark Pool أو تدفق مؤسسات لحظي.',
       },
       {
         headers: {
@@ -2279,7 +1513,7 @@ export async function GET(
     );
   } catch (error) {
     console.error(
-      'HUNTER AI V4 Stocks API Error:',
+      'Stocks API Live Error:',
       error
     );
 
@@ -2292,26 +1526,13 @@ export async function GET(
 
         count: 0,
 
-        scanned: 0,
-
         data: [],
 
         error:
           'تعذر جلب بيانات الأسهم الأمريكية المباشرة حالياً',
-
-        details:
-          process.env.NODE_ENV ===
-          'development'
-            ? error?.message
-            : undefined,
       },
       {
         status: 503,
-
-        headers: {
-          'Cache-Control':
-            'no-store',
-        },
       }
     );
   }
