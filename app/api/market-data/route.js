@@ -1,4 +1,3 @@
-
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -17,10 +16,6 @@ const MIN_HISTORY = 60;
 const DISCOVERY_COUNT = 30;
 const MAX_UNIVERSE = 25;
 
-/* =========================================================
-   HELPERS
-========================================================= */
-
 function num(value, fallback = null) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
@@ -28,7 +23,6 @@ function num(value, fallback = null) {
 
 function average(values) {
   const valid = values.filter(Number.isFinite);
-
   if (!valid.length) return null;
 
   return (
@@ -39,10 +33,7 @@ function average(values) {
 
 function clamp(value, min = 0, max = 100) {
   const n = Number(value);
-
-  if (!Number.isFinite(n)) {
-    return min;
-  }
+  if (!Number.isFinite(n)) return min;
 
   return Math.max(min, Math.min(max, n));
 }
@@ -50,9 +41,7 @@ function clamp(value, min = 0, max = 100) {
 function round(value, decimals = 2) {
   const n = Number(value);
 
-  if (!Number.isFinite(n)) {
-    return null;
-  }
+  if (!Number.isFinite(n)) return null;
 
   return Number(n.toFixed(decimals));
 }
@@ -63,48 +52,26 @@ function isValidSymbol(symbol) {
   );
 }
 
-/* =========================================================
-   SMA
-========================================================= */
-
 function calculateSMA(values, period) {
-  if (
-    !Array.isArray(values) ||
-    values.length < period
-  ) {
+  if (!Array.isArray(values) || values.length < period) {
     return null;
   }
 
   return average(values.slice(-period));
 }
 
-/* =========================================================
-   EMA
-========================================================= */
-
 function calculateEMA(values, period) {
-  if (
-    !Array.isArray(values) ||
-    values.length < period
-  ) {
+  if (!Array.isArray(values) || values.length < period) {
     return null;
   }
 
   const multiplier = 2 / (period + 1);
 
-  let ema = average(
-    values.slice(0, period)
-  );
+  let ema = average(values.slice(0, period));
 
-  if (ema == null) {
-    return null;
-  }
+  if (ema == null) return null;
 
-  for (
-    let i = period;
-    i < values.length;
-    i += 1
-  ) {
+  for (let i = period; i < values.length; i += 1) {
     ema =
       (values[i] - ema) * multiplier +
       ema;
@@ -113,32 +80,16 @@ function calculateEMA(values, period) {
   return ema;
 }
 
-/* =========================================================
-   RSI
-========================================================= */
-
-function calculateRSI(
-  closes,
-  period = 14
-) {
-  if (
-    !Array.isArray(closes) ||
-    closes.length <= period
-  ) {
+function calculateRSI(closes, period = 14) {
+  if (!Array.isArray(closes) || closes.length <= period) {
     return null;
   }
 
   let gains = 0;
   let losses = 0;
 
-  for (
-    let i = 1;
-    i <= period;
-    i += 1
-  ) {
-    const delta =
-      closes[i] -
-      closes[i - 1];
+  for (let i = 1; i <= period; i += 1) {
+    const delta = closes[i] - closes[i - 1];
 
     if (delta >= 0) {
       gains += delta;
@@ -147,39 +98,21 @@ function calculateRSI(
     }
   }
 
-  let avgGain =
-    gains / period;
+  let avgGain = gains / period;
+  let avgLoss = losses / period;
 
-  let avgLoss =
-    losses / period;
+  for (let i = period + 1; i < closes.length; i += 1) {
+    const delta = closes[i] - closes[i - 1];
 
-  for (
-    let i = period + 1;
-    i < closes.length;
-    i += 1
-  ) {
-    const delta =
-      closes[i] -
-      closes[i - 1];
-
-    const gain =
-      delta > 0
-        ? delta
-        : 0;
-
-    const loss =
-      delta < 0
-        ? Math.abs(delta)
-        : 0;
+    const gain = delta > 0 ? delta : 0;
+    const loss = delta < 0 ? Math.abs(delta) : 0;
 
     avgGain =
-      ((avgGain * (period - 1)) +
-        gain) /
+      ((avgGain * (period - 1)) + gain) /
       period;
 
     avgLoss =
-      ((avgLoss * (period - 1)) +
-        loss) /
+      ((avgLoss * (period - 1)) + loss) /
       period;
   }
 
@@ -187,42 +120,19 @@ function calculateRSI(
     return 100;
   }
 
-  const rs =
-    avgGain /
-    avgLoss;
-
-  return (
-    100 -
-    100 /
-      (1 + rs)
-  );
+  return 100 - 100 / (1 + avgGain / avgLoss);
 }
 
-/* =========================================================
-   MOMENTUM
-========================================================= */
-
-function calculateMomentum(
-  closes,
-  period = 5
-) {
-  if (
-    !Array.isArray(closes) ||
-    closes.length <= period
-  ) {
+function calculateMomentum(closes, period = 5) {
+  if (!Array.isArray(closes) || closes.length <= period) {
     return {
       percent: null,
       score: 50,
     };
   }
 
-  const current =
-    closes.at(-1);
-
-  const previous =
-    closes.at(
-      -(period + 1)
-    );
+  const current = closes.at(-1);
+  const previous = closes.at(-(period + 1));
 
   if (
     !Number.isFinite(current) ||
@@ -236,31 +146,20 @@ function calculateMomentum(
   }
 
   const percent =
-    ((current - previous) /
-      previous) *
-    100;
+    ((current - previous) / previous) * 100;
 
   return {
     percent,
-    score: clamp(
-      50 + percent * 8
-    ),
+    score: clamp(50 + percent * 8),
   };
 }
-
-/* =========================================================
-   VOLUME
-========================================================= */
 
 function calculateVolumeMetrics(
   volumes,
   currentVolume,
   period = 20
 ) {
-  if (
-    !Array.isArray(volumes) ||
-    !volumes.length
-  ) {
+  if (!Array.isArray(volumes) || !volumes.length) {
     return {
       averageVolume: null,
       relativeVolume: null,
@@ -271,54 +170,35 @@ function calculateVolumeMetrics(
 
   const previousVolumes =
     volumes.length > period
-      ? volumes.slice(
-          -(period + 1),
-          -1
-        )
-      : volumes.slice(
-          -period
-        );
+      ? volumes.slice(-(period + 1), -1)
+      : volumes.slice(-period);
 
   const averageVolume =
     average(previousVolumes);
 
   const relativeVolume =
-    averageVolume &&
-    averageVolume > 0
-      ? currentVolume /
-        averageVolume
+    averageVolume > 0 &&
+    Number.isFinite(currentVolume)
+      ? currentVolume / averageVolume
       : null;
 
   const volumeScore =
     relativeVolume != null
       ? clamp(
           45 +
-            (relativeVolume - 1) *
-              35
+            (relativeVolume - 1) * 35
         )
       : 50;
 
   let liquidityScore = 25;
 
-  if (
-    averageVolume >=
-    1000000
-  ) {
+  if (averageVolume >= 1_000_000) {
     liquidityScore = 100;
-  } else if (
-    averageVolume >=
-    500000
-  ) {
+  } else if (averageVolume >= 500_000) {
     liquidityScore = 85;
-  } else if (
-    averageVolume >=
-    250000
-  ) {
+  } else if (averageVolume >= 250_000) {
     liquidityScore = 70;
-  } else if (
-    averageVolume >=
-    100000
-  ) {
+  } else if (averageVolume >= 100_000) {
     liquidityScore = 55;
   }
 
@@ -330,41 +210,19 @@ function calculateVolumeMetrics(
   };
 }
 
-/* =========================================================
-   TREND
-========================================================= */
-
-function calculateTrendScore(
-  price,
-  sma20,
-  sma50
-) {
-  if (
-    !price ||
-    !sma20 ||
-    !sma50
-  ) {
+function calculateTrendScore(price, sma20, sma50) {
+  if (!price || !sma20 || !sma50) {
     return 50;
   }
 
   let score = 50;
 
-  if (price > sma20) {
-    score += 15;
-  }
-
-  if (price > sma50) {
-    score += 20;
-  }
-
-  if (sma20 > sma50) {
-    score += 15;
-  }
+  if (price > sma20) score += 15;
+  if (price > sma50) score += 20;
+  if (sma20 > sma50) score += 15;
 
   const distance =
-    ((price - sma50) /
-      sma50) *
-    100;
+    ((price - sma50) / sma50) * 100;
 
   score += clamp(
     distance * 2,
@@ -375,61 +233,20 @@ function calculateTrendScore(
   return clamp(score);
 }
 
-/* =========================================================
-   RSI SCORE
-========================================================= */
+function calculateRsiScore(rsi) {
+  if (rsi == null) return 50;
 
-function calculateRsiScore(
-  rsi
-) {
-  if (rsi == null) {
-    return 50;
-  }
-
-  if (
-    rsi >= 45 &&
-    rsi <= 65
-  ) {
-    return 100;
-  }
-
-  if (
-    rsi > 65 &&
-    rsi <= 70
-  ) {
-    return 85;
-  }
-
-  if (
-    rsi >= 35 &&
-    rsi < 45
-  ) {
-    return 75;
-  }
-
-  if (rsi > 70) {
-    return 45;
-  }
-
-  if (rsi < 30) {
-    return 55;
-  }
+  if (rsi >= 45 && rsi <= 65) return 100;
+  if (rsi > 65 && rsi <= 70) return 85;
+  if (rsi >= 35 && rsi < 45) return 75;
+  if (rsi > 70) return 45;
+  if (rsi < 30) return 55;
 
   return 65;
 }
 
-/* =========================================================
-   BOLLINGER
-========================================================= */
-
-function calculateBollinger(
-  closes,
-  period = 20
-) {
-  if (
-    !Array.isArray(closes) ||
-    closes.length < period
-  ) {
+function calculateBollinger(closes, period = 20) {
+  if (!Array.isArray(closes) || closes.length < period) {
     return {
       middle: null,
       upper: null,
@@ -440,16 +257,10 @@ function calculateBollinger(
     };
   }
 
-  const slice =
-    closes.slice(-period);
+  const slice = closes.slice(-period);
+  const middle = average(slice);
 
-  const middle =
-    average(slice);
-
-  if (
-    middle == null ||
-    middle <= 0
-  ) {
+  if (!middle || middle <= 0) {
     return {
       middle: null,
       upper: null,
@@ -468,48 +279,30 @@ function calculateBollinger(
       )
     ) || 0;
 
-  const stdDev =
-    Math.sqrt(variance);
+  const stdDev = Math.sqrt(variance);
 
-  const upper =
-    middle +
-    2 * stdDev;
-
-  const lower =
-    middle -
-    2 * stdDev;
+  const upper = middle + 2 * stdDev;
+  const lower = middle - 2 * stdDev;
 
   const bandwidth =
-    ((upper - lower) /
-      middle) *
-    100;
+    ((upper - lower) / middle) * 100;
 
   let score = 20;
 
-  if (bandwidth < 5) {
-    score = 100;
-  } else if (bandwidth < 7) {
-    score = 90;
-  } else if (bandwidth < 9) {
-    score = 75;
-  } else if (bandwidth < 12) {
-    score = 50;
-  }
+  if (bandwidth < 5) score = 100;
+  else if (bandwidth < 7) score = 90;
+  else if (bandwidth < 9) score = 75;
+  else if (bandwidth < 12) score = 50;
 
   return {
     middle,
     upper,
     lower,
     bandwidth,
-    squeeze:
-      bandwidth < 9,
+    squeeze: bandwidth < 9,
     score,
   };
 }
-
-/* =========================================================
-   CLUSTER
-========================================================= */
 
 function calculateCluster(
   price,
@@ -531,50 +324,26 @@ function calculateCluster(
     };
   }
 
-  const recentHighs =
-    highs.slice(-5);
+  const recentHighs = highs.slice(-5);
+  const recentLows = lows.slice(-5);
 
-  const recentLows =
-    lows.slice(-5);
-
-  const high =
-    Math.max(
-      ...recentHighs
-    );
-
-  const low =
-    Math.min(
-      ...recentLows
-    );
+  const high = Math.max(...recentHighs);
+  const low = Math.min(...recentLows);
 
   const rangePercent =
-    ((high - low) /
-      price) *
-    100;
+    ((high - low) / price) * 100;
 
   const isCluster =
     rangePercent <= 3.5 &&
-    Number(relativeVolume || 0) >=
-      1.1;
+    Number(relativeVolume || 0) >= 1.1;
 
   let score = 25;
 
-  if (rangePercent <= 2) {
-    score = 100;
-  } else if (
-    rangePercent <= 3.5
-  ) {
-    score = 85;
-  } else if (
-    rangePercent <= 5
-  ) {
-    score = 60;
-  }
+  if (rangePercent <= 2) score = 100;
+  else if (rangePercent <= 3.5) score = 85;
+  else if (rangePercent <= 5) score = 60;
 
-  if (
-    Number(relativeVolume || 0) >=
-    1.5
-  ) {
+  if (Number(relativeVolume || 0) >= 1.5) {
     score += 10;
   }
 
@@ -585,14 +354,7 @@ function calculateCluster(
   };
 }
 
-/* =========================================================
-   BREAKOUT
-========================================================= */
-
-function calculateBreakout(
-  price,
-  closes
-) {
+function calculateBreakout(price, closes) {
   if (
     !price ||
     !Array.isArray(closes) ||
@@ -606,17 +368,9 @@ function calculateBreakout(
   }
 
   const priorHigh =
-    Math.max(
-      ...closes.slice(
-        -21,
-        -1
-      )
-    );
+    Math.max(...closes.slice(-21, -1));
 
-  if (
-    !Number.isFinite(priorHigh) ||
-    priorHigh <= 0
-  ) {
+  if (!Number.isFinite(priorHigh) || priorHigh <= 0) {
     return {
       distancePercent: null,
       score: 50,
@@ -625,35 +379,16 @@ function calculateBreakout(
   }
 
   const distancePercent =
-    ((priorHigh - price) /
-      price) *
-    100;
+    ((priorHigh - price) / price) * 100;
 
   let score = 25;
 
-  if (distancePercent <= 0) {
-    score = 100;
-  } else if (
-    distancePercent <= 1
-  ) {
-    score = 95;
-  } else if (
-    distancePercent <= 2
-  ) {
-    score = 88;
-  } else if (
-    distancePercent <= 4
-  ) {
-    score = 75;
-  } else if (
-    distancePercent <= 6
-  ) {
-    score = 60;
-  } else if (
-    distancePercent <= 10
-  ) {
-    score = 45;
-  }
+  if (distancePercent <= 0) score = 100;
+  else if (distancePercent <= 1) score = 95;
+  else if (distancePercent <= 2) score = 88;
+  else if (distancePercent <= 4) score = 75;
+  else if (distancePercent <= 6) score = 60;
+  else if (distancePercent <= 10) score = 45;
 
   return {
     distancePercent,
@@ -662,47 +397,19 @@ function calculateBreakout(
   };
 }
 
-/* =========================================================
-   SUPPORT / RESISTANCE
-========================================================= */
-
-function calculateLevels(
-  highs,
-  lows,
-  closes
-) {
+function calculateLevels(highs, lows, closes) {
   const resistance =
     highs.length >= 21
-      ? Math.max(
-          ...highs.slice(
-            -21,
-            -1
-          )
-        )
+      ? Math.max(...highs.slice(-21, -1))
       : closes.length >= 21
-        ? Math.max(
-            ...closes.slice(
-              -21,
-              -1
-            )
-          )
+        ? Math.max(...closes.slice(-21, -1))
         : null;
 
   const support =
     lows.length >= 21
-      ? Math.min(
-          ...lows.slice(
-            -21,
-            -1
-          )
-        )
+      ? Math.min(...lows.slice(-21, -1))
       : closes.length >= 21
-        ? Math.min(
-            ...closes.slice(
-              -21,
-              -1
-            )
-          )
+        ? Math.min(...closes.slice(-21, -1))
         : null;
 
   return {
@@ -711,20 +418,12 @@ function calculateLevels(
   };
 }
 
-/* =========================================================
-   RISK / REWARD
-========================================================= */
-
 function calculateRiskReward(
   price,
   support,
   resistance
 ) {
-  if (
-    !price ||
-    !support ||
-    !resistance
-  ) {
+  if (!price || !support || !resistance) {
     return {
       stopLoss: null,
       targetPrice: null,
@@ -755,85 +454,45 @@ function calculateRiskReward(
     };
   }
 
-  const risk =
-    price - stopLoss;
+  const risk = price - stopLoss;
+  const reward = resistance - price;
 
-  const reward =
-    resistance - price;
-
-  if (
-    risk <= 0 ||
-    reward <= 0
-  ) {
+  if (risk <= 0 || reward <= 0) {
     return {
-      stopLoss:
-        round(stopLoss),
+      stopLoss: round(stopLoss),
       targetPrice: null,
-      riskPercent:
-        round(
-          (risk / price) *
-            100
-        ),
+      riskPercent: round(
+        (risk / price) * 100
+      ),
       rewardPercent: null,
       riskReward: null,
       score: 20,
     };
   }
 
-  const riskReward =
-    reward / risk;
+  const riskReward = reward / risk;
 
   let score = 25;
 
-  if (riskReward >= 3) {
-    score = 100;
-  } else if (
-    riskReward >= 2.5
-  ) {
-    score = 90;
-  } else if (
-    riskReward >= 2
-  ) {
-    score = 80;
-  } else if (
-    riskReward >= 1.5
-  ) {
-    score = 65;
-  } else if (
-    riskReward >= 1
-  ) {
-    score = 45;
-  }
+  if (riskReward >= 3) score = 100;
+  else if (riskReward >= 2.5) score = 90;
+  else if (riskReward >= 2) score = 80;
+  else if (riskReward >= 1.5) score = 65;
+  else if (riskReward >= 1) score = 45;
 
   return {
-    stopLoss:
-      round(stopLoss),
-
-    targetPrice:
-      round(resistance),
-
-    riskPercent:
-      round(
-        (risk / price) *
-          100
-      ),
-
-    rewardPercent:
-      round(
-        (reward / price) *
-          100
-      ),
-
-    riskReward:
-      round(riskReward),
-
+    stopLoss: round(stopLoss),
+    targetPrice: round(resistance),
+    riskPercent: round(
+      (risk / price) * 100
+    ),
+    rewardPercent: round(
+      (reward / price) * 100
+    ),
+    riskReward: round(riskReward),
     score,
   };
 }
-
-/* =========================================================
-   FINAL SCORE
-========================================================= */
 
 function calculateScore({
   momentumScore,
@@ -857,97 +516,59 @@ function calculateScore({
     riskScore * 0.10 -
     resistancePenalty;
 
-  return Math.round(
-    clamp(raw)
-  );
+  return Math.round(clamp(raw));
 }
-
-/* =========================================================
-   SIGNAL
-========================================================= */
 
 function getSignal(score) {
   if (score >= 85) {
     return {
-      signal:
-        'STRONG_BUY',
-      strength:
-        'HIGH',
+      signal: 'STRONG_BUY',
+      strength: 'HIGH',
     };
   }
 
   if (score >= 75) {
     return {
-      signal:
-        'BUY',
-      strength:
-        'HIGH',
+      signal: 'BUY',
+      strength: 'HIGH',
     };
   }
 
   if (score >= 65) {
     return {
-      signal:
-        'BUY',
-      strength:
-        'MEDIUM',
+      signal: 'BUY',
+      strength: 'MEDIUM',
     };
   }
 
   if (score >= 50) {
     return {
-      signal:
-        'NEUTRAL',
-      strength:
-        'LOW',
+      signal: 'NEUTRAL',
+      strength: 'LOW',
     };
   }
 
   return {
-    signal:
-      'AVOID',
-    strength:
-      'LOW',
+    signal: 'AVOID',
+    strength: 'LOW',
   };
 }
 
-/* =========================================================
-   MARKET STATE
-========================================================= */
-
-function getMarketState(
-  price,
-  sma20,
-  sma50
-) {
-  if (
-    !price ||
-    !sma20 ||
-    !sma50
-  ) {
+function getMarketState(price, sma20, sma50) {
+  if (!price || !sma20 || !sma50) {
     return 'UNKNOWN';
   }
 
-  if (
-    price > sma20 &&
-    sma20 > sma50
-  ) {
+  if (price > sma20 && sma20 > sma50) {
     return 'BULLISH';
   }
 
-  if (
-    price < sma20 &&
-    sma20 < sma50
-  ) {
+  if (price < sma20 && sma20 < sma50) {
     return 'BEARISH';
   }
 
   return 'MIXED';
 }
-
-/* =========================================================
-   US EQUITY
-========================================================= */
 
 function isUsEquity(meta) {
   const quoteType =
@@ -957,9 +578,7 @@ function isUsEquity(meta) {
         ''
     ).toUpperCase();
 
-  if (
-    quoteType !== 'EQUITY'
-  ) {
+  if (quoteType !== 'EQUITY') {
     return false;
   }
 
@@ -980,92 +599,49 @@ function isUsEquity(meta) {
     return true;
   }
 
-  /*
-   * Yahoo sometimes omits the full exchange.
-   * New York timezone is used only as fallback.
-   */
   return (
     meta?.exchangeTimezoneName ===
     'America/New_York'
   );
 }
 
-/* =========================================================
-   ANALYTICS
-========================================================= */
-
-function analyzeQuote(
-  meta,
-  quote
-) {
+function analyzeQuote(meta, quote) {
   const closes =
     (quote?.close || [])
       .map(Number)
-      .filter(
-        Number.isFinite
-      );
+      .filter(Number.isFinite);
 
   const highs =
     (quote?.high || [])
       .map(Number)
-      .filter(
-        Number.isFinite
-      );
+      .filter(Number.isFinite);
 
   const lows =
     (quote?.low || [])
       .map(Number)
-      .filter(
-        Number.isFinite
-      );
+      .filter(Number.isFinite);
 
   const volumes =
     (quote?.volume || [])
       .map(Number)
-      .filter(
-        Number.isFinite
-      );
+      .filter(Number.isFinite);
 
   const opens =
     (quote?.open || [])
       .map(Number)
-      .filter(
-        Number.isFinite
-      );
+      .filter(Number.isFinite);
 
-  if (
-    closes.length <
-    MIN_HISTORY
-  ) {
+  if (closes.length < MIN_HISTORY) {
     return {
-      technicalReady:
-        false,
-
-      dataQuality:
-        'بيانات تاريخية غير كافية',
-
-      price:
-        num(
-          meta?.regularMarketPrice
-        ),
-
-      technicalScore:
-        null,
-
-      discoveryScore:
-        null,
-
-      institutionalScore:
-        null,
-
-      setupScore:
-        null,
-
-      signal:
-        'NEUTRAL',
-
-      signalStrength:
-        'LOW',
+      technicalReady: false,
+      dataQuality: 'بيانات تاريخية غير كافية',
+      price: num(meta?.regularMarketPrice),
+      technicalScore: null,
+      discoveryScore: null,
+      institutionalScore: null,
+      setupScore: null,
+      signal: 'NEUTRAL',
+      signalStrength: 'LOW',
     };
   }
 
@@ -1088,40 +664,20 @@ function analyzeQuote(
       volumes.at(-1)
     );
 
-  if (
-    !price ||
-    !previousClose
-  ) {
+  if (!price || !previousClose) {
     return {
-      technicalReady:
-        false,
-
+      technicalReady: false,
       dataQuality:
         'السعر أو الإغلاق السابق غير متاح',
-
-      price:
-        price || null,
-
+      price: price || null,
       previousClose:
         previousClose || null,
-
-      technicalScore:
-        null,
-
-      discoveryScore:
-        null,
-
-      institutionalScore:
-        null,
-
-      setupScore:
-        null,
-
-      signal:
-        'NEUTRAL',
-
-      signalStrength:
-        'LOW',
+      technicalScore: null,
+      discoveryScore: null,
+      institutionalScore: null,
+      setupScore: null,
+      signal: 'NEUTRAL',
+      signalStrength: 'LOW',
     };
   }
 
@@ -1131,57 +687,35 @@ function analyzeQuote(
     price;
 
   const change =
-    price -
-    previousClose;
+    price - previousClose;
 
   const changePercent =
-    (change /
-      previousClose) *
-    100;
+    (change / previousClose) * 100;
 
   const gapPercent =
     previousClose
-      ? ((open -
-          previousClose) /
+      ? ((open - previousClose) /
           previousClose) *
         100
       : null;
 
   const sma20 =
-    calculateSMA(
-      closes,
-      20
-    );
+    calculateSMA(closes, 20);
 
   const sma50 =
-    calculateSMA(
-      closes,
-      50
-    );
+    calculateSMA(closes, 50);
 
   const ema12 =
-    calculateEMA(
-      closes,
-      12
-    );
+    calculateEMA(closes, 12);
 
   const ema26 =
-    calculateEMA(
-      closes,
-      26
-    );
+    calculateEMA(closes, 26);
 
   const rsi =
-    calculateRSI(
-      closes,
-      14
-    );
+    calculateRSI(closes, 14);
 
   const momentum =
-    calculateMomentum(
-      closes,
-      5
-    );
+    calculateMomentum(closes, 5);
 
   const volumeMetrics =
     calculateVolumeMetrics(
@@ -1204,9 +738,7 @@ function analyzeQuote(
     );
 
   const rsiScore =
-    calculateRsiScore(
-      rsi
-    );
+    calculateRsiScore(rsi);
 
   const bollinger =
     calculateBollinger(
@@ -1239,8 +771,7 @@ function analyzeQuote(
   const resistanceDistance =
     levels.resistance &&
     price
-      ? ((levels.resistance -
-          price) /
+      ? ((levels.resistance - price) /
           price) *
         100
       : null;
@@ -1262,42 +793,26 @@ function analyzeQuote(
 
   const technicalScore =
     calculateScore({
-      momentumScore:
-        momentum.score,
-
+      momentumScore: momentum.score,
       volumeScore:
         volumeMetrics.volumeScore,
-
       trendScore,
-
-      breakoutScore:
-        breakout.score,
-
+      breakoutScore: breakout.score,
       rsiScore,
-
       squeezeScore:
         bollinger.score,
-
       clusterScore:
         cluster.score,
-
       riskScore:
         riskReward.score,
-
       resistancePenalty,
     });
 
-  /*
-   * Market-data is the technical engine.
-   * Discovery must never inflate the technical score.
-   */
   const setupScore =
     technicalScore;
 
   const signal =
-    getSignal(
-      setupScore
-    );
+    getSignal(setupScore);
 
   const marketState =
     getMarketState(
@@ -1307,12 +822,10 @@ function analyzeQuote(
     );
 
   const currentHigh =
-    highs.at(-1) ||
-    price;
+    highs.at(-1) || price;
 
   const currentLow =
-    lows.at(-1) ||
-    price;
+    lows.at(-1) || price;
 
   const macd =
     ema12 != null &&
@@ -1321,51 +834,28 @@ function analyzeQuote(
       : null;
 
   return {
-    technicalReady:
-      true,
-
+    technicalReady: true,
     dataQuality:
       'بيانات فنية مكتملة',
 
-    price:
-      round(
-        price,
-        4
-      ),
-
+    price: round(price, 4),
     previousClose:
-      round(
-        previousClose,
-        4
-      ),
+      round(previousClose, 4),
 
-    change:
-      round(
-        change,
-        4
-      ),
-
+    change: round(change, 4),
     changePercent:
-      round(
-        changePercent
-      ),
+      round(changePercent),
 
     gapPercent:
-      round(
-        gapPercent
-      ),
+      round(gapPercent),
 
     open:
-      round(
-        open,
-        4
-      ),
+      round(open, 4),
 
     volume,
 
     averageVolume20:
-      volumeMetrics.averageVolume !=
-      null
+      volumeMetrics.averageVolume != null
         ? Math.round(
             volumeMetrics.averageVolume
           )
@@ -1378,19 +868,13 @@ function analyzeQuote(
       ),
 
     momentumPercent:
-      round(
-        momentum.percent
-      ),
+      round(momentum.percent),
 
     momentum:
-      Math.round(
-        momentum.score
-      ),
+      Math.round(momentum.score),
 
     momentumScore:
-      Math.round(
-        momentum.score
-      ),
+      Math.round(momentum.score),
 
     volumeScore:
       Math.round(
@@ -1403,100 +887,64 @@ function analyzeQuote(
       ),
 
     trendScore:
-      Math.round(
-        trendScore
-      ),
+      Math.round(trendScore),
 
     breakout:
-      Math.round(
-        breakout.score
-      ),
+      Math.round(breakout.score),
 
     breakoutScore:
-      Math.round(
-        breakout.score
-      ),
+      Math.round(breakout.score),
 
     rsi:
-      round(
-        rsi
-      ),
+      round(rsi),
 
     rsiScore:
-      Math.round(
-        rsiScore
-      ),
+      Math.round(rsiScore),
 
     sma20:
-      round(
-        sma20
-      ),
+      round(sma20),
 
     sma50:
-      round(
-        sma50
-      ),
+      round(sma50),
 
     ema12:
-      round(
-        ema12
-      ),
+      round(ema12),
 
     ema26:
-      round(
-        ema26
-      ),
+      round(ema26),
 
     macd:
-      round(
-        macd
-      ),
+      round(macd),
 
     resistance20:
-      round(
-        levels.resistance
-      ),
+      round(levels.resistance),
 
     support20:
-      round(
-        levels.support
-      ),
+      round(levels.support),
 
     resistanceDistancePercent:
-      round(
-        resistanceDistance
-      ),
+      round(resistanceDistance),
 
     resistanceDistance:
-      round(
-        resistanceDistance
-      ),
+      round(resistanceDistance),
 
     squeeze:
       bollinger.squeeze,
 
     bollingerBandwidth:
-      round(
-        bollinger.bandwidth
-      ),
+      round(bollinger.bandwidth),
 
     squeezeScore:
-      Math.round(
-        bollinger.score
-      ),
+      Math.round(bollinger.score),
 
     cluster:
       cluster.isCluster,
 
     clusterRangePercent:
-      round(
-        cluster.rangePercent
-      ),
+      round(cluster.rangePercent),
 
     clusterScore:
-      Math.round(
-        cluster.score
-      ),
+      Math.round(cluster.score),
 
     targetPrice:
       riskReward.targetPrice,
@@ -1518,11 +966,9 @@ function analyzeQuote(
 
     technicalScore,
 
-    discoveryScore:
-      null,
+    discoveryScore: null,
 
-    institutionalScore:
-      null,
+    institutionalScore: null,
 
     setupScore,
 
@@ -1535,22 +981,16 @@ function analyzeQuote(
     marketState,
 
     dayHigh:
-      round(
-        currentHigh
-      ),
+      round(currentHigh),
 
     dayLow:
-      round(
-        currentLow
-      ),
+      round(currentLow),
 
     currency:
-      meta?.currency ||
-      'USD',
+      meta?.currency || 'USD',
 
     quoteType:
-      meta?.quoteType ||
-      null,
+      meta?.quoteType || null,
 
     exchange:
       meta?.fullExchangeName ||
@@ -1563,17 +1003,214 @@ function analyzeQuote(
       technicals: true,
       options: false,
       darkPool: false,
-      institutionalFlow:
-        false,
+      institutionalFlow: false,
     },
   };
 }
 
 /* =========================================================
-   YAHOO CHART
+   MARKET DATA PROVIDERS
 ========================================================= */
 
-async function fetchChart(
+const FINNHUB_API_KEY =
+  process.env.FINNHUB_API_KEY || '';
+
+const REQUEST_TIMEOUT_MS = 8000;
+const HISTORY_DAYS = 180;
+
+function withTimeout(
+  promise,
+  ms = REQUEST_TIMEOUT_MS
+) {
+  return Promise.race([
+    promise,
+
+    new Promise((_, reject) =>
+      setTimeout(
+        () =>
+          reject(
+            new Error(
+              'Provider timeout'
+            )
+          ),
+        ms
+      )
+    ),
+  ]);
+}
+
+function getUnixRange(
+  days = HISTORY_DAYS
+) {
+  const to =
+    Math.floor(
+      Date.now() / 1000
+    );
+
+  const from =
+    to -
+    days *
+      24 *
+      60 *
+      60;
+
+  return {
+    from,
+    to,
+  };
+}
+
+async function fetchFinnhubCandles(
+  symbol
+) {
+  if (!FINNHUB_API_KEY) {
+    throw new Error(
+      'FINNHUB_API_KEY is not configured'
+    );
+  }
+
+  const {
+    from,
+    to,
+  } = getUnixRange();
+
+  const url =
+    `https://finnhub.io/api/v1/stock/candle?symbol=${encodeURIComponent(
+      symbol
+    )}` +
+    `&resolution=D&from=${from}&to=${to}&token=${encodeURIComponent(
+      FINNHUB_API_KEY
+    )}`;
+
+  const response =
+    await withTimeout(
+      fetch(url, {
+        headers: {
+          Accept:
+            'application/json',
+        },
+        cache: 'no-store',
+      })
+    );
+
+  if (!response.ok) {
+    throw new Error(
+      `Finnhub Candle ${response.status}`
+    );
+  }
+
+  const json =
+    await response.json();
+
+  if (
+    json?.s !== 'ok' ||
+    !Array.isArray(json?.c) ||
+    json.c.length < MIN_HISTORY
+  ) {
+    throw new Error(
+      `Finnhub returned incomplete candle data for ${symbol}`
+    );
+  }
+
+  const closes =
+    json.c
+      .map(Number)
+      .filter(
+        Number.isFinite
+      );
+
+  const highs =
+    (json.h || [])
+      .map(Number)
+      .filter(
+        Number.isFinite
+      );
+
+  const lows =
+    (json.l || [])
+      .map(Number)
+      .filter(
+        Number.isFinite
+      );
+
+  const opens =
+    (json.o || [])
+      .map(Number)
+      .filter(
+        Number.isFinite
+      );
+
+  const volumes =
+    (json.v || [])
+      .map(Number)
+      .filter(
+        Number.isFinite
+      );
+
+  const price =
+    closes.at(-1);
+
+  const previousClose =
+    closes.at(-2);
+
+  const volume =
+    volumes.at(-1) || 0;
+
+  return {
+    symbol,
+
+    meta: {
+      symbol,
+      quoteType:
+        'EQUITY',
+
+      instrumentType:
+        'EQUITY',
+
+      currency:
+        'USD',
+
+      exchange:
+        'Finnhub',
+
+      fullExchangeName:
+        'Finnhub US Equity',
+
+      exchangeName:
+        'Finnhub',
+
+      regularMarketPrice:
+        price,
+
+      previousClose,
+
+      chartPreviousClose:
+        previousClose,
+
+      regularMarketVolume:
+        volume,
+
+      marketState:
+        'UNKNOWN',
+    },
+
+    timestamps:
+      json.t || [],
+
+    quote: {
+      close: closes,
+      high: highs,
+      low: lows,
+      open: opens,
+      volume: volumes,
+    },
+
+    source:
+      'Finnhub',
+  };
+}
+
+async function fetchYahooChart(
   symbol,
   range = '6mo'
 ) {
@@ -1582,9 +1219,7 @@ async function fetchChart(
       .trim()
       .toUpperCase();
 
-  if (
-    !isValidSymbol(clean)
-  ) {
+  if (!isValidSymbol(clean)) {
     throw new Error(
       'رمز سهم غير صالح'
     );
@@ -1598,18 +1233,12 @@ async function fetchChart(
     )}&events=div%2Csplits`;
 
   const response =
-    await fetch(
-      url,
-      {
+    await withTimeout(
+      fetch(url, {
         headers:
           YAHOO_HEADERS,
-        cache:
-          'no-store',
-        signal:
-          AbortSignal.timeout(
-            8000
-          ),
-      }
+        cache: 'no-store',
+      })
     );
 
   if (!response.ok) {
@@ -1622,7 +1251,8 @@ async function fetchChart(
     await response.json();
 
   const result =
-    json?.chart?.result?.[0];
+    json?.chart
+      ?.result?.[0];
 
   if (!result?.meta) {
     throw new Error(
@@ -1639,21 +1269,95 @@ async function fetchChart(
       result.meta,
 
     timestamps:
-      result.timestamp ||
-      [],
+      result.timestamp || [],
 
     quote:
       result.indicators
-        ?.quote?.[0] ||
-      {},
+        ?.quote?.[0] || {},
+
+    source:
+      'Yahoo Finance',
   };
 }
 
-/* =========================================================
-   TRENDING DISCOVERY
-========================================================= */
+async function fetchMarketData(
+  symbol
+) {
+  /*
+   * Finnhub = PRIMARY
+   * Yahoo = FALLBACK ONLY
+   *
+   * No fabricated market values.
+   */
 
-async function fetchTrending(
+  try {
+    const data =
+      await fetchFinnhubCandles(
+        symbol
+      );
+
+    return {
+      ...data,
+
+      providerStatus: {
+        primary:
+          'Finnhub',
+
+        used:
+          'Finnhub',
+
+        fallbackUsed:
+          false,
+      },
+    };
+  } catch (
+    finnhubError
+  ) {
+    try {
+      const data =
+        await fetchYahooChart(
+          symbol
+        );
+
+      return {
+        ...data,
+
+        providerStatus: {
+          primary:
+            'Finnhub',
+
+          used:
+            'Yahoo',
+
+          fallbackUsed:
+            true,
+
+          primaryError:
+            process.env.NODE_ENV ===
+            'development'
+              ? finnhubError?.message
+              : undefined,
+        },
+      };
+    } catch (
+      yahooError
+    ) {
+      throw new Error(
+        `Market data unavailable for ${symbol}: ` +
+          `${
+            finnhubError?.message ||
+            'Finnhub failed'
+          }; ` +
+          `${
+            yahooError?.message ||
+            'Yahoo fallback failed'
+          }`
+      );
+    }
+  }
+}
+
+async function fetchYahooTrending(
   count = DISCOVERY_COUNT
 ) {
   const safeCount =
@@ -1669,18 +1373,12 @@ async function fetchTrending(
     `https://query1.finance.yahoo.com/v1/finance/trending/US?count=${safeCount}`;
 
   const response =
-    await fetch(
-      url,
-      {
+    await withTimeout(
+      fetch(url, {
         headers:
           YAHOO_HEADERS,
-        cache:
-          'no-store',
-        signal:
-          AbortSignal.timeout(
-            8000
-          ),
-      }
+        cache: 'no-store',
+      })
     );
 
   if (!response.ok) {
@@ -1710,29 +1408,83 @@ async function fetchTrending(
     );
 }
 
-/* =========================================================
-   MARKET UNIVERSE
-========================================================= */
+function getConfiguredUniverse() {
+  return [
+    ...new Set(
+      String(
+        process.env.HUNTER_UNIVERSE ||
+          ''
+      )
+        .split(',')
+        .map(
+          (symbol) =>
+            symbol
+              .trim()
+              .toUpperCase()
+        )
+        .filter(
+          isValidSymbol
+        )
+    ),
+  ];
+}
 
-async function getMarketUniverse() {
+async function getDiscoverySymbols() {
+  const configured =
+    getConfiguredUniverse();
+
+  if (configured.length) {
+    return {
+      symbols:
+        configured.slice(
+          0,
+          MAX_UNIVERSE
+        ),
+
+      source:
+        'HUNTER_UNIVERSE',
+
+      fallback:
+        false,
+    };
+  }
+
+  /*
+   * Yahoo Trending is discovery only.
+   * It is NOT institutional flow.
+   */
+
   const trending =
-    await fetchTrending(
+    await fetchYahooTrending(
       DISCOVERY_COUNT
     );
 
-  const symbols = [
-    ...new Set(
-      trending
-    ),
-  ].slice(
-    0,
-    MAX_UNIVERSE
-  );
+  return {
+    symbols:
+      [
+        ...new Set(
+          trending
+        ),
+      ].slice(
+        0,
+        MAX_UNIVERSE
+      ),
 
-  /*
-   * Controlled concurrency.
-   * Do not fire all Yahoo requests simultaneously.
-   */
+    source:
+      'Yahoo Trending fallback',
+
+    fallback:
+      true,
+  };
+}
+
+async function getMarketUniverse() {
+  const discovery =
+    await getDiscoverySymbols();
+
+  const symbols =
+    discovery.symbols;
+
   const concurrency = 5;
   const results = [];
 
@@ -1751,22 +1503,15 @@ async function getMarketUniverse() {
       await Promise.allSettled(
         batch.map(
           (symbol) =>
-            fetchChart(
-              symbol,
-              '6mo'
+            fetchMarketData(
+              symbol
             )
         )
       );
 
     for (
-      let index = 0;
-      index <
-      settled.length;
-      index += 1
+      const item of settled
     ) {
-      const item =
-        settled[index];
-
       if (
         item.status !==
         'fulfilled'
@@ -1778,6 +1523,8 @@ async function getMarketUniverse() {
         item.value;
 
       if (
+        chart.source ===
+          'Yahoo Finance' &&
         !isUsEquity(
           chart.meta
         )
@@ -1792,36 +1539,13 @@ async function getMarketUniverse() {
         );
 
       if (
-        !analytics.technicalReady
-      ) {
-        continue;
-      }
-
-      /*
-       * Basic market gate.
-       */
-      if (
+        !analytics.technicalReady ||
         analytics.price == null ||
-        analytics.price <=
-          MIN_PRICE ||
-        analytics.price >=
-          MAX_PRICE
-      ) {
-        continue;
-      }
-
-      if (
-        analytics.averageVolume20 ==
-          null ||
-        analytics.averageVolume20 <
-          MIN_VOLUME
-      ) {
-        continue;
-      }
-
-      if (
-        analytics.relativeVolume ==
-          null
+        analytics.price <= MIN_PRICE ||
+        analytics.price >= MAX_PRICE ||
+        analytics.averageVolume20 == null ||
+        analytics.averageVolume20 < MIN_VOLUME ||
+        analytics.relativeVolume == null
       ) {
         continue;
       }
@@ -1831,8 +1555,9 @@ async function getMarketUniverse() {
           chart.symbol,
 
         quoteType:
-          chart.meta?.quoteType ||
-          null,
+          chart.meta
+            ?.quoteType ||
+          'EQUITY',
 
         exchange:
           chart.meta
@@ -1840,6 +1565,22 @@ async function getMarketUniverse() {
           chart.meta
             ?.exchangeName ||
           null,
+
+        source:
+          chart.source,
+
+        providerStatus:
+          chart.providerStatus || {
+            primary:
+              'Finnhub',
+
+            used:
+              chart.source,
+
+            fallbackUsed:
+              chart.source !==
+              'Finnhub',
+          },
 
         ...analytics,
       });
@@ -1852,35 +1593,35 @@ async function getMarketUniverse() {
         (b.setupScore ?? -1) -
         (a.setupScore ?? -1);
 
-      if (
-        scoreDiff !== 0
-      ) {
+      if (scoreDiff !== 0) {
         return scoreDiff;
       }
 
       return (
-        (b.relativeVolume ??
-          0) -
-        (a.relativeVolume ??
-          0)
+        (b.relativeVolume ?? 0) -
+        (a.relativeVolume ?? 0)
       );
     }
   );
 
-  return results;
-}
+  return {
+    data:
+      results,
 
-/* =========================================================
-   SINGLE STOCK
-========================================================= */
+    discoverySource:
+      discovery.source,
+
+    discoveryFallback:
+      discovery.fallback,
+  };
+}
 
 async function getSingleStock(
   symbol
 ) {
   const chart =
-    await fetchChart(
-      symbol,
-      '6mo'
+    await fetchMarketData(
+      symbol
     );
 
   if (
@@ -1914,13 +1655,25 @@ async function getSingleStock(
         ?.exchangeName ||
       null,
 
+    source:
+      chart.source,
+
+    providerStatus:
+      chart.providerStatus || {
+        primary:
+          'Finnhub',
+
+        used:
+          chart.source,
+
+        fallbackUsed:
+          chart.source !==
+          'Finnhub',
+      },
+
     ...analytics,
   };
 }
-
-/* =========================================================
-   API
-========================================================= */
 
 export async function GET(
   request
@@ -1959,10 +1712,7 @@ export async function GET(
     }
 
     /*
-     * =====================================================
      * SINGLE STOCK
-     * /api/market-data?symbol=SOFI
-     * =====================================================
      */
 
     if (
@@ -1988,7 +1738,7 @@ export async function GET(
           ],
 
           source:
-            'Yahoo Finance Chart',
+            data.source,
 
           dataAvailability: {
             price: true,
@@ -2016,13 +1766,10 @@ export async function GET(
     }
 
     /*
-     * =====================================================
      * MARKET UNIVERSE
-     * /api/market-data
-     * =====================================================
      */
 
-    const data =
+    const universe =
       await getMarketUniverse();
 
     return NextResponse.json(
@@ -2034,15 +1781,22 @@ export async function GET(
           new Date().toISOString(),
 
         count:
-          data.length,
+          universe.data.length,
 
-        data,
+        data:
+          universe.data,
 
         universe:
-          'Yahoo Finance US trending equities — $0.50 < price < $100 — average volume >= 100K',
+          'HUNTER_UNIVERSE preferred; Yahoo Trending discovery fallback — $0.50 < price < $100 — average volume >= 100K',
+
+        discoverySource:
+          universe.discoverySource,
+
+        discoveryFallback:
+          universe.discoveryFallback,
 
         source:
-          'Yahoo Finance Chart + Trending',
+          'Finnhub primary + Yahoo fallback',
 
         marketGate: {
           minPrice:
@@ -2080,7 +1834,7 @@ export async function GET(
         },
 
         limitations:
-          'هذا endpoint مسؤول عن بيانات السوق والتحليل الفني فقط. لا يتم اعتبار Trending دليلاً على تدفق مؤسسي، ولا يتم اختلاق Options أو Dark Pool أو Institutional Flow.',
+          'Finnhub هو المصدر الأساسي لبيانات السوق، وYahoo fallback عند فشل Finnhub. Yahoo Trending يستخدم للاكتشاف فقط عند غياب HUNTER_UNIVERSE. لا يتم اختلاق Options أو Dark Pool أو Institutional Flow.',
       },
       {
         headers: {
