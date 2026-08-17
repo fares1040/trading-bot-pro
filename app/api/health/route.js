@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { HIC_THRESHOLDS } from '@/lib/hunter-intelligence';
+import { getInstitutionalProviderStatus } from '@/lib/institutional-provider';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -22,6 +23,8 @@ export async function GET() {
     alertsDedupeConfigured: supabaseConfigured,
   };
 
+  const institutional = getInstitutionalProviderStatus();
+
   const missingOptional = [
     !checks.finnhubConfigured && 'FINNHUB_API_KEY',
     !checks.geminiConfigured && 'GEMINI_API_KEY',
@@ -29,6 +32,7 @@ export async function GET() {
     !checks.supabaseConfigured && 'SUPABASE_SERVICE_ROLE_KEY',
     !checks.telegramConfigured && 'TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID',
     !checks.discordConfigured && 'DISCORD_WEBHOOK_URL',
+    !institutional.configured && 'FINRA_API_CLIENT_ID / FINRA_API_CLIENT_SECRET',
   ].filter(Boolean);
 
   return NextResponse.json({
@@ -41,7 +45,25 @@ export async function GET() {
       hicCandidateGate: { status: 'active', thresholds: HIC_THRESHOLDS },
       marketDataThroughput: { status: 'active', strategy: 'bounded concurrency + request timeouts + provider fallback' },
       discovery: { status: 'active', source: 'HUNTER_UNIVERSE with Yahoo Trending fallback' },
-      institutionalIntelligence: { status: 'provider-not-connected', available: false, note: 'لا يتم اختلاق Institutional Flow أو Dark Pool.' },
+      institutionalIntelligence: {
+        provider: institutional.provider,
+        available: institutional.available,
+        status: institutional.configured
+          ? (institutional.available ? 'connected' : 'configured-awaiting-verification')
+          : 'provider-not-configured',
+        reason: institutional.reason,
+        capabilities: institutional.capabilities || {
+          atsActivity: false,
+          otcActivity: false,
+          darkPoolRealtime: false,
+          optionsFlow: false,
+          whaleFlow: false,
+          openInterest: false,
+        },
+        note: institutional.configured
+          ? 'FINRA ATS/OTC weekly summary data. Delayed/aggregated institutional activity proxy.'
+          : 'FINRA credentials not configured. No institutional data is fabricated.',
+      },
       hunterScore: { status: 'active', formula: 'Setup 55% + Conviction 35% + Market Regime 10%' },
       alerts: { status: 'active', dedupe: checks.alertsDedupeConfigured },
       uiPremiumAdmin: { status: 'feature-gated', auth: checks.supabaseAuthConfigured ? 'available' : 'not-configured' },
