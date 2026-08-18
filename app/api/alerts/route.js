@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getDedupeKey, duplicate, saveSignal } from '@/lib/alert-dedupe';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -8,56 +9,6 @@ function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
   return url && key ? createClient(url, key) : null;
-}
-
-async function duplicate(supabase, ticker) {
-  if (!supabase) return false;
-  const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  try {
-    const { data, error } = await supabase
-      .from('auto_signals')
-      .select('ticker,created_at')
-      .eq('ticker', ticker)
-      .gte('created_at', since)
-      .limit(1);
-    if (error) return false;
-    return Array.isArray(data) && data.length > 0;
-  } catch {
-    return false;
-  }
-}
-
-async function saveSignal(supabase, item) {
-  if (!supabase) return false;
-  // Dedupe keys:
-  // - Hunter-owned technical alerts: HUNTER:${symbol}
-  // - Penny alerts: PENNY:${symbol} (preserved)
-  // - Options alerts: OPT:${contract} (preserved)
-  const ticker = item.kind === 'OPTIONS_CENTS'
-    ? `OPT:${item.contract}`
-    : item.kind === 'PENNY'
-      ? `PENNY:${item.symbol}`
-      : item.kind === 'TECHNICAL'
-        ? `HUNTER:${item.symbol}`
-        : item.symbol;
-  if (await duplicate(supabase, ticker)) return false;
-  const row = {
-    ticker,
-    price: Number(item.price ?? item.premium ?? 0) || null,
-    change_percent: null,
-    volume_status: item.kind === 'OPTIONS_CENTS'
-      ? `Option volume ${item.volume ?? 0}`
-      : `RVOL ${item.rvol ?? 'N/A'}x`,
-    target_price: null,
-    stop_loss: null,
-    confidence: Number(item.score) || 0,
-    reason: `${item.kind}: ${(item.reasons || []).join(' • ')}`,
-    sector: null,
-    option_idea: item.kind === 'OPTIONS_CENTS' ? item.contract : null,
-    created_at: new Date().toISOString(),
-  };
-  const { error } = await supabase.from('auto_signals').insert([row]);
-  return !error;
 }
 
 function pickAlerts(data) {
