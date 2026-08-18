@@ -177,6 +177,7 @@ export default function AnalyticsPage() {
     ['radar', '🎯 الأسهم'],
     ['penny', '🪙 سنتات الأسهم'],
     ['options', '⚡ عقود السنتات'],
+    ['institutional', '🏛️ المؤسسات'],
     ['alerts', '🔔 التنبيهات'],
   ];
 
@@ -337,6 +338,74 @@ export default function AnalyticsPage() {
           </section>
         )}
 
+        {tab === 'institutional' && (
+          <section className="glass section">
+            <div className="section-head"><div><div className="eyebrow">INSTITUTIONAL INTELLIGENCE</div><h2>تدفق المؤسسات (FINRA ATS/OTC)</h2></div>
+              <Pill tone={data?.dataAvailability?.institutionalFlow ? 'green' : 'gold'}>
+                {data?.dataAvailability?.institutionalFlow ? 'متاح' : 'مزود غير متصل'}
+              </Pill>
+            </div>
+            <div className="warning">
+              بيانات FINRA ATS/OTC أسبوعية ومجمعة ومتأخرة. لا تشير إلى اتجاه الشراء/البيع وليست تدفق Dark Pool فوري.
+            </div>
+            {data?.opportunities && data.opportunities.length > 0 ? (
+              <div className="op-grid-list">
+                {data.opportunities.slice(0, 9).map((opp, i) => {
+                  const inst = opp.institutionalIntelligence;
+                  const score = inst?.score;
+                  const available = inst?.available;
+                  const provider = inst?.provider;
+                  const reason = inst?.reason;
+                  const capabilities = inst?.capabilities;
+                  return (
+                    <div key={`${opp.symbol}-inst-${i}`} className="op-card" style={{ cursor: 'default' }}>
+                      <div className="op-top">
+                        <div style={{ textAlign: 'right' }}>
+                          <div className="symbol">{opp.symbol}</div>
+                          <div className="muted">INSTITUTIONAL FLOW</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 7, alignItems: 'center' }}>
+                          <Pill tone={available ? 'green' : 'gold'}>
+                            {available ? `Score ${score}/100` : 'غير متاح'}
+                          </Pill>
+                          <Pill tone="blue">{provider || '—'}</Pill>
+                        </div>
+                      </div>
+                      <div className="op-grid">
+                        {available ? (
+                          <>
+                            <span>ATS Volume <b>{Number(opp.institutionalData?.atsShareQuantity || 0).toLocaleString()}</b></span>
+                            <span>ATS Trades <b>{Number(opp.institutionalData?.atsTradeCount || 0).toLocaleString()}</b></span>
+                            <span>Week <b>{opp.institutionalData?.weekStartDate || '—'}</b></span>
+                            <span>Tier <b>{opp.institutionalData?.tier || '—'}</b></span>
+                          </>
+                        ) : (
+                          <>
+                            <span>الحالة <b>{reason || 'مزود غير متصل'}</b></span>
+                            <span>ATS Activity <b>{capabilities?.atsActivity ? 'نعم' : 'لا'}</b></span>
+                            <span>OTC Activity <b>{capabilities?.otcActivity ? 'نعم' : 'لا'}</b></span>
+                            <span>Real-time <b>{capabilities?.darkPoolRealtime ? 'نعم' : 'لا'}</b></span>
+                          </>
+                        )}
+                      </div>
+                      <div className="op-foot">
+                        <span>{available ? 'نشاط ATS/OTC مؤكد' : 'يتطلب ربط FINRA API'}</span>
+                        <span>›</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty">لا توجد فرص مؤهلة لعرض بيانات المؤسسات.</div>
+            )}
+            <div className="note">
+              Institutional Score (0-100) يعكس شدة نشاط ATS فقط (حجم الأسهم + عدد الصفقات + حداثة البيانات).
+              لا يشير إلى اتجاه. يتطلب FINRA_API_CLIENT_ID و FINRA_API_CLIENT_SECRET.
+            </div>
+          </section>
+        )}
+
         {tab === 'alerts' && (
           <section className="glass section">
             <div className="section-head"><div><div className="eyebrow">AUTOMATION</div><h2>التنبيهات التلقائية</h2></div><Pill tone="green">HUNTER ALERTS</Pill></div>
@@ -361,6 +430,90 @@ export default function AnalyticsPage() {
               <div className="detail-box">RVOL / Volume<br/><b>{selected.rvol != null ? `${fmt(selected.rvol)}x` : Number(selected.volume || 0).toLocaleString()}</b></div>
               <div className="detail-box">RSI / OI<br/><b>{selected.rsi ?? selected.openInterest ?? '—'}</b></div>
             </div>
+            
+            {/* Options Intelligence */}
+            {selected.optionsIntelligence && (
+              <div className="detail-grid" style={{ marginTop: 12 }}>
+                <div className="detail-box" style={{ gridColumn: 'span 4' }}>
+                  <div className="eyebrow">OPTIONS INTELLIGENCE</div>
+                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8 }}>
+                    <Pill tone={selected.optionsIntelligence.available ? 'green' : selected.optionsIntelligence.state === 'timeout' ? 'red' : selected.optionsIntelligence.state === 'error' ? 'red' : 'gold'}>
+                      {selected.optionsIntelligence.state?.toUpperCase() || 'UNAVAILABLE'}
+                    </Pill>
+                    <span className="muted">Source: {selected.optionsIntelligence.source || '—'}</span>
+                    {selected.optionsIntelligence.reason && <span className="muted">Reason: {selected.optionsIntelligence.reason}</span>}
+                  </div>
+                  {selected.optionsIntelligence.summary && (
+                    <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
+                      <div className="detail-box">Underlying<br/><b>${fmt(selected.optionsIntelligence.summary.underlyingPrice)}</b></div>
+                      <div className="detail-box">Expiry<br/><b>{selected.optionsIntelligence.summary.expiry || '—'}</b></div>
+                      <div className="detail-box">Contracts<br/><b>{selected.optionsIntelligence.summary.count}</b></div>
+                      <div className="detail-box">Calls / Puts<br/><b>{selected.optionsIntelligence.summary.calls} / {selected.optionsIntelligence.summary.puts}</b></div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {/* Options Signal */}
+            {selected.optionsSignal && (
+              <div className="detail-grid" style={{ marginTop: 12 }}>
+                <div className="detail-box" style={{ gridColumn: 'span 4' }}>
+                  <div className="eyebrow">OPTIONS SIGNAL (NON-SCORING)</div>
+                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8, alignItems: 'center' }}>
+                    <Pill tone={selected.optionsSignal.bias === 'bullish' ? 'green' : selected.optionsSignal.bias === 'bearish' ? 'red' : selected.optionsSignal.bias === 'neutral' ? 'blue' : 'gold'}>
+                      {selected.optionsSignal.bias?.toUpperCase() || 'INSUFFICIENT'}
+                    </Pill>
+                    <span className="muted">Score: <b>{selected.optionsSignal.score ?? '—'}</b>/100</span>
+                    <span className="muted">Confidence: <b>{selected.optionsSignal.confidence ?? '—'}</b>/100</span>
+                    <span className="muted">Source: {selected.optionsSignal.source || '—'}</span>
+                  </div>
+                  {selected.optionsSignal.factors && (
+                    <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
+                      <div className="detail-box">Call Vol<br/><b>{Number(selected.optionsSignal.factors.callVolume || 0).toLocaleString()}</b></div>
+                      <div className="detail-box">Put Vol<br/><b>{Number(selected.optionsSignal.factors.putVolume || 0).toLocaleString()}</b></div>
+                      <div className="detail-box">Call/Put Vol Ratio<br/><b>{selected.optionsSignal.factors.callPutRatio != null ? selected.optionsSignal.factors.callPutRatio.toFixed(2) : '—'}</b></div>
+                      <div className="detail-box">Call/Put OI Ratio<br/><b>{selected.optionsSignal.factors.oiRatio != null ? selected.optionsSignal.factors.oiRatio.toFixed(2) : '—'}</b></div>
+                      <div className="detail-box">Call OI<br/><b>{Number(selected.optionsSignal.factors.callOpenInterest || 0).toLocaleString()}</b></div>
+                      <div className="detail-box">Put OI<br/><b>{Number(selected.optionsSignal.factors.putOpenInterest || 0).toLocaleString()}</b></div>
+                      <div className="detail-box">Avg IV<br/><b>{selected.optionsSignal.factors.impliedVolatility != null ? (selected.optionsSignal.factors.impliedVolatility * 100).toFixed(1) + '%' : '—'}</b></div>
+                      <div className="detail-box">Avg Liquidity<br/><b>{selected.optionsSignal.factors.liquidity ?? '—'}</b>/100</div>
+                    </div>
+                  )}
+                  <div className="note" style={{ marginTop: 8 }}>
+                    {selected.optionsSignal.reason || 'لا توجد إشارة خيارات.'}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Institutional Intelligence */}
+            {selected.institutionalIntelligence && (
+              <div className="detail-grid" style={{ marginTop: 12 }}>
+                <div className="detail-box" style={{ gridColumn: 'span 4' }}>
+                  <div className="eyebrow">INSTITUTIONAL INTELLIGENCE</div>
+                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8, alignItems: 'center' }}>
+                    <Pill tone={selected.institutionalIntelligence.available ? 'green' : 'gold'}>
+                      {selected.institutionalIntelligence.available ? `Score ${selected.institutionalIntelligence.score}/100` : 'غير متاح'}
+                    </Pill>
+                    <span className="muted">Provider: {selected.institutionalIntelligence.provider || '—'}</span>
+                    {selected.institutionalIntelligence.reason && <span className="muted">Reason: {selected.institutionalIntelligence.reason}</span>}
+                  </div>
+                  {selected.institutionalData && selected.institutionalIntelligence.available && (
+                    <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
+                      <div className="detail-box">ATS Volume<br/><b>{Number(selected.institutionalData.atsShareQuantity || 0).toLocaleString()}</b></div>
+                      <div className="detail-box">ATS Trades<br/><b>{Number(selected.institutionalData.atsTradeCount || 0).toLocaleString()}</b></div>
+                      <div className="detail-box">Week Start<br/><b>{selected.institutionalData.weekStartDate || '—'}</b></div>
+                      <div className="detail-box">Tier<br/><b>{selected.institutionalData.tier || '—'}</b></div>
+                    </div>
+                  )}
+                  <div className="note" style={{ marginTop: 8 }}>
+                    {selected.institutionalIntelligence.note || 'بيانات مؤسسية غير متاحة.'}
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="note">{(selected.reasons || []).join(' • ') || selected.action || 'لا توجد ملاحظات إضافية.'}</div>
           </section>
         )}

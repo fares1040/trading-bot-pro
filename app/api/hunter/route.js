@@ -81,6 +81,7 @@ export async function GET(request) {
               hunterTier: hunter.tier,
               hunterEligible: hunter.eligible,
               institutionalIntelligence: institutional,
+              institutionalData: institutionalData,
             };
           })
       )
