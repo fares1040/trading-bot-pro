@@ -387,10 +387,10 @@ test('Alerts route uses correct gate: hunterEligible === true AND hunterScore >=
     'utf8'
   );
   
-  // Verify the gate logic
+  // Verify the gate logic uses centralized thresholds
   assertTrue(
-    alertsRoute.includes('x.hunterEligible === true && Number(x.hunterScore) >= 85'),
-    'alerts route should require BOTH hunterEligible === true AND hunterScore >= 85'
+    alertsRoute.includes('x.hunterEligible === true && Number(x.hunterScore) >= ALERT_THRESHOLDS.hunterMinScore'),
+    'alerts route should require BOTH hunterEligible === true AND hunterScore >= ALERT_THRESHOLDS.hunterMinScore'
   );
   
   // Verify legacy Technical Score is NOT used
@@ -719,6 +719,220 @@ test('M: Existing Phase 7 Hunter gate tests remain passing', async () => {
   };
   const candidates4 = pickAlerts(data4);
   assertEqual(candidates4.length, 0, 'Hunter gate: missing eligible should BLOCK');
+});
+
+// ===========================================================================
+// PHASE 7 / STEP 3 — CENTRALIZED THRESHOLDS
+// ===========================================================================
+test('N: Centralized thresholds module exists with correct values', async () => {
+  const { ALERT_THRESHOLDS } = await import('../lib/alert-thresholds.js');
+
+  assertEqual(ALERT_THRESHOLDS.hunterMinScore, 85, 'hunterMinScore should be 85');
+  assertEqual(ALERT_THRESHOLDS.technicalMinScore, 85, 'technicalMinScore should be 85');
+  assertEqual(ALERT_THRESHOLDS.pennyMinScore, 80, 'pennyMinScore should be 80');
+  assertEqual(ALERT_THRESHOLDS.pennyMinRvol, 1.5, 'pennyMinRvol should be 1.5');
+  assertEqual(ALERT_THRESHOLDS.optionsMinScore, 75, 'optionsMinScore should be 75');
+  assertEqual(ALERT_THRESHOLDS.optionsMaxPremium, 1, 'optionsMaxPremium should be 1');
+  assertEqual(ALERT_THRESHOLDS.optionsMinVolume, 10, 'optionsMinVolume should be 10');
+
+  assertTrue(Object.isFrozen(ALERT_THRESHOLDS), 'ALERT_THRESHOLDS should be frozen');
+});
+
+test('O: Opportunities route uses centralized thresholds', async () => {
+  const fs = await import('fs');
+  const path = await import('path');
+  const opportunitiesRoute = fs.readFileSync(
+    path.join(process.cwd(), 'app/api/opportunities/route.js'),
+    'utf8'
+  );
+
+  assertTrue(
+    opportunitiesRoute.includes("import { ALERT_THRESHOLDS } from '@/lib/alert-thresholds'"),
+    'opportunities route should import ALERT_THRESHOLDS'
+  );
+
+  assertTrue(
+    opportunitiesRoute.includes('hunterMinScore: ALERT_THRESHOLDS.hunterMinScore'),
+    'opportunities route should use ALERT_THRESHOLDS.hunterMinScore'
+  );
+
+  assertTrue(
+    opportunitiesRoute.includes('pennyMinScore: ALERT_THRESHOLDS.pennyMinScore'),
+    'opportunities route should use ALERT_THRESHOLDS.pennyMinScore'
+  );
+
+  assertTrue(
+    opportunitiesRoute.includes('optionsMinScore: ALERT_THRESHOLDS.optionsMinScore'),
+    'opportunities route should use ALERT_THRESHOLDS.optionsMinScore'
+  );
+});
+
+test('P: Alerts route uses centralized thresholds', async () => {
+  const fs = await import('fs');
+  const path = await import('path');
+  const alertsRoute = fs.readFileSync(
+    path.join(process.cwd(), 'app/api/alerts/route.js'),
+    'utf8'
+  );
+
+  assertTrue(
+    alertsRoute.includes("import { ALERT_THRESHOLDS } from '@/lib/alert-thresholds'"),
+    'alerts route should import ALERT_THRESHOLDS'
+  );
+
+  assertTrue(
+    alertsRoute.includes('Number(x.hunterScore) >= ALERT_THRESHOLDS.hunterMinScore'),
+    'alerts route should use ALERT_THRESHOLDS.hunterMinScore for hunter gate'
+  );
+
+  assertTrue(
+    alertsRoute.includes('Number(x.score) >= ALERT_THRESHOLDS.pennyMinScore'),
+    'alerts route should use ALERT_THRESHOLDS.pennyMinScore'
+  );
+
+  assertTrue(
+    alertsRoute.includes('ALERT_THRESHOLDS.pennyMinRvol'),
+    'alerts route should use ALERT_THRESHOLDS.pennyMinRvol'
+  );
+
+  assertTrue(
+    alertsRoute.includes('ALERT_THRESHOLDS.optionsMinScore'),
+    'alerts route should use ALERT_THRESHOLDS.optionsMinScore'
+  );
+
+  assertTrue(
+    alertsRoute.includes('ALERT_THRESHOLDS.optionsMaxPremium'),
+    'alerts route should use ALERT_THRESHOLDS.optionsMaxPremium'
+  );
+
+  assertTrue(
+    alertsRoute.includes('ALERT_THRESHOLDS.optionsMinVolume'),
+    'alerts route should use ALERT_THRESHOLDS.optionsMinVolume'
+  );
+});
+
+// ===========================================================================
+// PHASE 7 / STEP 4 — NOTIFICATION SAFETY
+// ===========================================================================
+test('Q: Telegram/Discord missing credentials produce safe no-op (actual route functions)', async () => {
+  const fs = await import('fs');
+  const path = await import('path');
+
+  const alertsRoute = fs.readFileSync(
+    path.join(process.cwd(), 'app/api/alerts/route.js'),
+    'utf8'
+  );
+
+  assertTrue(
+    alertsRoute.includes('if (!token || !chatId) return false;'),
+    'sendTelegram should return false when credentials missing'
+  );
+
+  assertTrue(
+    alertsRoute.includes('if (!webhook) return false;'),
+    'sendDiscord should return false when webhook missing'
+  );
+
+  const tokenCheckIndex = alertsRoute.indexOf('if (!token || !chatId) return false;');
+  const telegramFetchIndex = alertsRoute.indexOf('await fetch(`https://api.telegram.org');
+
+  assertTrue(tokenCheckIndex < telegramFetchIndex, 'Credential check should come before Telegram fetch');
+
+  const webhookCheckIndex = alertsRoute.indexOf('if (!webhook) return false;');
+  const discordFetchIndex = alertsRoute.indexOf('await fetch(webhook');
+
+  assertTrue(webhookCheckIndex < discordFetchIndex, 'Credential check should come before Discord fetch');
+});
+
+// ===========================================================================
+// PHASE 7 / STEP 5 — CRON COMPATIBILITY
+// ===========================================================================
+test('R: Cron compatibility: alerts route is independent of cron route', async () => {
+  const fs = await import('fs');
+  const path = await import('path');
+
+  const alertsRoute = fs.readFileSync(
+    path.join(process.cwd(), 'app/api/alerts/route.js'),
+    'utf8'
+  );
+
+  const cronRoute = fs.readFileSync(
+    path.join(process.cwd(), 'app/api/cron/route.js'),
+    'utf8'
+  );
+
+  assertTrue(
+    alertsRoute.includes("process.env.CRON_SECRET"),
+    'alerts route should use CRON_SECRET for auth'
+  );
+
+  assertFalse(
+    alertsRoute.includes('saveOpportunity'),
+    'alerts route should not depend on cron saveOpportunity function'
+  );
+
+  assertFalse(
+    alertsRoute.includes('buildOpportunity'),
+    'alerts route should not depend on cron buildOpportunity function'
+  );
+
+  assertTrue(
+    alertsRoute.includes('function sendTelegram'),
+    'alerts route should have its own sendTelegram function'
+  );
+
+  assertTrue(
+    alertsRoute.includes('function sendDiscord'),
+    'alerts route should have its own sendDiscord function'
+  );
+
+  const vercelJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'vercel.json'), 'utf8'));
+  const alertCron = vercelJson.crons.find(c => c.path === '/api/alerts');
+  assertTrue(alertCron !== undefined, 'vercel.json should have /api/alerts cron');
+  assertEqual(alertCron.schedule, '15 15 * * *', 'alerts cron should be scheduled at 15:15');
+});
+
+// ===========================================================================
+// PHASE 7 / STEP 6 — FULL PIPELINE STRUCTURE
+// ===========================================================================
+test('S: Full pipeline structure: Hunter -> Opportunities -> Alerts -> Dedupe', async () => {
+  const fs = await import('fs');
+  const path = await import('path');
+
+  const opportunitiesRoute = fs.readFileSync(
+    path.join(process.cwd(), 'app/api/opportunities/route.js'),
+    'utf8'
+  );
+
+  const alertsRoute = fs.readFileSync(
+    path.join(process.cwd(), 'app/api/alerts/route.js'),
+    'utf8'
+  );
+
+  assertTrue(
+    opportunitiesRoute.includes('${origin}/api/hunter'),
+    'opportunities route should call /api/hunter'
+  );
+
+  assertTrue(
+    alertsRoute.includes('${origin}/api/opportunities'),
+    'alerts route should call /api/opportunities'
+  );
+
+  assertTrue(
+    alertsRoute.includes('saveSignal'),
+    'alerts route should use saveSignal for dedupe'
+  );
+
+  assertTrue(
+    opportunitiesRoute.includes('hunterEligible:') && opportunitiesRoute.includes('x.hunterEligible === true'),
+    'opportunities route should pass hunterEligible through'
+  );
+
+  assertTrue(
+    opportunitiesRoute.includes('hunterScore: Number(x.hunterScore ?? 0)'),
+    'opportunities route should pass hunterScore through'
+  );
 });
 
 // ---------------------------------------------------------------------------

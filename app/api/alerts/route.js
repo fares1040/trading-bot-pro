@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getDedupeKey, duplicate, saveSignal } from '@/lib/alert-dedupe';
+import { ALERT_THRESHOLDS } from '@/lib/alert-thresholds';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -16,12 +17,12 @@ function pickAlerts(data) {
     // Hunter/Technical: require BOTH hunterEligible === true AND hunterScore >= 85
     // Do NOT treat legacy Technical Score as equivalent to Hunter Score.
     ...(data.technical || []).filter((x) =>
-      x.hunterEligible === true && Number(x.hunterScore) >= 85
+      x.hunterEligible === true && Number(x.hunterScore) >= ALERT_THRESHOLDS.hunterMinScore
     ).slice(0, 4),
     // Penny: preserve existing behavior
-    ...(data.penny || []).filter((x) => Number(x.score) >= 80 && Number(x.rvol || 0) >= 1.5).slice(0, 4),
+    ...(data.penny || []).filter((x) => Number(x.score) >= ALERT_THRESHOLDS.pennyMinScore && Number(x.rvol || 0) >= ALERT_THRESHOLDS.pennyMinRvol).slice(0, 4),
     // Options: preserve existing behavior
-    ...(data.options || []).filter((x) => Number(x.score) >= 75 && Number(x.premium) <= 1 && Number(x.volume || 0) >= 10).slice(0, 6),
+    ...(data.options || []).filter((x) => Number(x.score) >= ALERT_THRESHOLDS.optionsMinScore && Number(x.premium) <= ALERT_THRESHOLDS.optionsMaxPremium && Number(x.volume || 0) >= ALERT_THRESHOLDS.optionsMinVolume).slice(0, 6),
   ];
 }
 

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ALERT_THRESHOLDS } from '@/lib/alert-thresholds';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -185,10 +186,10 @@ export async function GET(request) {
         top: all.slice(0, 20),
 
         alerts: {
-          hunterMinScore: 85,
-          technicalMinScore: 85,
-          pennyMinScore: 80,
-          optionsMinScore: 75,
+          hunterMinScore: ALERT_THRESHOLDS.hunterMinScore,
+          technicalMinScore: ALERT_THRESHOLDS.technicalMinScore,
+          pennyMinScore: ALERT_THRESHOLDS.pennyMinScore,
+          optionsMinScore: ALERT_THRESHOLDS.optionsMinScore,
 
           note:
             'هذه عتبات تنبيه وليست توقعًا لمضاعفة أو ضمان ربح.',
