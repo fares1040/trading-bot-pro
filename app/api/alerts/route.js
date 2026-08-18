@@ -29,11 +29,17 @@ async function duplicate(supabase, ticker) {
 
 async function saveSignal(supabase, item) {
   if (!supabase) return false;
+  // Dedupe keys:
+  // - Hunter-owned technical alerts: HUNTER:${symbol}
+  // - Penny alerts: PENNY:${symbol} (preserved)
+  // - Options alerts: OPT:${contract} (preserved)
   const ticker = item.kind === 'OPTIONS_CENTS'
     ? `OPT:${item.contract}`
     : item.kind === 'PENNY'
       ? `PENNY:${item.symbol}`
-      : item.symbol;
+      : item.kind === 'TECHNICAL'
+        ? `HUNTER:${item.symbol}`
+        : item.symbol;
   if (await duplicate(supabase, ticker)) return false;
   const row = {
     ticker,
@@ -56,8 +62,14 @@ async function saveSignal(supabase, item) {
 
 function pickAlerts(data) {
   return [
-    ...(data.technical || []).filter((x) => Number(x.score) >= 85).slice(0, 4),
+    // Hunter/Technical: require BOTH hunterEligible === true AND hunterScore >= 85
+    // Do NOT treat legacy Technical Score as equivalent to Hunter Score.
+    ...(data.technical || []).filter((x) =>
+      x.hunterEligible === true && Number(x.hunterScore) >= 85
+    ).slice(0, 4),
+    // Penny: preserve existing behavior
     ...(data.penny || []).filter((x) => Number(x.score) >= 80 && Number(x.rvol || 0) >= 1.5).slice(0, 4),
+    // Options: preserve existing behavior
     ...(data.options || []).filter((x) => Number(x.score) >= 75 && Number(x.premium) <= 1 && Number(x.volume || 0) >= 10).slice(0, 6),
   ];
 }

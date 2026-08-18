@@ -60,6 +60,12 @@ export async function GET(request) {
             0
         ),
 
+        // Pass through Hunter eligibility WITHOUT recalculating Hunter Score.
+        // This is the gate used by the alerts pipeline (Phase 7 / Step 1).
+        hunterEligible:
+          x.hunterEligible === true,
+        hunterScore: Number(x.hunterScore ?? 0),
+
         setupScore: x.setupScore,
         price: x.price,
         rvol: x.relativeVolume,
