@@ -814,34 +814,40 @@ test('P: Alerts route uses centralized thresholds', async () => {
 // ===========================================================================
 // PHASE 7 / STEP 4 — NOTIFICATION SAFETY
 // ===========================================================================
-test('Q: Telegram/Discord missing credentials produce safe no-op (actual route functions)', async () => {
+test('Q: Telegram/Discord missing credentials produce safe no-op (notifier module)', async () => {
   const fs = await import('fs');
   const path = await import('path');
 
-  const alertsRoute = fs.readFileSync(
-    path.join(process.cwd(), 'app/api/alerts/route.js'),
-    'utf8'
-  );
+  const notifierPath = path.join(process.cwd(), 'lib/alert-notifier.js');
+  const alertsRoutePath = path.join(process.cwd(), 'app/api/alerts/route.js');
+
+  const notifier = fs.readFileSync(notifierPath, 'utf8');
+  const alertsRoute = fs.readFileSync(alertsRoutePath, 'utf8');
 
   assertTrue(
-    alertsRoute.includes('if (!token || !chatId) return false;'),
+    notifier.includes('if (!token || !chatId) return false;'),
     'sendTelegram should return false when credentials missing'
   );
 
   assertTrue(
-    alertsRoute.includes('if (!webhook) return false;'),
+    notifier.includes('if (!webhook) return false;'),
     'sendDiscord should return false when webhook missing'
   );
 
-  const tokenCheckIndex = alertsRoute.indexOf('if (!token || !chatId) return false;');
-  const telegramFetchIndex = alertsRoute.indexOf('await fetch(`https://api.telegram.org');
+  const tokenCheckIndex = notifier.indexOf('if (!token || !chatId) return false;');
+  const telegramFetchIndex = notifier.indexOf('await fetch(`https://api.telegram.org');
 
   assertTrue(tokenCheckIndex < telegramFetchIndex, 'Credential check should come before Telegram fetch');
 
-  const webhookCheckIndex = alertsRoute.indexOf('if (!webhook) return false;');
-  const discordFetchIndex = alertsRoute.indexOf('await fetch(webhook');
+  const webhookCheckIndex = notifier.indexOf('if (!webhook) return false;');
+  const discordFetchIndex = notifier.indexOf('await fetch(webhook');
 
   assertTrue(webhookCheckIndex < discordFetchIndex, 'Credential check should come before Discord fetch');
+
+  assertTrue(
+    alertsRoute.includes("import { sendTelegram, sendDiscord } from '@/lib/alert-notifier'"),
+    'alerts route should import notifier functions from shared module'
+  );
 });
 
 // ===========================================================================
@@ -877,13 +883,13 @@ test('R: Cron compatibility: alerts route is independent of cron route', async (
   );
 
   assertTrue(
-    alertsRoute.includes('function sendTelegram'),
-    'alerts route should have its own sendTelegram function'
+    alertsRoute.includes("import { sendTelegram, sendDiscord } from '@/lib/alert-notifier'"),
+    'alerts route should import notification functions from shared notifier module'
   );
 
   assertTrue(
-    alertsRoute.includes('function sendDiscord'),
-    'alerts route should have its own sendDiscord function'
+    cronRoute.includes('async function sendNotifications'),
+    'cron route should have its own sendNotifications function'
   );
 
   const vercelJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'vercel.json'), 'utf8'));
@@ -933,6 +939,106 @@ test('S: Full pipeline structure: Hunter -> Opportunities -> Alerts -> Dedupe', 
     opportunitiesRoute.includes('hunterScore: Number(x.hunterScore ?? 0)'),
     'opportunities route should pass hunterScore through'
   );
+});
+
+// ===========================================================================
+// PHASE 9 / STEP 1 — SHARED NOTIFIER MODULE
+// ===========================================================================
+test('T: Shared notifier module is importable and exports expected functions', async () => {
+  const notifier = await import('../lib/alert-notifier.js');
+  assertTrue(typeof notifier.sendTelegram === 'function', 'sendTelegram should be a function');
+  assertTrue(typeof notifier.sendDiscord === 'function', 'sendDiscord should be a function');
+});
+
+test('U: Telegram missing credentials => safe no-op (actual notifier)', async () => {
+  const { sendTelegram } = await import('../lib/alert-notifier.js');
+
+  const originalToken = process.env.TELEGRAM_BOT_TOKEN;
+  const originalChatId = process.env.TELEGRAM_CHAT_ID;
+
+  delete process.env.TELEGRAM_BOT_TOKEN;
+  delete process.env.TELEGRAM_CHAT_ID;
+
+  const result = await sendTelegram('test');
+  assertFalse(result, 'sendTelegram should return false when credentials missing');
+
+  if (originalToken) process.env.TELEGRAM_BOT_TOKEN = originalToken;
+  if (originalChatId) process.env.TELEGRAM_CHAT_ID = originalChatId;
+});
+
+test('V: Discord missing webhook => safe no-op (actual notifier)', async () => {
+  const { sendDiscord } = await import('../lib/alert-notifier.js');
+
+  const originalWebhook = process.env.DISCORD_WEBHOOK_URL;
+  delete process.env.DISCORD_WEBHOOK_URL;
+
+  const result = await sendDiscord('test');
+  assertFalse(result, 'sendDiscord should return false when webhook missing');
+
+  if (originalWebhook) process.env.DISCORD_WEBHOOK_URL = originalWebhook;
+});
+
+test('W: Telegram notifier does not throw when credentials missing', async () => {
+  const { sendTelegram } = await import('../lib/alert-notifier.js');
+
+  const originalToken = process.env.TELEGRAM_BOT_TOKEN;
+  const originalChatId = process.env.TELEGRAM_CHAT_ID;
+
+  delete process.env.TELEGRAM_BOT_TOKEN;
+  delete process.env.TELEGRAM_CHAT_ID;
+
+  let threw = false;
+  try {
+    await sendTelegram('test');
+  } catch (e) {
+    threw = true;
+  }
+
+  assertFalse(threw, 'sendTelegram should not throw when credentials missing');
+
+  if (originalToken) process.env.TELEGRAM_BOT_TOKEN = originalToken;
+  if (originalChatId) process.env.TELEGRAM_CHAT_ID = originalChatId;
+});
+
+test('X: Discord notifier does not throw when webhook missing', async () => {
+  const { sendDiscord } = await import('../lib/alert-notifier.js');
+
+  const originalWebhook = process.env.DISCORD_WEBHOOK_URL;
+  delete process.env.DISCORD_WEBHOOK_URL;
+
+  let threw = false;
+  try {
+    await sendDiscord('test');
+  } catch (e) {
+    threw = true;
+  }
+
+  assertFalse(threw, 'sendDiscord should not throw when webhook missing');
+
+  if (originalWebhook) process.env.DISCORD_WEBHOOK_URL = originalWebhook;
+});
+
+test('Y: Notifier functions do not set or leak environment variables', async () => {
+  const { sendTelegram, sendDiscord } = await import('../lib/alert-notifier.js');
+
+  const originalToken = process.env.TELEGRAM_BOT_TOKEN;
+  const originalChatId = process.env.TELEGRAM_CHAT_ID;
+  const originalWebhook = process.env.DISCORD_WEBHOOK_URL;
+
+  delete process.env.TELEGRAM_BOT_TOKEN;
+  delete process.env.TELEGRAM_CHAT_ID;
+  delete process.env.DISCORD_WEBHOOK_URL;
+
+  await sendTelegram('test');
+  await sendDiscord('test');
+
+  assertTrue(process.env.TELEGRAM_BOT_TOKEN === undefined, 'TELEGRAM_BOT_TOKEN should remain unset');
+  assertTrue(process.env.TELEGRAM_CHAT_ID === undefined, 'TELEGRAM_CHAT_ID should remain unset');
+  assertTrue(process.env.DISCORD_WEBHOOK_URL === undefined, 'DISCORD_WEBHOOK_URL should remain unset');
+
+  if (originalToken) process.env.TELEGRAM_BOT_TOKEN = originalToken;
+  if (originalChatId) process.env.TELEGRAM_CHAT_ID = originalChatId;
+  if (originalWebhook) process.env.DISCORD_WEBHOOK_URL = originalWebhook;
 });
 
 // ---------------------------------------------------------------------------
