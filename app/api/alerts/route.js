@@ -27,11 +27,12 @@ function pickAlerts(data) {
   ];
 }
 
-function buildMessage(items, baseUrl) {
+function buildMessage(items, baseUrl, maxLength = 4000) {
   let text = '🔥 <b>HUNTER AI — OPPORTUNITY ALERT</b>\n';
   text += '━━━━━━━━━━━━━━━━━━\n';
   text += 'هذه إشارات رصد آلية وليست ضمانًا للربح أو توصية مضمونة.\n\n';
   for (const x of items) {
+    if (text.length >= maxLength) break;
     if (x.kind === 'OPTIONS_CENTS') {
       text += `🎯 <b>${x.symbol}</b> — ${x.side}\n`;
       text += `📜 ${x.contract}\n`;
@@ -44,10 +45,10 @@ function buildMessage(items, baseUrl) {
       text += `💰 $${x.price ?? '—'} | Score: ${x.score}/100\n`;
       text += `⚡ RVOL: ${x.rvol ?? '—'}x | RSI: ${x.rsi ?? '—'}\n`;
       text += `🧠 ${(x.reasons || []).join(' • ') || x.action || 'مراجعة مطلوبة'}\n`;
-      text += `⚠️ ${x.riskLabel || 'مراجعة وإدارة مخاطرة'}\n\n`;
+      text += `⚠️ ${x.riskLabel || 'مراجعة وإدارة مخاطرة'}\n\n';
     }
   }
-  if (baseUrl) text += `📲 <a href="${baseUrl}">فتح HUNTER AI</a>`;
+  if (baseUrl && text.length < maxLength) text += `📲 <a href="${baseUrl}">فتح HUNTER AI</a>`;
   return text;
 }
 
@@ -78,14 +79,15 @@ export async function GET(request) {
     let discord = false;
 
     if (shouldSend) {
-      const message = buildMessage(supabase ? newItems : candidates, process.env.NEXT_PUBLIC_BASE_URL || origin);
-      [telegram, discord] = await Promise.allSettled([sendTelegram(message), sendDiscord(message)]).then((r) => [
+      const telegramMessage = buildMessage(supabase ? newItems : candidates, process.env.NEXT_PUBLIC_BASE_URL || origin, 4000);
+      const discordMessage = buildMessage(supabase ? newItems : candidates, process.env.NEXT_PUBLIC_BASE_URL || origin, 1900);
+      [telegram, discord] = await Promise.allSettled([sendTelegram(telegramMessage), sendDiscord(discordMessage)]).then((r) => [
         r[0].status === 'fulfilled' && r[0].value,
         r[1].status === 'fulfilled' && r[1].value,
       ]);
     }
 
-    return NextResponse.json({
+    const response = {
       success: true,
       scanned: candidates.length,
       newAlerts: newItems.length,
@@ -93,7 +95,23 @@ export async function GET(request) {
       dedupe: Boolean(supabase),
       note: supabase ? 'التنبيهات مكررة الحماية عبر auto_signals.' : 'لم يتم إرسال تنبيهات متكررة بدون Supabase إلا إذا ALERTS_ALLOW_WITHOUT_SUPABASE=true.',
       timestamp: new Date().toISOString(),
-    });
+    };
+
+    if (newItems.length === 0) {
+      const reasons = [];
+      if (candidates.length === 0) reasons.push('no_candidates');
+      else if (!supabase) reasons.push('supabase_unavailable');
+      else reasons.push('all_candidates_deduped');
+
+      response.emptyState = {
+        reason: reasons[0],
+        reasons,
+        scanned: candidates.length,
+        deduped: candidates.length - newItems.length,
+      };
+    }
+
+    return NextResponse.json(response);
   } catch (error) {
     return NextResponse.json({ success: false, error: 'تعذر تشغيل محرك التنبيهات حالياً.' }, { status: 503 });
   }

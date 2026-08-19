@@ -28,9 +28,9 @@
 let passCount = 0;
 let failCount = 0;
 
-function test(name, fn) {
+async function test(name, fn) {
   try {
-    fn();
+    await fn();
     console.log(`✅ PASS: ${name}`);
     passCount++;
   } catch (error) {
@@ -158,8 +158,9 @@ console.log('\n========================================');
 console.log('Alert Pipeline Tests (Phase 7 / Step 1)');
 console.log('========================================\n');
 
+(async () => {
 // A. hunterEligible=true + hunterScore=85 => alert PASS
-test('A: hunterEligible=true + hunterScore=85 => alert PASS', () => {
+await test('A: hunterEligible=true + hunterScore=85 => alert PASS', () => {
   const data = {
     technical: [buildTechnicalItem({ hunterEligible: true, hunterScore: 85 })],
     penny: [],
@@ -172,7 +173,7 @@ test('A: hunterEligible=true + hunterScore=85 => alert PASS', () => {
 });
 
 // B. hunterEligible=true + hunterScore=84 => alert BLOCK
-test('B: hunterEligible=true + hunterScore=84 => alert BLOCK', () => {
+await test('B: hunterEligible=true + hunterScore=84 => alert BLOCK', () => {
   const data = {
     technical: [buildTechnicalItem({ hunterEligible: true, hunterScore: 84 })],
     penny: [],
@@ -183,7 +184,7 @@ test('B: hunterEligible=true + hunterScore=84 => alert BLOCK', () => {
 });
 
 // C. hunterEligible=false + hunterScore=98 => alert BLOCK
-test('C: hunterEligible=false + hunterScore=98 => alert BLOCK', () => {
+await test('C: hunterEligible=false + hunterScore=98 => alert BLOCK', () => {
   const data = {
     technical: [buildTechnicalItem({ hunterEligible: false, hunterScore: 98 })],
     penny: [],
@@ -194,7 +195,7 @@ test('C: hunterEligible=false + hunterScore=98 => alert BLOCK', () => {
 });
 
 // D. missing hunterEligible => alert BLOCK
-test('D: missing hunterEligible => alert BLOCK', () => {
+await test('D: missing hunterEligible => alert BLOCK', () => {
   const data = {
     technical: [buildTechnicalItem({ hunterEligible: undefined, hunterScore: 90 })],
     penny: [],
@@ -205,7 +206,7 @@ test('D: missing hunterEligible => alert BLOCK', () => {
 });
 
 // E. Penny threshold behavior remains unchanged
-test('E: Penny threshold behavior unchanged (score >= 80 AND rvol >= 1.5)', () => {
+await test('E: Penny threshold behavior unchanged (score >= 80 AND rvol >= 1.5)', () => {
   // PASS: score 80, rvol 1.5
   let data = { technical: [], penny: [buildPennyItem({ score: 80, rvol: 1.5 })], options: [] };
   let candidates = pickAlerts(data);
@@ -223,7 +224,7 @@ test('E: Penny threshold behavior unchanged (score >= 80 AND rvol >= 1.5)', () =
 });
 
 // F. Options threshold behavior remains unchanged
-test('F: Options threshold behavior unchanged (score >= 75 AND premium <= 1 AND volume >= 10)', () => {
+await test('F: Options threshold behavior unchanged (score >= 75 AND premium <= 1 AND volume >= 10)', () => {
   // PASS: all thresholds met
   let data = { technical: [], penny: [], options: [buildOptionsItem({ score: 75, premium: 1, volume: 10 })] };
   let candidates = pickAlerts(data);
@@ -246,28 +247,28 @@ test('F: Options threshold behavior unchanged (score >= 75 AND premium <= 1 AND 
 });
 
 // G. Hunter dedupe key = HUNTER:${symbol}
-test('G: Hunter dedupe key = HUNTER:${symbol}', () => {
+await test('G: Hunter dedupe key = HUNTER:${symbol}', () => {
   const item = buildTechnicalItem({ symbol: 'AAPL' });
   const key = getDedupeKey(item);
   assertEqual(key, 'HUNTER:AAPL', 'Hunter dedupe key should be HUNTER:AAPL');
 });
 
 // H. Penny dedupe key = PENNY:${symbol}
-test('H: Penny dedupe key = PENNY:${symbol}', () => {
+await test('H: Penny dedupe key = PENNY:${symbol}', () => {
   const item = buildPennyItem({ symbol: 'PENNY1' });
   const key = getDedupeKey(item);
   assertEqual(key, 'PENNY:PENNY1', 'Penny dedupe key should be PENNY:PENNY1');
 });
 
 // I. Options dedupe key = OPT:${contract}
-test('I: Options dedupe key = OPT:${contract}', () => {
+await test('I: Options dedupe key = OPT:${contract}', () => {
   const item = buildOptionsItem({ contract: 'AAPL260116C00150000' });
   const key = getDedupeKey(item);
   assertEqual(key, 'OPT:AAPL260116C00150000', 'Options dedupe key should be OPT:contract');
 });
 
 // J. Missing Telegram/Discord credentials produce safe no-op behavior
-test('J: Missing Telegram/Discord credentials produce safe no-op', async () => {
+await test('J: Missing Telegram/Discord credentials produce safe no-op', async () => {
   // We test the sendTelegram and sendDiscord functions directly
   // by checking they return false when credentials are missing
   
@@ -312,7 +313,7 @@ test('J: Missing Telegram/Discord credentials produce safe no-op', async () => {
 });
 
 // K. Existing project tests remain compatible - verify no breaking changes to imports
-test('K: Existing project tests remain compatible (no import errors)', async () => {
+await test('K: Existing project tests remain compatible (no import errors)', async () => {
   // This test verifies that the modules we modified can still be imported
   // and that the existing test files don't have import conflicts
   
@@ -344,7 +345,7 @@ test('K: Existing project tests remain compatible (no import errors)', async () 
 });
 
 // Additional: Verify Hunter score is NOT recalculated in opportunities route
-test('Opportunities route passes through hunterEligible and hunterScore without recalculation', async () => {
+await test('Opportunities route passes through hunterEligible and hunterScore without recalculation', async () => {
   // This is a structural test - we verify the code pattern in the file
   const fs = await import('fs');
   const path = await import('path');
@@ -379,7 +380,7 @@ test('Opportunities route passes through hunterEligible and hunterScore without 
 });
 
 // Additional: Verify alerts route uses correct gate logic
-test('Alerts route uses correct gate: hunterEligible === true AND hunterScore >= 85', async () => {
+await test('Alerts route uses correct gate: hunterEligible === true AND hunterScore >= 85', async () => {
   const fs = await import('fs');
   const path = await import('path');
   const alertsRoute = fs.readFileSync(
@@ -497,7 +498,7 @@ async function loadAlertDedupe() {
 }
 
 // A. HUNTER:AAPL key generation
-test('A: HUNTER:AAPL key generation', async () => {
+await test('A: HUNTER:AAPL key generation', async () => {
   const { getDedupeKey } = await loadAlertDedupe();
   const item = buildTechnicalItem({ symbol: 'AAPL' });
   const key = getDedupeKey(item);
@@ -505,7 +506,7 @@ test('A: HUNTER:AAPL key generation', async () => {
 });
 
 // B. PENNY:AAPL key generation
-test('B: PENNY:AAPL key generation', async () => {
+await test('B: PENNY:AAPL key generation', async () => {
   const { getDedupeKey } = await loadAlertDedupe();
   const item = buildPennyItem({ symbol: 'AAPL' });
   const key = getDedupeKey(item);
@@ -513,7 +514,7 @@ test('B: PENNY:AAPL key generation', async () => {
 });
 
 // C. OPT:AAPL260116C00150000 key generation
-test('C: OPT:AAPL260116C00150000 key generation', async () => {
+await test('C: OPT:AAPL260116C00150000 key generation', async () => {
   const { getDedupeKey } = await loadAlertDedupe();
   const item = buildOptionsItem({ contract: 'AAPL260116C00150000' });
   const key = getDedupeKey(item);
@@ -521,7 +522,7 @@ test('C: OPT:AAPL260116C00150000 key generation', async () => {
 });
 
 // D. Hunter/Penny/Options keys cannot collide
-test('D: Hunter/Penny/Options keys cannot collide', async () => {
+await test('D: Hunter/Penny/Options keys cannot collide', async () => {
   const { getDedupeKey } = await loadAlertDedupe();
 
   const hunterKey = getDedupeKey(buildTechnicalItem({ symbol: 'AAPL' }));
@@ -539,7 +540,7 @@ test('D: Hunter/Penny/Options keys cannot collide', async () => {
 });
 
 // E. Same key 59 minutes old → BLOCK (within 60-minute window)
-test('E: Same key 59 minutes old → BLOCK', async () => {
+await test('E: Same key 59 minutes old → BLOCK', async () => {
   const { duplicate } = await loadAlertDedupe();
   const mockSupabase = createMockSupabase({ duplicateAgeMinutes: 59 });
 
@@ -548,7 +549,7 @@ test('E: Same key 59 minutes old → BLOCK', async () => {
 });
 
 // F. Same key exactly 60 minutes old → BLOCK (gte is inclusive)
-test('F: Same key exactly 60 minutes old → BLOCK (inclusive >= boundary)', async () => {
+await test('F: Same key exactly 60 minutes old → BLOCK (inclusive >= boundary)', async () => {
   const { duplicate } = await loadAlertDedupe();
   const mockSupabase = createMockSupabase({ duplicateAgeMinutes: 60 });
 
@@ -557,7 +558,7 @@ test('F: Same key exactly 60 minutes old → BLOCK (inclusive >= boundary)', asy
 });
 
 // G. Same key older than 60 minutes → ALLOW (outside window)
-test('G: Same key older than 60 minutes → ALLOW', async () => {
+await test('G: Same key older than 60 minutes → ALLOW', async () => {
   const { duplicate } = await loadAlertDedupe();
   const mockSupabase = createMockSupabase({ duplicateAgeMinutes: 61 });
 
@@ -566,7 +567,7 @@ test('G: Same key older than 60 minutes → ALLOW', async () => {
 });
 
 // H. Different key → ALLOW
-test('H: Different key → ALLOW', async () => {
+await test('H: Different key → ALLOW', async () => {
   const { duplicate } = await loadAlertDedupe();
   const mockSupabase = createMockSupabase({ duplicateResult: false });
 
@@ -575,7 +576,7 @@ test('H: Different key → ALLOW', async () => {
 });
 
 // I. saveSignal inserts when no duplicate exists
-test('I: saveSignal inserts when no duplicate exists', async () => {
+await test('I: saveSignal inserts when no duplicate exists', async () => {
   const { saveSignal } = await loadAlertDedupe();
   const mockSupabase = createMockSupabase({ duplicateResult: false, insertError: null });
 
@@ -590,7 +591,7 @@ test('I: saveSignal inserts when no duplicate exists', async () => {
 });
 
 // J. saveSignal blocks when duplicate exists
-test('J: saveSignal blocks when duplicate exists', async () => {
+await test('J: saveSignal blocks when duplicate exists', async () => {
   const { saveSignal } = await loadAlertDedupe();
   const mockSupabase = createMockSupabase({ duplicateResult: true });
 
@@ -603,7 +604,7 @@ test('J: saveSignal blocks when duplicate exists', async () => {
 });
 
 // K. Supabase unavailable → no insert and no throw
-test('K: Supabase unavailable → no insert and no throw', async () => {
+await test('K: Supabase unavailable → no insert and no throw', async () => {
   const { duplicate, saveSignal } = await loadAlertDedupe();
 
   // Test duplicate with null supabase
@@ -617,7 +618,7 @@ test('K: Supabase unavailable → no insert and no throw', async () => {
 });
 
 // K2. Supabase query error is safe (no throw)
-test('K2: Supabase query error is safe (no throw)', async () => {
+await test('K2: Supabase query error is safe (no throw)', async () => {
   const { duplicate, saveSignal } = await loadAlertDedupe();
   const mockSupabase = createMockSupabase({ shouldThrow: true });
 
@@ -646,7 +647,7 @@ test('K2: Supabase query error is safe (no throw)', async () => {
 });
 
 // L. Existing Telegram/Discord no-op behavior remains compatible
-test('L: Existing Telegram/Discord no-op behavior remains compatible', async () => {
+await test('L: Existing Telegram/Discord no-op behavior remains compatible', async () => {
   // Save original env
   const originalTelegramToken = process.env.TELEGRAM_BOT_TOKEN;
   const originalTelegramChatId = process.env.TELEGRAM_CHAT_ID;
@@ -686,7 +687,7 @@ test('L: Existing Telegram/Discord no-op behavior remains compatible', async () 
 });
 
 // M. Existing Phase 7 Hunter gate tests remain passing
-test('M: Existing Phase 7 Hunter gate tests remain passing', async () => {
+await test('M: Existing Phase 7 Hunter gate tests remain passing', async () => {
   // Re-run the gate logic tests to ensure they still pass
   const data = {
     technical: [buildTechnicalItem({ hunterEligible: true, hunterScore: 85 })],
@@ -724,7 +725,7 @@ test('M: Existing Phase 7 Hunter gate tests remain passing', async () => {
 // ===========================================================================
 // PHASE 7 / STEP 3 — CENTRALIZED THRESHOLDS
 // ===========================================================================
-test('N: Centralized thresholds module exists with correct values', async () => {
+await test('N: Centralized thresholds module exists with correct values', async () => {
   const { ALERT_THRESHOLDS } = await import('../lib/alert-thresholds.js');
 
   assertEqual(ALERT_THRESHOLDS.hunterMinScore, 85, 'hunterMinScore should be 85');
@@ -738,7 +739,7 @@ test('N: Centralized thresholds module exists with correct values', async () => 
   assertTrue(Object.isFrozen(ALERT_THRESHOLDS), 'ALERT_THRESHOLDS should be frozen');
 });
 
-test('O: Opportunities route uses centralized thresholds', async () => {
+await test('O: Opportunities route uses centralized thresholds', async () => {
   const fs = await import('fs');
   const path = await import('path');
   const opportunitiesRoute = fs.readFileSync(
@@ -767,7 +768,7 @@ test('O: Opportunities route uses centralized thresholds', async () => {
   );
 });
 
-test('P: Alerts route uses centralized thresholds', async () => {
+await test('P: Alerts route uses centralized thresholds', async () => {
   const fs = await import('fs');
   const path = await import('path');
   const alertsRoute = fs.readFileSync(
@@ -814,7 +815,7 @@ test('P: Alerts route uses centralized thresholds', async () => {
 // ===========================================================================
 // PHASE 7 / STEP 4 — NOTIFICATION SAFETY
 // ===========================================================================
-test('Q: Telegram/Discord missing credentials produce safe no-op (notifier module)', async () => {
+await test('Q: Telegram/Discord missing credentials produce safe no-op (notifier module)', async () => {
   const fs = await import('fs');
   const path = await import('path');
 
@@ -835,12 +836,12 @@ test('Q: Telegram/Discord missing credentials produce safe no-op (notifier modul
   );
 
   const tokenCheckIndex = notifier.indexOf('if (!token || !chatId) return false;');
-  const telegramFetchIndex = notifier.indexOf('await fetch(`https://api.telegram.org');
+  const telegramFetchIndex = notifier.indexOf('fetchWithOneRetry(`https://api.telegram.org');
 
   assertTrue(tokenCheckIndex < telegramFetchIndex, 'Credential check should come before Telegram fetch');
 
   const webhookCheckIndex = notifier.indexOf('if (!webhook) return false;');
-  const discordFetchIndex = notifier.indexOf('await fetch(webhook');
+  const discordFetchIndex = notifier.indexOf('fetchWithOneRetry(webhook');
 
   assertTrue(webhookCheckIndex < discordFetchIndex, 'Credential check should come before Discord fetch');
 
@@ -853,7 +854,7 @@ test('Q: Telegram/Discord missing credentials produce safe no-op (notifier modul
 // ===========================================================================
 // PHASE 7 / STEP 5 — CRON COMPATIBILITY
 // ===========================================================================
-test('R: Cron compatibility: alerts route is independent of cron route', async () => {
+await test('R: Cron compatibility: alerts route is independent of cron route', async () => {
   const fs = await import('fs');
   const path = await import('path');
 
@@ -901,7 +902,7 @@ test('R: Cron compatibility: alerts route is independent of cron route', async (
 // ===========================================================================
 // PHASE 7 / STEP 6 — FULL PIPELINE STRUCTURE
 // ===========================================================================
-test('S: Full pipeline structure: Hunter -> Opportunities -> Alerts -> Dedupe', async () => {
+await test('S: Full pipeline structure: Hunter -> Opportunities -> Alerts -> Dedupe', async () => {
   const fs = await import('fs');
   const path = await import('path');
 
@@ -944,13 +945,13 @@ test('S: Full pipeline structure: Hunter -> Opportunities -> Alerts -> Dedupe', 
 // ===========================================================================
 // PHASE 9 / STEP 1 — SHARED NOTIFIER MODULE
 // ===========================================================================
-test('T: Shared notifier module is importable and exports expected functions', async () => {
+await test('T: Shared notifier module is importable and exports expected functions', async () => {
   const notifier = await import('../lib/alert-notifier.js');
   assertTrue(typeof notifier.sendTelegram === 'function', 'sendTelegram should be a function');
   assertTrue(typeof notifier.sendDiscord === 'function', 'sendDiscord should be a function');
 });
 
-test('U: Telegram missing credentials => safe no-op (actual notifier)', async () => {
+await test('U: Telegram missing credentials => safe no-op (actual notifier)', async () => {
   const { sendTelegram } = await import('../lib/alert-notifier.js');
 
   const originalToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -966,7 +967,7 @@ test('U: Telegram missing credentials => safe no-op (actual notifier)', async ()
   if (originalChatId) process.env.TELEGRAM_CHAT_ID = originalChatId;
 });
 
-test('V: Discord missing webhook => safe no-op (actual notifier)', async () => {
+await test('V: Discord missing webhook => safe no-op (actual notifier)', async () => {
   const { sendDiscord } = await import('../lib/alert-notifier.js');
 
   const originalWebhook = process.env.DISCORD_WEBHOOK_URL;
@@ -978,7 +979,7 @@ test('V: Discord missing webhook => safe no-op (actual notifier)', async () => {
   if (originalWebhook) process.env.DISCORD_WEBHOOK_URL = originalWebhook;
 });
 
-test('W: Telegram notifier does not throw when credentials missing', async () => {
+await test('W: Telegram notifier does not throw when credentials missing', async () => {
   const { sendTelegram } = await import('../lib/alert-notifier.js');
 
   const originalToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -1000,7 +1001,7 @@ test('W: Telegram notifier does not throw when credentials missing', async () =>
   if (originalChatId) process.env.TELEGRAM_CHAT_ID = originalChatId;
 });
 
-test('X: Discord notifier does not throw when webhook missing', async () => {
+await test('X: Discord notifier does not throw when webhook missing', async () => {
   const { sendDiscord } = await import('../lib/alert-notifier.js');
 
   const originalWebhook = process.env.DISCORD_WEBHOOK_URL;
@@ -1018,13 +1019,22 @@ test('X: Discord notifier does not throw when webhook missing', async () => {
   if (originalWebhook) process.env.DISCORD_WEBHOOK_URL = originalWebhook;
 });
 
-test('Y: Notifier functions do not set or leak environment variables', async () => {
+await test('Y: Notifier functions do not set or leak environment variables', async () => {
   const { sendTelegram, sendDiscord } = await import('../lib/alert-notifier.js');
+
+  const sentinelToken = 'SENTINEL_TOKEN';
+  const sentinelChatId = 'SENTINEL_CHAT_ID';
+  const sentinelWebhook = 'https://example.com/sentinel-webhook';
+
+  process.env.TELEGRAM_BOT_TOKEN = sentinelToken;
+  process.env.TELEGRAM_CHAT_ID = sentinelChatId;
+  process.env.DISCORD_WEBHOOK_URL = sentinelWebhook;
 
   const originalToken = process.env.TELEGRAM_BOT_TOKEN;
   const originalChatId = process.env.TELEGRAM_CHAT_ID;
   const originalWebhook = process.env.DISCORD_WEBHOOK_URL;
 
+  // Exercise safe no-op paths
   delete process.env.TELEGRAM_BOT_TOKEN;
   delete process.env.TELEGRAM_CHAT_ID;
   delete process.env.DISCORD_WEBHOOK_URL;
@@ -1032,13 +1042,200 @@ test('Y: Notifier functions do not set or leak environment variables', async () 
   await sendTelegram('test');
   await sendDiscord('test');
 
-  assertTrue(process.env.TELEGRAM_BOT_TOKEN === undefined, 'TELEGRAM_BOT_TOKEN should remain unset');
-  assertTrue(process.env.TELEGRAM_CHAT_ID === undefined, 'TELEGRAM_CHAT_ID should remain unset');
-  assertTrue(process.env.DISCORD_WEBHOOK_URL === undefined, 'DISCORD_WEBHOOK_URL should remain unset');
+  // Restore sentinels
+  process.env.TELEGRAM_BOT_TOKEN = originalToken;
+  process.env.TELEGRAM_CHAT_ID = originalChatId;
+  process.env.DISCORD_WEBHOOK_URL = originalWebhook;
 
-  if (originalToken) process.env.TELEGRAM_BOT_TOKEN = originalToken;
-  if (originalChatId) process.env.TELEGRAM_CHAT_ID = originalChatId;
-  if (originalWebhook) process.env.DISCORD_WEBHOOK_URL = originalWebhook;
+  assertEqual(process.env.TELEGRAM_BOT_TOKEN, sentinelToken, 'TELEGRAM_BOT_TOKEN should not be modified');
+  assertEqual(process.env.TELEGRAM_CHAT_ID, sentinelChatId, 'TELEGRAM_CHAT_ID should not be modified');
+  assertEqual(process.env.DISCORD_WEBHOOK_URL, sentinelWebhook, 'DISCORD_WEBHOOK_URL should not be modified');
+
+  // Cleanup
+  delete process.env.TELEGRAM_BOT_TOKEN;
+  delete process.env.TELEGRAM_CHAT_ID;
+  delete process.env.DISCORD_WEBHOOK_URL;
+});
+
+// ===========================================================================
+// PHASE 9 / STEP 3 — FAILURE HANDLING (BOUNDED RETRY)
+// ===========================================================================
+await test('Z: Telegram retries once on 5xx', async () => {
+  const { sendTelegram } = await import('../lib/alert-notifier.js');
+
+  let fetchCalls = 0;
+  const originalFetch = global.fetch;
+  global.fetch = async () => {
+    fetchCalls++;
+    if (fetchCalls === 1) return { ok: false, status: 503 };
+    return { ok: true };
+  };
+
+  try {
+    process.env.TELEGRAM_BOT_TOKEN = 'test-token';
+    process.env.TELEGRAM_CHAT_ID = 'test-chat';
+
+    const result = await sendTelegram('test');
+
+    assertTrue(result, 'sendTelegram should return true after retry on 5xx');
+    assertEqual(fetchCalls, 2, 'fetch should be called exactly twice (initial + 1 retry)');
+  } finally {
+    global.fetch = originalFetch;
+    delete process.env.TELEGRAM_BOT_TOKEN;
+    delete process.env.TELEGRAM_CHAT_ID;
+  }
+});
+
+await test('AA: Telegram does not retry on 4xx', async () => {
+  const { sendTelegram } = await import('../lib/alert-notifier.js');
+
+  let fetchCalls = 0;
+  const originalFetch = global.fetch;
+  global.fetch = async () => {
+    fetchCalls++;
+    return { ok: false, status: 400 };
+  };
+
+  try {
+    process.env.TELEGRAM_BOT_TOKEN = 'test-token';
+    process.env.TELEGRAM_CHAT_ID = 'test-chat';
+
+    const result = await sendTelegram('test');
+
+    assertFalse(result, 'sendTelegram should return false on 400 without retry');
+    assertEqual(fetchCalls, 1, 'fetch should be called exactly once for 4xx');
+  } finally {
+    global.fetch = originalFetch;
+    delete process.env.TELEGRAM_BOT_TOKEN;
+    delete process.env.TELEGRAM_CHAT_ID;
+  }
+});
+
+await test('AB: Discord retries once on 5xx', async () => {
+  const { sendDiscord } = await import('../lib/alert-notifier.js');
+
+  let fetchCalls = 0;
+  const originalFetch = global.fetch;
+  global.fetch = async () => {
+    fetchCalls++;
+    if (fetchCalls === 1) return { ok: false, status: 502 };
+    return { ok: true };
+  };
+
+  try {
+    process.env.DISCORD_WEBHOOK_URL = 'https://example.com/webhook';
+
+    const result = await sendDiscord('test');
+
+    assertTrue(result, 'sendDiscord should return true after retry on 5xx');
+    assertEqual(fetchCalls, 2, 'fetch should be called exactly twice (initial + 1 retry)');
+  } finally {
+    global.fetch = originalFetch;
+    delete process.env.DISCORD_WEBHOOK_URL;
+  }
+});
+
+await test('AC: Notifier retries once on network error', async () => {
+  const { sendTelegram } = await import('../lib/alert-notifier.js');
+
+  let fetchCalls = 0;
+  const originalFetch = global.fetch;
+  global.fetch = async () => {
+    fetchCalls++;
+    if (fetchCalls === 1) throw new Error('Network error');
+    return { ok: true };
+  };
+
+  try {
+    process.env.TELEGRAM_BOT_TOKEN = 'test-token';
+    process.env.TELEGRAM_CHAT_ID = 'test-chat';
+
+    const result = await sendTelegram('test');
+
+    assertTrue(result, 'sendTelegram should return true after retry on network error');
+    assertEqual(fetchCalls, 2, 'fetch should be called exactly twice (initial + 1 retry)');
+  } finally {
+    global.fetch = originalFetch;
+    delete process.env.TELEGRAM_BOT_TOKEN;
+    delete process.env.TELEGRAM_CHAT_ID;
+  }
+});
+
+// ===========================================================================
+// PHASE 9 / STEP 4 — ALERT HISTORY ENDPOINT
+// ===========================================================================
+await test('AD: Alert history endpoint exists with correct structure', async () => {
+  const fs = await import('fs');
+  const path = await import('path');
+
+  const endpointPath = path.join(process.cwd(), 'app/api/alert-history/route.js');
+  assertTrue(fs.existsSync(endpointPath), 'alert-history endpoint should exist');
+
+  const source = fs.readFileSync(endpointPath, 'utf8');
+
+  assertTrue(source.includes("from('auto_signals')"), 'endpoint should query auto_signals');
+  assertTrue(source.includes('CRON_SECRET'), 'endpoint should require CRON_SECRET auth');
+  assertTrue(source.includes('symbol'), 'endpoint should support symbol filter');
+  assertTrue(source.includes('kind'), 'endpoint should support kind filter');
+  assertTrue(source.includes('limit'), 'endpoint should support limit');
+  assertTrue(source.includes('startDate'), 'endpoint should support startDate');
+  assertTrue(source.includes('endDate'), 'endpoint should support endDate');
+  assertTrue(source.includes('classifyKind'), 'endpoint should classify ticker prefixes');
+  assertTrue(source.includes('extractSymbol'), 'endpoint should extract symbol from ticker');
+});
+
+await test('AE: Alert history classifies ticker prefixes correctly', async () => {
+  const classifyKind = (ticker) => {
+    if (ticker.startsWith('HUNTER:')) return 'TECHNICAL';
+    if (ticker.startsWith('PENNY:')) return 'PENNY';
+    if (ticker.startsWith('OPT:')) return 'OPTIONS_CENTS';
+    return 'UNKNOWN';
+  };
+
+  const extractSymbol = (ticker) => {
+    const idx = ticker.indexOf(':');
+    return idx >= 0 ? ticker.slice(idx + 1) : ticker;
+  };
+
+  assertEqual(classifyKind('HUNTER:AAPL'), 'TECHNICAL');
+  assertEqual(classifyKind('PENNY:AAPL'), 'PENNY');
+  assertEqual(classifyKind('OPT:AAPL260116C00150000'), 'OPTIONS_CENTS');
+  assertEqual(classifyKind('UNKNOWN'), 'UNKNOWN');
+
+  assertEqual(extractSymbol('HUNTER:AAPL'), 'AAPL');
+  assertEqual(extractSymbol('PENNY:AAPL'), 'AAPL');
+  assertEqual(extractSymbol('OPT:AAPL260116C00150000'), 'AAPL260116C00150000');
+});
+
+// ===========================================================================
+// PHASE 9 / STEP 5 — EMPTY STATE / DIAGNOSTICS
+// ===========================================================================
+await test('AF: Alerts route includes emptyState diagnostics', async () => {
+  const fs = await import('fs');
+  const path = await import('path');
+  const alertsRoute = fs.readFileSync(path.join(process.cwd(), 'app/api/alerts/route.js'), 'utf8');
+
+  assertTrue(alertsRoute.includes('emptyState'), 'alerts route should include emptyState diagnostics');
+  assertTrue(alertsRoute.includes('no_candidates'), 'emptyState should include no_candidates reason');
+  assertTrue(alertsRoute.includes('supabase_unavailable'), 'emptyState should include supabase_unavailable reason');
+  assertTrue(alertsRoute.includes('all_candidates_deduped'), 'emptyState should include all_candidates_deduped reason');
+  assertTrue(alertsRoute.includes('maxLength = 4000'), 'buildMessage should have Telegram maxLength default');
+  assertTrue(alertsRoute.includes(', 1900)'), 'Discord buildMessage should be called with 1900 limit');
+  assertTrue(alertsRoute.includes('text.length >= maxLength) break;'), 'buildMessage should stop adding alerts at maxLength');
+});
+
+// ===========================================================================
+// PHASE 9 / STEP 6 — RATE / FLOOD SAFETY
+// ===========================================================================
+await test('AG: buildMessage respects platform length limits', async () => {
+  const fs = await import('fs');
+  const path = await import('path');
+  const alertsRoute = fs.readFileSync(path.join(process.cwd(), 'app/api/alerts/route.js'), 'utf8');
+
+  assertTrue(alertsRoute.includes('maxLength = 4000'), 'Telegram buildMessage default should be 4000');
+  assertTrue(alertsRoute.includes(', 1900)'), 'Discord buildMessage should be called with 1900 limit');
+  assertTrue(alertsRoute.includes(', 4000)'), 'Telegram buildMessage should be called with 4000 limit');
+  assertTrue(alertsRoute.includes('text.length >= maxLength) break;'), 'buildMessage should stop at maxLength');
 });
 
 // ---------------------------------------------------------------------------
@@ -1055,3 +1252,4 @@ console.log('========================================\n');
 if (failCount > 0) {
   process.exit(1);
 }
+})();
