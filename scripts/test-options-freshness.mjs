@@ -235,18 +235,18 @@ test('normalizeOptionContract: missing IV -> null (never fabricated)', () => {
   assertNotNull(c.score, 'score still computed without IV');
 });
 
-// 6. Missing volume — defaults to 0 (Yahoo default), not fabricated
-test('normalizeOptionContract: missing volume -> 0 (Yahoo default)', () => {
+// 6. Missing volume — preserved as null (never fabricated as 0)
+test('normalizeOptionContract: missing volume -> null (never fabricated)', () => {
   const raw = { contractSymbol: 'AAPL231201C00150000', bid: 2, ask: 2.2, strike: 150, impliedVolatility: 0.3, openInterest: 2000 };
   const c = normalizeOptionContract(raw, 'CALL', 150, 1700000000);
-  assertEqual(c.volume, 0, 'missing volume -> 0 (Yahoo default)');
+  assertEqual(c.volume, null, 'missing volume -> null (never fabricated as 0)');
 });
 
-// 7. Missing open interest — defaults to 0 (Yahoo default), not fabricated
-test('normalizeOptionContract: missing openInterest -> 0 (Yahoo default)', () => {
+// 7. Missing open interest — preserved as null (never fabricated as 0)
+test('normalizeOptionContract: missing openInterest -> null (never fabricated)', () => {
   const raw = { contractSymbol: 'AAPL231201C00150000', bid: 2, ask: 2.2, strike: 150, impliedVolatility: 0.3, volume: 500 };
   const c = normalizeOptionContract(raw, 'CALL', 150, 1700000000);
-  assertEqual(c.openInterest, 0, 'missing OI -> 0 (Yahoo default)');
+  assertEqual(c.openInterest, null, 'missing OI -> null (never fabricated as 0)');
 });
 
 // 8. Missing premium — no bid/ask/last -> premium null

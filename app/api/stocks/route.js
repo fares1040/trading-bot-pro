@@ -1,5 +1,6 @@
 // app/api/stocks/route.js
 import { NextResponse } from 'next/server';
+import { calculateATR } from '@/lib/penny-intelligence';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -1142,6 +1143,14 @@ function buildAnalytics(
 
     riskScore:
       riskReward.score,
+
+    atr:
+      calculateATR(
+        highs,
+        lows,
+        closes,
+        14
+      ),
 
     bollingerBandwidth:
       round(

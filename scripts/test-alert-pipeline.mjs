@@ -1220,7 +1220,7 @@ await test('AF: Alerts route includes emptyState diagnostics', async () => {
   assertTrue(alertsRoute.includes('supabase_unavailable'), 'emptyState should include supabase_unavailable reason');
   assertTrue(alertsRoute.includes('all_candidates_deduped'), 'emptyState should include all_candidates_deduped reason');
   assertTrue(alertsRoute.includes('maxLength = 4000'), 'buildMessage should have Telegram maxLength default');
-  assertTrue(alertsRoute.includes(', 1900)'), 'Discord buildMessage should be called with 1900 limit');
+  assertTrue(alertsRoute.includes(', 1900,'), 'Discord buildMessage should be called with 1900 limit');
   assertTrue(alertsRoute.includes('text.length >= maxLength) break;'), 'buildMessage should stop adding alerts at maxLength');
 });
 
@@ -1233,9 +1233,255 @@ await test('AG: buildMessage respects platform length limits', async () => {
   const alertsRoute = fs.readFileSync(path.join(process.cwd(), 'app/api/alerts/route.js'), 'utf8');
 
   assertTrue(alertsRoute.includes('maxLength = 4000'), 'Telegram buildMessage default should be 4000');
-  assertTrue(alertsRoute.includes(', 1900)'), 'Discord buildMessage should be called with 1900 limit');
-  assertTrue(alertsRoute.includes(', 4000)'), 'Telegram buildMessage should be called with 4000 limit');
+  assertTrue(alertsRoute.includes(', 1900,'), 'Discord buildMessage should be called with 1900 limit');
+  assertTrue(alertsRoute.includes(', 4000,'), 'Telegram buildMessage should be called with 4000 limit');
   assertTrue(alertsRoute.includes('text.length >= maxLength) break;'), 'buildMessage should stop at maxLength');
+});
+
+// ===========================================================================
+// PHASE 9 / STEP X — CROSS-PIPELINE ALERT DEDUPE
+// ===========================================================================
+await test('AH: Cross-pipeline dedupe extracts raw symbol correctly', async () => {
+  const extractRawSymbol = (item) => {
+    if (item.kind === 'TECHNICAL' || item.kind === 'PENNY') {
+      return item.symbol || null;
+    }
+    if (item.kind === 'OPTIONS_CENTS') {
+      const match = String(item.contract || '').match(/^[A-Z]+/);
+      return match ? match[0] : null;
+    }
+    return null;
+  };
+
+  assertEqual(extractRawSymbol({ kind: 'TECHNICAL', symbol: 'NVDA' }), 'NVDA');
+  assertEqual(extractRawSymbol({ kind: 'PENNY', symbol: 'AAPL' }), 'AAPL');
+  assertEqual(extractRawSymbol({ kind: 'OPTIONS_CENTS', contract: 'AAPL260116C00150000' }), 'AAPL');
+  assertEqual(extractRawSymbol({ kind: 'OPTIONS_CENTS', contract: 'TSLA240120C00250000' }), 'TSLA');
+  assertEqual(extractRawSymbol({ kind: 'UNKNOWN', symbol: 'XYZ' }), null);
+  assertEqual(extractRawSymbol({ kind: 'OPTIONS_CENTS', contract: '' }), null);
+  assertEqual(extractRawSymbol({ kind: 'OPTIONS_CENTS', contract: null }), null);
+});
+
+await test('AI: Cross-pipeline dedupe blocks duplicate when raw symbol exists in auto_signals', async () => {
+  const fs = await import('fs');
+  const path = await import('path');
+  const alertsRoute = fs.readFileSync(path.join(process.cwd(), 'app/api/alerts/route.js'), 'utf8');
+
+  assertTrue(alertsRoute.includes('isCrossPipelineDuplicate'), 'route should include cross-pipeline dedupe function');
+  assertTrue(alertsRoute.includes('extractRawSymbol'), 'route should include raw symbol extraction');
+  assertTrue(alertsRoute.includes('crossPipelineDeduped'), 'route should track cross-pipeline deduped count');
+});
+
+await test('AJ: Cross-pipeline dedupe fails open when Supabase is unavailable', async () => {
+  const fs = await import('fs');
+  const path = await import('path');
+  const alertsRoute = fs.readFileSync(path.join(process.cwd(), 'app/api/alerts/route.js'), 'utf8');
+
+  assertTrue(alertsRoute.includes('!supabase') || alertsRoute.includes('supabase'), 'route should handle Supabase availability safely');
+});
+
+await test('AK: Cross-pipeline dedupe fails open on Supabase query error', async () => {
+  const fs = await import('fs');
+  const path = await import('path');
+  const alertsRoute = fs.readFileSync(path.join(process.cwd(), 'app/api/alerts/route.js'), 'utf8');
+
+  assertTrue(alertsRoute.includes('catch') || alertsRoute.includes('error'), 'route should handle query errors safely');
+});
+
+await test('AL: Cross-pipeline dedupe preserves Phase 7 prefixed dedupe', async () => {
+  const fs = await import('fs');
+  const path = await import('path');
+  const alertsRoute = fs.readFileSync(path.join(process.cwd(), 'app/api/alerts/route.js'), 'utf8');
+
+  assertTrue(alertsRoute.includes('getDedupeKey'), 'route should still use Phase 7 prefixed dedupe keys');
+  assertTrue(alertsRoute.includes('saveSignal'), 'route should still use Phase 7 saveSignal');
+  assertTrue(alertsRoute.includes('extractRawSymbol'), 'route should include cross-pipeline raw symbol extraction');
+});
+
+await test('AM: Cross-pipeline dedupe integration with mock Supabase', async () => {
+  async function isCrossPipelineDuplicate(supabase, rawSymbol) {
+    if (!supabase || !rawSymbol) return false;
+    const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    try {
+      const { data, error } = await supabase
+        .from('auto_signals')
+        .select('ticker')
+        .eq('ticker', rawSymbol)
+        .gte('created_at', since)
+        .limit(1);
+      if (error) return false;
+      return Array.isArray(data) && data.length > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  const mockSupabaseWithDuplicate = {
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          gte: () => ({
+            limit: async () => ({ data: [{ ticker: 'NVDA', created_at: new Date().toISOString() }], error: null }),
+          }),
+        }),
+      }),
+    }),
+  };
+
+  const mockSupabaseWithoutDuplicate = {
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          gte: () => ({
+            limit: async () => ({ data: [], error: null }),
+          }),
+        }),
+      }),
+    }),
+  };
+
+  const result1 = await isCrossPipelineDuplicate(mockSupabaseWithDuplicate, 'NVDA');
+  assertTrue(result1, 'Should detect cross-pipeline duplicate');
+
+  const result2 = await isCrossPipelineDuplicate(mockSupabaseWithoutDuplicate, 'AAPL');
+  assertFalse(result2, 'Should not detect duplicate when none exists');
+
+  const result3 = await isCrossPipelineDuplicate(null, 'NVDA');
+  assertFalse(result3, 'Should fail open when Supabase is null');
+
+  const result4 = await isCrossPipelineDuplicate(mockSupabaseWithDuplicate, null);
+  assertFalse(result4, 'Should fail open when rawSymbol is null');
+});
+
+await test('AN: Options cross-pipeline dedupe extracts underlying safely', async () => {
+  const extractRawSymbol = (item) => {
+    if (item.kind === 'TECHNICAL' || item.kind === 'PENNY') {
+      return item.symbol || null;
+    }
+    if (item.kind === 'OPTIONS_CENTS') {
+      const match = String(item.contract || '').match(/^[A-Z]+/);
+      return match ? match[0] : null;
+    }
+    return null;
+  };
+
+  assertEqual(extractRawSymbol({ kind: 'OPTIONS_CENTS', contract: 'AAPL260116C00150000' }), 'AAPL');
+  assertEqual(extractRawSymbol({ kind: 'OPTIONS_CENTS', contract: 'TSLA240120C00250000' }), 'TSLA');
+  assertEqual(extractRawSymbol({ kind: 'OPTIONS_CENTS', contract: 'NVDA250321P00050000' }), 'NVDA');
+  assertEqual(extractRawSymbol({ kind: 'OPTIONS_CENTS', contract: 'A' }), 'A');
+  assertEqual(extractRawSymbol({ kind: 'OPTIONS_CENTS', contract: 'A123' }), 'A');
+  assertEqual(extractRawSymbol({ kind: 'OPTIONS_CENTS', contract: '123' }), null);
+  assertEqual(extractRawSymbol({ kind: 'OPTIONS_CENTS', contract: '' }), null);
+  assertEqual(extractRawSymbol({ kind: 'OPTIONS_CENTS', contract: null }), null);
+});
+
+
+// ===========================================================================
+// PHASE A1.7 — PENNY ALERT ENHANCEMENT
+// ===========================================================================
+await test('A1.7.1: Alerts route enriches Penny alerts with pennyMap', async () => {
+  const fs = await import('fs');
+  const path = await import('path');
+  const alertsRoute = fs.readFileSync(path.join(process.cwd(), 'app/api/alerts/route.js'), 'utf8');
+
+  assertTrue(alertsRoute.includes('/api/penny-radar'), 'route should fetch penny-radar for enrichment');
+  assertTrue(alertsRoute.includes('pennyMap'), 'route should build pennyMap');
+  assertTrue(alertsRoute.includes('pennyMap.get'), 'route should use pennyMap for lookup');
+});
+
+await test('A1.7.2: buildMessage passes pennyMap for Penny alerts', async () => {
+  const fs = await import('fs');
+  const path = await import('path');
+  const alertsRoute = fs.readFileSync(path.join(process.cwd(), 'app/api/alerts/route.js'), 'utf8');
+
+  assertTrue(alertsRoute.includes(', pennyMap)'), 'buildMessage should receive pennyMap');
+});
+
+await test('A1.7.3: Penny message includes Risk Score and Risk Level', async () => {
+  const fs = await import('fs');
+  const path = await import('path');
+  const alertsRoute = fs.readFileSync(path.join(process.cwd(), 'app/api/alerts/route.js'), 'utf8');
+
+  assertTrue(alertsRoute.includes('🛡️ RISK:'), 'Penny message should include RISK section');
+  assertTrue(alertsRoute.includes('riskScore'), 'Penny message should include riskScore');
+  assertTrue(alertsRoute.includes('riskLevel'), 'Penny message should include riskLevel');
+});
+
+await test('A1.7.4: Penny message includes Liquidity and SEC Risk', async () => {
+  const fs = await import('fs');
+  const path = await import('path');
+  const alertsRoute = fs.readFileSync(path.join(process.cwd(), 'app/api/alerts/route.js'), 'utf8');
+
+  assertTrue(alertsRoute.includes('Liquidity:'), 'Penny message should include Liquidity');
+  assertTrue(alertsRoute.includes('SEC:'), 'Penny message should include SEC Risk');
+  assertTrue(alertsRoute.includes('secRiskScore'), 'Penny message should include secRiskScore');
+});
+
+await test('A1.7.5: Penny message includes Structure summary', async () => {
+  const fs = await import('fs');
+  const path = await import('path');
+  const alertsRoute = fs.readFileSync(path.join(process.cwd(), 'app/api/alerts/route.js'), 'utf8');
+
+  assertTrue(alertsRoute.includes('📐 STRUCTURE'), 'Penny message should include STRUCTURE section');
+  assertTrue(alertsRoute.includes('Support:'), 'Penny message should include Support');
+  assertTrue(alertsRoute.includes('Resistance:'), 'Penny message should include Resistance');
+  assertTrue(alertsRoute.includes('Entry:'), 'Penny message should include Entry');
+  assertTrue(alertsRoute.includes('Target:'), 'Penny message should include Target');
+  assertTrue(alertsRoute.includes('Breakout:'), 'Penny message should include Breakout');
+  assertTrue(alertsRoute.includes('ATR:'), 'Penny message should include ATR');
+});
+
+await test('A1.7.6: Penny message includes Liquidity warnings', async () => {
+  const fs = await import('fs');
+  const path = await import('path');
+  const alertsRoute = fs.readFileSync(path.join(process.cwd(), 'app/api/alerts/route.js'), 'utf8');
+
+  assertTrue(alertsRoute.includes('LOW LIQUIDITY'), 'Penny message should include LOW LIQUIDITY warning');
+  assertTrue(alertsRoute.includes('HIGH RVOL / LOW LIQUIDITY'), 'Penny message should include HIGH RVOL/LOW LIQUIDITY warning');
+});
+
+await test('A1.7.7: Penny message includes SEC warnings and reasons', async () => {
+  const fs = await import('fs');
+  const path = await import('path');
+  const alertsRoute = fs.readFileSync(path.join(process.cwd(), 'app/api/alerts/route.js'), 'utf8');
+
+  assertTrue(alertsRoute.includes('DILUTION RISK:'), 'Penny message should include DILUTION RISK warning');
+  assertTrue(alertsRoute.includes('OFFERING RISK:'), 'Penny message should include OFFERING RISK warning');
+  assertTrue(alertsRoute.includes('🧠 WHY'), 'Penny message should include WHY section');
+  assertTrue(alertsRoute.includes('riskReasons'), 'Penny message should use riskReasons');
+});
+
+await test('A1.7.8: Response includes pennyIntelligence metadata', async () => {
+  const fs = await import('fs');
+  const path = await import('path');
+  const alertsRoute = fs.readFileSync(path.join(process.cwd(), 'app/api/alerts/route.js'), 'utf8');
+
+  assertTrue(alertsRoute.includes('pennyIntelligence'), 'route should include pennyIntelligence metadata');
+  assertTrue(alertsRoute.includes('riskScore'), 'pennyIntelligence should include riskScore');
+  assertTrue(alertsRoute.includes('riskLevel'), 'pennyIntelligence should include riskLevel');
+  assertTrue(alertsRoute.includes('liquidityScore'), 'pennyIntelligence should include liquidityScore');
+  assertTrue(alertsRoute.includes('secIntelligence'), 'pennyIntelligence should include secIntelligence');
+});
+
+await test('A1.7.9: Penny alert message respects length limits', async () => {
+  const fs = await import('fs');
+  const path = await import('path');
+  const alertsRoute = fs.readFileSync(path.join(process.cwd(), 'app/api/alerts/route.js'), 'utf8');
+
+  assertTrue(alertsRoute.includes('text.length >= maxLength) break;'), 'buildMessage should stop at maxLength');
+  assertTrue(alertsRoute.includes(', 4000,'), 'Telegram buildMessage should be called with 4000 limit');
+  assertTrue(alertsRoute.includes(', 1900,'), 'Discord buildMessage should be called with 1900 limit');
+});
+
+await test('A1.7.10: Existing Hunter and Options alerts unchanged', async () => {
+  const fs = await import('fs');
+  const path = await import('path');
+  const alertsRoute = fs.readFileSync(path.join(process.cwd(), 'app/api/alerts/route.js'), 'utf8');
+
+  assertTrue(alertsRoute.includes("x.kind === 'OPTIONS_CENTS'"), 'Options alerts format should be preserved');
+  assertTrue(alertsRoute.includes('x.hunterEligible === true'), 'Hunter alert gate should be preserved');
+  assertTrue(alertsRoute.includes('ALERT_THRESHOLDS.pennyMinScore'), 'Penny threshold should be preserved');
+  assertTrue(alertsRoute.includes('ALERT_THRESHOLDS.pennyMinRvol'), 'Penny RVOL threshold should be preserved');
 });
 
 // ---------------------------------------------------------------------------

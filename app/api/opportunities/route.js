@@ -140,9 +140,13 @@ export async function GET(request) {
         contractCost: x.contractCost,
         strike: x.strike,
         expiry: x.expiry,
+        daysToExpiration: x.daysToExpiration,
         volume: x.volume,
         openInterest: x.openInterest,
         spreadPct: x.spreadPct,
+        impliedVolatility: x.impliedVolatility,
+        underlying: x.underlying,
+        distancePct: x.distancePct,
 
         action:
           'مراقبة مضاربية فقط',
@@ -155,6 +159,33 @@ export async function GET(request) {
 
         riskLabel:
           x.riskLabel || 'HIGH RISK',
+
+        optionsIntelligence: x.optionsIntelligence || null,
+
+        optionsFlow: x.optionsFlow || null,
+
+        contractRankScore: x.contractRankScore,
+        contractQuality: x.contractQuality,
+        riskAdjustedScore: x.riskAdjustedScore,
+        riskAdjustedLevel: x.riskAdjustedLevel,
+        dteRisk: x.dteRisk,
+        ivLevel: x.ivLevel,
+        strikeClassification: x.strikeClassification,
+        premiumQualityLevel: x.premiumQualityLevel,
+        contractWarnings: x.contractWarnings || [],
+        contractReasons: x.contractReasons || [],
+
+        decisionScore: x.decisionScore,
+        decisionStatus: x.decisionStatus,
+        executionQuality: x.executionQuality,
+        decisionRisk: x.decisionRisk,
+        decisionReasons: x.decisionReasons || [],
+        decisionWarnings: x.decisionWarnings || [],
+
+        strategySummary: x.strategySummary || o.optionsRanking?.[x.symbol]?.strategy || null,
+        strategyDecisionScore: x.strategyDecisionScore ?? null,
+        strategyDecisionStatus: x.strategyDecisionStatus ?? null,
+        strategyCombinedRisk: x.strategyCombinedRisk ?? null,
       }));
 
     const all = [
@@ -182,6 +213,8 @@ export async function GET(request) {
         penny,
 
         options: optionsData,
+
+        optionsRanking: o.optionsRanking || {},
 
         top: all.slice(0, 20),
 

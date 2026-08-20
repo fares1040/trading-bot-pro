@@ -27,7 +27,7 @@ function pickAlerts(data) {
   ];
 }
 
-function buildMessage(items, baseUrl, maxLength = 4000) {
+function buildMessage(items, baseUrl, maxLength = 4000, pennyMap = new Map()) {
   let text = '🔥 <b>HUNTER AI — OPPORTUNITY ALERT</b>\n';
   text += '━━━━━━━━━━━━━━━━━━\n';
   text += 'هذه إشارات رصد آلية وليست ضمانًا للربح أو توصية مضمونة.\n\n';
@@ -40,16 +40,117 @@ function buildMessage(items, baseUrl, maxLength = 4000) {
       text += `📅 ${x.expiry} | Strike: $${x.strike}\n`;
       text += `📊 Vol: ${x.volume} | OI: ${x.openInterest} | Score: ${x.score}\n`;
       text += '⚠️ High Risk / Speculative\n\n';
+    } else if (x.kind === 'PENNY') {
+      const full = pennyMap.get(x.symbol) || {};
+      const sec = full.secIntelligence || {};
+      const riskScore = full.riskScore != null ? full.riskScore : 'N/A';
+      const riskLevel = full.riskLevel || 'N/A';
+      const liquidityScore = full.liquidityScore != null ? full.liquidityScore : 'N/A';
+      const secRiskScore = sec.secRiskScore != null ? sec.secRiskScore : 'N/A';
+      const secRiskLevel = sec.secRiskLevel || 'N/A';
+
+      text += `🎯 <b>${x.symbol}</b> — PENNY\n`;
+      text += `💰 $${x.price ?? '—'} | Score: ${x.score}/100 | RVOL: ${x.rvol ?? '—'}x | RSI: ${x.rsi ?? '—'}\n`;
+      text += `🛡️ RISK: ${riskScore} | ${riskLevel.toUpperCase()} | Liquidity: ${liquidityScore} | SEC: ${secRiskScore}\n`;
+
+      const riskFlags = (full.riskFlags || []).slice(0, 3);
+      if (riskFlags.length > 0) {
+        text += `   Flags: ${riskFlags.join(', ')}\n`;
+      }
+
+      if (full.support20 != null || full.resistance20 != null || full.entryZone || full.targetZone || full.breakoutProximity || full.atr != null) {
+        text += `📐 STRUCTURE\n`;
+        if (full.support20 != null) text += `   Support: $${full.support20}\n`;
+        if (full.resistance20 != null) text += `   Resistance: $${full.resistance20}\n`;
+        if (full.entryZone) text += `   Entry: ${full.entryZone}\n`;
+        if (full.targetZone) text += `   Target: ${full.targetZone}\n`;
+        if (full.breakoutProximity) text += `   Breakout: ${full.breakoutProximity.toUpperCase()}\n`;
+        if (full.atr != null) text += `   ATR: $${Number(full.atr).toFixed(2)}\n`;
+      }
+
+      const liquidityWarning = full.liquidityWarning || '';
+      const liquidityFlags = full.liquidityFlags || [];
+      const warnings = [];
+      if (liquidityWarning && liquidityWarning !== 'healthy' && liquidityWarning !== 'unavailable') {
+        warnings.push(`⚠️ ${liquidityWarning.toUpperCase()}`);
+      }
+      if (liquidityFlags.includes('HIGH_RVOL_LOW_LIQUIDITY')) {
+        warnings.push('🪤 HIGH RVOL / LOW LIQUIDITY');
+      }
+      if (warnings.length > 0) {
+        text += `\n${warnings.join(' | ')}\n`;
+      }
+
+      if (sec.secDataStatus === 'ok' && sec.latestRelevantFilings && sec.latestRelevantFilings.length > 0) {
+        text += `\n🧾 SEC\n`;
+        if (sec.dilutionRisk && sec.dilutionRisk !== 'none' && sec.dilutionRisk !== 'unavailable') {
+          text += `   Dilution: ${sec.dilutionRisk}\n`;
+        }
+        if (sec.offeringRisk && sec.offeringRisk !== 'none' && sec.offeringRisk !== 'unavailable') {
+          text += `   Offering: ${sec.offeringType || sec.offeringRisk}\n`;
+        }
+        if (sec.warrantRisk && sec.warrantRisk !== 'none' && sec.warrantRisk !== 'unavailable') {
+          text += `   Warrant: ${sec.warrantRisk}\n`;
+        }
+        if (sec.reverseSplitDetected) {
+          text += `   Reverse Split: detected\n`;
+        }
+        if (sec.dilutionReason && sec.dilutionRisk === 'high') {
+          text += `\n⚠️ DILUTION RISK: ${sec.dilutionReason}\n`;
+        }
+        if (sec.offeringReason && sec.offeringRisk === 'high') {
+          text += `⚠️ OFFERING RISK: ${sec.offeringReason}\n`;
+        }
+      } else if (x.symbol && pennyMap.has(x.symbol)) {
+        text += `\n🧾 SEC: UNAVAILABLE\n`;
+      }
+
+      if (full.riskReasons && full.riskReasons.length > 0) {
+        text += `\n🧠 WHY\n`;
+        full.riskReasons.slice(0, 4).forEach(r => {
+          text += `   - ${r}\n`;
+        });
+      }
+
+      text += '\n';
     } else {
       text += `🎯 <b>${x.symbol}</b> — ${x.kind}\n`;
       text += `💰 $${x.price ?? '—'} | Score: ${x.score}/100\n`;
       text += `⚡ RVOL: ${x.rvol ?? '—'}x | RSI: ${x.rsi ?? '—'}\n`;
       text += `🧠 ${(x.reasons || []).join(' • ') || x.action || 'مراجعة مطلوبة'}\n`;
-      text += `⚠️ ${x.riskLabel || 'مراجعة وإدارة مخاطرة'}\n\n';
+      text += `⚠️ ${x.riskLabel || 'مراجعة وإدارة مخاطرة'}\n\n`;
     }
   }
   if (baseUrl && text.length < maxLength) text += `📲 <a href="${baseUrl}">فتح HUNTER AI</a>`;
   return text;
+}
+
+function extractRawSymbol(item) {
+  if (item.kind === 'TECHNICAL' || item.kind === 'PENNY') {
+    return item.symbol || null;
+  }
+  if (item.kind === 'OPTIONS_CENTS') {
+    const match = String(item.contract || '').match(/^[A-Z]+/);
+    return match ? match[0] : null;
+  }
+  return null;
+}
+
+async function isCrossPipelineDuplicate(supabase, rawSymbol) {
+  if (!supabase || !rawSymbol) return false;
+  const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  try {
+    const { data, error } = await supabase
+      .from('auto_signals')
+      .select('ticker')
+      .eq('ticker', rawSymbol)
+      .gte('created_at', since)
+      .limit(1);
+    if (error) return false;
+    return Array.isArray(data) && data.length > 0;
+  } catch {
+    return false;
+  }
 }
 
 export async function GET(request) {
@@ -60,15 +161,38 @@ export async function GET(request) {
 
   try {
     const origin = new URL(request.url).origin;
-    const response = await fetch(`${origin}/api/opportunities`, { cache: 'no-store' });
-    const data = await response.json();
-    if (!response.ok || !data?.success) throw new Error(data?.error || 'Opportunity scan failed');
+    const oppResponse = await fetch(`${origin}/api/opportunities`, { cache: 'no-store' });
+    const data = await oppResponse.json();
+    if (!oppResponse.ok || !data?.success) throw new Error(data?.error || 'Opportunity scan failed');
 
     const candidates = pickAlerts(data);
     const supabase = getSupabase();
     const newItems = [];
+    let crossPipelineDeduped = 0;
+
+    let pennyMap = new Map();
+    try {
+      const prResponse = await fetch(`${origin}/api/penny-radar`, { cache: 'no-store', signal: AbortSignal.timeout(10000) });
+      if (prResponse.ok) {
+        const prJson = await prResponse.json();
+        if (prJson?.success && Array.isArray(prJson.data)) {
+          pennyMap = new Map(prJson.data.map(x => [x.symbol, x]));
+        }
+      }
+    } catch {
+      // Silently continue with available candidate data
+    }
 
     for (const item of candidates) {
+      const rawSymbol = extractRawSymbol(item);
+      if (rawSymbol && supabase) {
+        const crossDuplicate = await isCrossPipelineDuplicate(supabase, rawSymbol);
+        if (crossDuplicate) {
+          crossPipelineDeduped++;
+          continue;
+        }
+      }
+
       const saved = await saveSignal(supabase, item);
       if (saved) newItems.push(item);
     }
@@ -79,8 +203,8 @@ export async function GET(request) {
     let discord = false;
 
     if (shouldSend) {
-      const telegramMessage = buildMessage(supabase ? newItems : candidates, process.env.NEXT_PUBLIC_BASE_URL || origin, 4000);
-      const discordMessage = buildMessage(supabase ? newItems : candidates, process.env.NEXT_PUBLIC_BASE_URL || origin, 1900);
+      const telegramMessage = buildMessage(supabase ? newItems : candidates, process.env.NEXT_PUBLIC_BASE_URL || origin, 4000, pennyMap);
+      const discordMessage = buildMessage(supabase ? newItems : candidates, process.env.NEXT_PUBLIC_BASE_URL || origin, 1900, pennyMap);
       [telegram, discord] = await Promise.allSettled([sendTelegram(telegramMessage), sendDiscord(discordMessage)]).then((r) => [
         r[0].status === 'fulfilled' && r[0].value,
         r[1].status === 'fulfilled' && r[1].value,
@@ -91,23 +215,63 @@ export async function GET(request) {
       success: true,
       scanned: candidates.length,
       newAlerts: newItems.length,
+      crossPipelineDeduped,
       sent: { telegram, discord },
       dedupe: Boolean(supabase),
       note: supabase ? 'التنبيهات مكررة الحماية عبر auto_signals.' : 'لم يتم إرسال تنبيهات متكررة بدون Supabase إلا إذا ALERTS_ALLOW_WITHOUT_SUPABASE=true.',
       timestamp: new Date().toISOString(),
     };
 
+    if (newItems.length > 0) {
+      response.pennyAlerts = newItems
+        .filter(item => item.kind === 'PENNY')
+        .map(item => {
+          const full = pennyMap.get(item.symbol) || {};
+          const sec = full.secIntelligence || {};
+          return {
+            symbol: item.symbol,
+            score: item.score,
+            pennyIntelligence: {
+              riskScore: full.riskScore ?? null,
+              riskLevel: full.riskLevel ?? null,
+              riskFlags: full.riskFlags ?? [],
+              liquidityScore: full.liquidityScore ?? null,
+              liquidityWarning: full.liquidityWarning ?? null,
+              structureScore: full.structureScore ?? null,
+              breakoutProximity: full.breakoutProximity ?? null,
+              entryZone: full.entryZone ?? null,
+              targetZone: full.targetZone ?? null,
+              secIntelligence: sec.secDataStatus === 'ok' ? {
+                secRiskScore: sec.secRiskScore ?? null,
+                secRiskLevel: sec.secRiskLevel ?? null,
+                secRiskFlags: sec.secRiskFlags ?? [],
+                dilutionRisk: sec.dilutionRisk ?? null,
+                offeringRisk: sec.offeringRisk ?? null,
+                warrantRisk: sec.warrantRisk ?? null,
+                convertibleRisk: sec.convertibleRisk ?? null,
+                reverseSplitRisk: sec.reverseSplitRisk ?? null,
+                latestRelevantFilings: sec.latestRelevantFilings ?? [],
+              } : null,
+            },
+          };
+        });
+    }
+
     if (newItems.length === 0) {
       const reasons = [];
       if (candidates.length === 0) reasons.push('no_candidates');
       else if (!supabase) reasons.push('supabase_unavailable');
-      else reasons.push('all_candidates_deduped');
+      else {
+        if (crossPipelineDeduped > 0) reasons.push('cross-pipeline-duplicate');
+        if (crossPipelineDeduped < candidates.length) reasons.push('all_candidates_deduped');
+      }
 
       response.emptyState = {
         reason: reasons[0],
         reasons,
         scanned: candidates.length,
         deduped: candidates.length - newItems.length,
+        crossPipelineDeduped,
       };
     }
 

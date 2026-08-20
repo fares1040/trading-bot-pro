@@ -148,8 +148,8 @@ test('normalizeOptionContract: missing IV/OI/volume -> null, not fabricated', ()
 
   assertEqual(c.optionType, 'PUT', 'side preserved');
   assertNull(c.impliedVolatility, 'missing IV -> null (never 0)');
-  assertEqual(c.volume, 0, 'missing volume -> 0 (Yahoo default)');
-  assertEqual(c.openInterest, 0, 'missing OI -> 0 (Yahoo default)');
+  assertEqual(c.volume, null, 'missing volume -> null (never fabricated as 0)');
+  assertEqual(c.openInterest, null, 'missing OI -> null (never fabricated as 0)');
   assertEqual(c.premium, 1.1, 'premium = mid when bid/ask present');
   assertNotNull(c.score, 'score still computed');
 });
