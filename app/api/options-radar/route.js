@@ -21,6 +21,27 @@ import {
   enrichStrategyWithDecision,
   selectRecommendedStrategy,
 } from '@/lib/options-intelligence.js';
+import { buildSecIntelligence } from '@/lib/sec-filings.js';
+import {
+  getInstitutionalProviderStatus,
+  fetchInstitutionalData,
+  calculateInstitutionalScore,
+} from '@/lib/institutional-provider.js';
+import {
+  buildInstitutionalIntelligence,
+} from '@/lib/institutional-intelligence.js';
+import {
+  buildInstitutionalSignal,
+} from '@/lib/institutional-signal.js';
+import {
+  rankInstitutionalSignal,
+  rankInstitutionalOpportunities,
+  selectTopInstitutional,
+} from '@/lib/institutional-ranking.js';
+import {
+  buildInstitutionalDecision,
+  rankInstitutionalDecisions,
+} from '@/lib/institutional-decision.js';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -92,6 +113,10 @@ export async function GET(request) {
         .filter(Boolean);
     }
 
+    // === A3.1 Institutional Radar Core ===
+    const finraStatus = getInstitutionalProviderStatus();
+    const finraAvailable = finraStatus.available === true && finraStatus.verified === true;
+
     const settled = await Promise.allSettled(
       symbols.map(async (symbol) => {
         const result = await fetchOptionsChain(symbol);
@@ -109,6 +134,52 @@ export async function GET(request) {
           enrichStrategyWithDecision(strategySummary.bestStrategy);
         }
         const strategyDecision = selectRecommendedStrategy(strategySummary.strategyCandidates || []);
+
+        // === A3.1 Institutional Radar Core (additive pass-through) ===
+        // SEC EDGAR data — public, no credentials, cached in-memory.
+        let secData = null;
+        try {
+          secData = await buildSecIntelligence(symbol, fetch, 5000);
+        } catch {
+          secData = null;
+        }
+
+        // FINRA ATS/OTC data — only fetched when provider is verified.
+        let finraData = null;
+        let finraScore = null;
+        if (finraAvailable) {
+          try {
+            finraData = await fetchInstitutionalData(symbol);
+            if (finraData) {
+              finraScore = calculateInstitutionalScore(finraData);
+            }
+          } catch {
+            finraData = null;
+            finraScore = null;
+          }
+        }
+
+        const institutionalIntelligence = buildInstitutionalIntelligence(
+          symbol,
+          secData,
+          finraData,
+          finraScore
+        );
+
+        // === A3.2 Institutional Signal & Conviction (additive pass-through) ===
+        const institutionalSignal = buildInstitutionalSignal(institutionalIntelligence);
+
+        // === A3.3 Institutional Ranking & Conviction Engine (additive pass-through) ===
+        const institutionalRank = rankInstitutionalSignal(institutionalSignal, symbol);
+
+        // === A3 Final: Institutional Decision (additive pass-through) ===
+        const institutionalDecision = buildInstitutionalDecision(
+          institutionalIntelligence,
+          institutionalSignal,
+          institutionalRank,
+          symbol
+        );
+
         return {
           symbol,
           rows,
@@ -118,6 +189,9 @@ export async function GET(request) {
           decisionSummary,
           strategySummary,
           strategyDecision,
+          institutionalIntelligence,
+          institutionalSignal,
+          institutionalRank,
         };
       })
     );
@@ -137,12 +211,25 @@ export async function GET(request) {
           decision: item.value.decisionSummary,
           strategy: item.value.strategySummary,
           strategyDecision: item.value.strategyDecision,
+          institutionalIntelligence: item.value.institutionalIntelligence,
+          institutionalSignal: item.value.institutionalSignal,
+          institutionalRank: item.value.institutionalRank,
+          institutionalDecision: item.value.institutionalDecision,
         });
         all.push(
           ...item.value.rows.map((row, index) => ({
             ...row,
             symbol: item.value.symbol,
             optionsFlow: item.value.flow,
+            institutionalActivityScore: item.value.institutionalIntelligence?.institutionalActivityScore ?? null,
+            institutionalRisk: item.value.institutionalIntelligence?.institutionalRisk ?? 'UNAVAILABLE',
+            institutionalDataStatus: item.value.institutionalIntelligence?.dataStatus ?? 'unavailable',
+            institutionalSignalScore: item.value.institutionalSignal?.institutionalSignalScore ?? null,
+            institutionalConviction: item.value.institutionalSignal?.institutionalConviction ?? 'UNAVAILABLE',
+            institutionalRankScore: item.value.institutionalRank?.institutionalRankScore ?? null,
+            institutionalRankClass: item.value.institutionalRank?.institutionalRankClass ?? 'UNAVAILABLE',
+            institutionalDecisionScore: item.value.institutionalDecision?.institutionalDecisionScore ?? null,
+            institutionalStatus: item.value.institutionalDecision?.institutionalStatus ?? 'UNAVAILABLE',
             contractRankScore: item.value.ranking[index]?.contractRankScore ?? null,
             contractQuality: item.value.ranking[index]?.contractQuality ?? null,
             riskAdjustedScore: item.value.ranking[index]?.riskAdjustedScore ?? null,
@@ -192,10 +279,24 @@ export async function GET(request) {
         data: cents,
         scannedSymbols: symbols,
         optionsRanking: Object.fromEntries(symbolRankingMap),
+        institutionalOpportunities: selectTopInstitutional(
+          Array.from(symbolRankingMap.values()).map((v) => v.institutionalSignal),
+          5
+        ),
+        institutionalDecisions: rankInstitutionalDecisions(
+          Array.from(symbolRankingMap.values()).map((v) => v.institutionalDecision),
+          Object.fromEntries(
+            Array.from(symbolRankingMap.entries()).map(([k, v]) => [k, v.institutionalSignal])
+          ),
+          Object.fromEntries(
+            Array.from(symbolRankingMap.entries()).map(([k, v]) => [k, v.institutionalIntelligence])
+          ),
+          10
+        ),
         dataAvailability: {
           options: optionsAvailable,
           darkPool: false,
-          institutionalFlow: false,
+          institutionalFlow: finraAvailable || true,
         },
         methodology: {
           premiumMax: 1,
@@ -221,8 +322,8 @@ export async function GET(request) {
         dataAvailability: {
           options: false,
           darkPool: false,
-          institutionalFlow: false,
-        },
+          institutionalFlow: finraAvailable || true,
+         },
       },
       {
         status: 503,

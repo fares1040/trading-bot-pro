@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import HunterRiskDesk from '@/components/HunterRiskDesk';
+import InstitutionalRadar from '@/components/InstitutionalRadar';
 
 const panel = {
   backgroundColor: '#0B0F17',
@@ -22,6 +23,7 @@ export default function HomePage() {
   const [radarTotal, setRadarTotal] = useState(0);
   const [production, setProduction] = useState(null);
   const [access, setAccess] = useState(null);
+  const [opportunities, setOpportunities] = useState(null);
 
   const loadDashboard = async () => {
     setLoading(true);
@@ -94,14 +96,17 @@ export default function HomePage() {
   useEffect(() => {
     const loadStatus = async () => {
       try {
-        const [healthRes, accessRes] = await Promise.all([
-          fetch('/api/health', { cache: 'no-store' }),
-          fetch('/api/access', { cache: 'no-store' }),
-        ]);
-        const health = await healthRes.json().catch(() => null);
-        const access = await accessRes.json().catch(() => null);
-        if (healthRes.ok) setProduction(health);
-        if (accessRes.ok) setAccess(access);
+      const [healthRes, accessRes, oppsRes] = await Promise.all([
+        fetch('/api/health', { cache: 'no-store' }),
+        fetch('/api/access', { cache: 'no-store' }),
+        fetch('/api/opportunities', { cache: 'no-store' }),
+      ]);
+      const health = await healthRes.json().catch(() => null);
+      const access = await accessRes.json().catch(() => null);
+      const opps = await oppsRes.json().catch(() => null);
+      if (healthRes.ok) setProduction(health);
+      if (accessRes.ok) setAccess(access);
+      if (oppsRes.ok) setOpportunities(opps);
       } catch {
         // Optional status services must never block the dashboard.
       }
@@ -517,6 +522,11 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+      {/* A3.4 Institutional Radar (additive section) */}
+      {opportunities && (
+        <InstitutionalRadar opportunitiesData={opportunities} key="institutional-radar" />
+      )}
 
       <HunterRiskDesk />
 

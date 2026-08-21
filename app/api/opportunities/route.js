@@ -164,6 +164,19 @@ export async function GET(request) {
 
         optionsFlow: x.optionsFlow || null,
 
+        institutionalActivityScore: x.institutionalActivityScore ?? null,
+        institutionalRisk: x.institutionalRisk || 'UNAVAILABLE',
+        institutionalDataStatus: x.institutionalDataStatus || 'unavailable',
+        institutionalSignalScore: x.institutionalSignalScore ?? null,
+        institutionalConviction: x.institutionalConviction || 'UNAVAILABLE',
+        institutionalIntelligence: o.optionsRanking?.[x.symbol]?.institutionalIntelligence || null,
+        institutionalSignal: o.optionsRanking?.[x.symbol]?.institutionalSignal || null,
+        institutionalRankScore: x.institutionalRankScore ?? null,
+        institutionalRankClass: x.institutionalRankClass || 'UNAVAILABLE',
+        institutionalRank: o.optionsRanking?.[x.symbol]?.institutionalRank || null,
+        institutionalDecisionScore: o.optionsRanking?.[x.symbol]?.institutionalDecision?.institutionalDecisionScore ?? null,
+        institutionalStatus: o.optionsRanking?.[x.symbol]?.institutionalDecision?.institutionalStatus ?? 'UNAVAILABLE',
+
         contractRankScore: x.contractRankScore,
         contractQuality: x.contractQuality,
         riskAdjustedScore: x.riskAdjustedScore,
@@ -216,6 +229,9 @@ export async function GET(request) {
 
         optionsRanking: o.optionsRanking || {},
 
+        institutionalOpportunities: o.institutionalOpportunities || null,
+        institutionalDecisions: o.institutionalDecisions || null,
+
         top: all.slice(0, 20),
 
         alerts: {
@@ -241,7 +257,7 @@ export async function GET(request) {
 
           darkPool: false,
 
-          institutionalFlow: false,
+           institutionalFlow: o.dataAvailability?.institutionalFlow === true,
         },
       },
       {
