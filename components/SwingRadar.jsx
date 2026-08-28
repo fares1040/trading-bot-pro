@@ -77,7 +77,17 @@ function Tag({ value, colorMap }) {
 }
 
 function SymbolCard({ symbol, data }) {
-  const { swingScore, quality, setups, zones, componentScores, reasons, warnings, flags, dataCompleteness, riskReward, riskPercent, rewardPercent, atr, atrPercentile, bollinger, sma20, sma50, sma200, resistance, support, resistanceDistance, cluster, clusterRange, signal, signalStrength, directionBias, riskLevel } = data;
+  const setups = data.setups || data.setupClassification || [];
+  const zones = data.zones || {
+    entryZone: data.entryZone,
+    target1: data.target1,
+    target2: data.target2,
+    invalidation: data.invalidation,
+    riskPercent: data.riskPercent,
+    rewardPercent: data.rewardPercent,
+    stopLoss: data.stopLoss,
+  };
+  const { swingScore, quality, componentScores, reasons, warnings, flags, dataCompleteness, riskReward, riskPercent, rewardPercent, atr, atrPercentile, bollinger, sma20, sma50, sma200, resistance, support, resistanceDistance, cluster, clusterRange, signal, signalStrength, directionBias, riskLevel } = data;
 
   return (
     <div
@@ -138,13 +148,19 @@ function SymbolCard({ symbol, data }) {
         </div>
       )}
 
-      {warnings?.length > 0 && (
-        <div style={{ fontSize: 9, color: '#F87171', marginBottom: 6 }}>
-          ⚠ {warnings.slice(0, 2).join(' • ')}
-        </div>
-      )}
+       {warnings?.length > 0 && (
+         <div style={{ fontSize: 9, color: '#F87171', marginBottom: 6 }}>
+           ⚠ {warnings.slice(0, 2).join(' • ')}
+         </div>
+       )}
 
-      {flags?.length > 0 && (
+       {data.risks?.length > 0 && (
+         <div style={{ fontSize: 9, color: '#FBBF24', marginBottom: 6 }}>
+           🔎 {data.risks.slice(0, 2).map(r => `${r.label} (${r.severity})`).join(' • ')}
+         </div>
+       )}
+
+       {flags?.length > 0 && (
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
           {flags.slice(0, 4).map((f) => (
             <span key={f} style={{ fontSize: 8, color: '#818CF8', backgroundColor: '#1E293B', padding: '1px 6px', borderRadius: 4 }}>
@@ -291,7 +307,7 @@ export default function SwingRadar({ swingData, loading }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
         <div>
           <div style={{ color: '#818CF8', fontSize: 10, fontWeight: 900, letterSpacing: 1 }}>
-            📊 SWING RADAR · A4
+            📊 SWING RADAR · B4
           </div>
           <h3 style={{ color: '#F8FAFC', fontSize: 18, fontWeight: 900, margin: 0 }}>
             محرك الذكاء السوينغ
@@ -304,7 +320,8 @@ export default function SwingRadar({ swingData, loading }) {
 
       <p style={{ color: '#64748B', fontSize: 10, marginBottom: 12 }}>
         يعتمد على بيانات Yahoo Finance فقط. لا يتم اختلاق مؤشرات أو بيانات.
-        MA50/MA200، RSI، ATR، VWAP، دعم/مقاومة، حجم، Bollinger Squeeze، كلاستر سعري.
+        B4 Swing Intelligence Manager يركز على A4: MA50/MA200، RSI، ATR، VWAP،
+        دعم/مقاودة، حجم، Bollinger Squeeze، كلاستر سعري.
       </p>
 
       {/* Top Opportunities */}
@@ -391,7 +408,9 @@ export default function SwingRadar({ swingData, loading }) {
         <div>🚫 لا توجد بيانات Options Chain / Dark Pool / Institutional Flow من Yahoo Finance</div>
         <div>🚫 SMA200 تحسب فقط عند توفر 200 إغلاق تاريخي</div>
         <div>🚫 ATR/VWAP تحسب فقط عند توفر High/Low/Close/Volume</div>
-        <div>⚠️ التحليل فقط — ليس توصية شراء/بيع</div>
+        <div>🚫 رؤوسية/أهداف/إيقاف الخسارة — تحليلية فقط، ليست توصية شراء/بيع</div>
+        <div>⚠️ التحليل فقط — ليس توصية شراء/بيع. لا يتم اختراع أو تعديل البيانات.</div>
+        <div>© B4 Swing Intelligence Manager — يركز على A4 محرك ذكاء السوينغ</div>
       </div>
     </section>
   );
