@@ -4,6 +4,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import HunterRiskDesk from '@/components/HunterRiskDesk';
 import InstitutionalRadar from '@/components/InstitutionalRadar';
+import SwingRadar from '@/components/SwingRadar';
+import EarlyExplosionRadar from '@/components/EarlyExplosionRadar';
+import SecEdgarRadar from '@/components/SecEdgarRadar';
+import SetupRadar from '@/components/SetupRadar';
+import LiquidityRadar from '@/components/LiquidityRadar';
 
 const panel = {
   backgroundColor: '#0B0F17',
@@ -24,6 +29,16 @@ export default function HomePage() {
   const [production, setProduction] = useState(null);
   const [access, setAccess] = useState(null);
   const [opportunities, setOpportunities] = useState(null);
+  const [swingData, setSwingData] = useState(null);
+  const [explosionData, setExplosionData] = useState(null);
+  const [swingLoading, setSwingLoading] = useState(true);
+  const [explosionLoading, setExplosionLoading] = useState(true);
+  const [secEdgarData, setSecEdgarData] = useState(null);
+  const [secEdgarLoading, setSecEdgarLoading] = useState(true);
+  const [setupData, setSetupData] = useState(null);
+  const [setupLoading, setSetupLoading] = useState(true);
+  const [liquidityData, setLiquidityData] = useState(null);
+  const [liquidityLoading, setLiquidityLoading] = useState(true);
 
   const loadDashboard = async () => {
     setLoading(true);
@@ -113,6 +128,41 @@ export default function HomePage() {
     };
     loadStatus();
     const timer = setInterval(loadStatus, 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const loadIntelligence = async () => {
+      try {
+        const [swingRes, explosionRes, secEdgarRes, setupRes, liquidityRes] = await Promise.all([
+          fetch('/api/swing-intelligence', { cache: 'no-store' }),
+          fetch('/api/early-explosion', { cache: 'no-store' }),
+          fetch('/api/sec-edgar', { cache: 'no-store' }),
+          fetch('/api/setup-intelligence', { cache: 'no-store' }),
+          fetch('/api/liquidity-intelligence', { cache: 'no-store' }),
+        ]);
+        const swingJson = await swingRes.json().catch(() => null);
+        const explosionJson = await explosionRes.json().catch(() => null);
+        const secEdgarJson = await secEdgarRes.json().catch(() => null);
+        const setupJson = await setupRes.json().catch(() => null);
+        const liquidityJson = await liquidityRes.json().catch(() => null);
+        if (swingRes.ok && swingJson?.success) setSwingData(swingJson);
+        if (explosionRes.ok && explosionJson?.success) setExplosionData(explosionJson);
+        if (secEdgarRes.ok && secEdgarJson?.success) setSecEdgarData(secEdgarJson);
+        if (setupRes.ok && setupJson?.success) setSetupData(setupJson);
+        if (liquidityRes.ok && liquidityJson?.success) setLiquidityData(liquidityJson);
+      } catch {
+        // Intelligence feeds must never block the dashboard.
+      } finally {
+        setSwingLoading(false);
+        setExplosionLoading(false);
+        setSecEdgarLoading(false);
+        setSetupLoading(false);
+        setLiquidityLoading(false);
+      }
+    };
+    loadIntelligence();
+    const timer = setInterval(loadIntelligence, 60_000);
     return () => clearInterval(timer);
   }, []);
 
@@ -527,6 +577,27 @@ export default function HomePage() {
       {opportunities && (
         <InstitutionalRadar opportunitiesData={opportunities} key="institutional-radar" />
       )}
+
+      {/* A4 Swing Intelligence (additive section) */}
+      {swingData && (
+        <SwingRadar swingData={swingData} loading={swingLoading} />
+      )}
+
+      {/* A5 Early Explosion Radar (additive section) */}
+      {explosionData && (
+        <EarlyExplosionRadar explosionData={explosionData} loading={explosionLoading} />
+      )}
+
+      {/* A6 SEC EDGAR Intelligence (additive section) */}
+      {secEdgarData && (
+        <SecEdgarRadar secEdgarData={secEdgarData} loading={secEdgarLoading} />
+      )}
+
+      {/* A7 Technical Setup Intelligence (additive section) */}
+      <SetupRadar setupData={setupData} loading={setupLoading} />
+
+      {/* A8 Liquidity Intelligence (additive section) */}
+      <LiquidityRadar liquidityData={liquidityData} loading={liquidityLoading} />
 
       <HunterRiskDesk />
 
