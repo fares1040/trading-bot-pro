@@ -6,6 +6,7 @@ import HunterRiskDesk from '@/components/HunterRiskDesk';
 import InstitutionalRadar from '@/components/InstitutionalRadar';
 import SwingRadar from '@/components/SwingRadar';
 import EarlyExplosionRadar from '@/components/EarlyExplosionRadar';
+import CatalystRadar from '@/components/CatalystRadar';
 import SecEdgarRadar from '@/components/SecEdgarRadar';
 import SetupRadar from '@/components/SetupRadar';
 import LiquidityRadar from '@/components/LiquidityRadar';
@@ -35,6 +36,8 @@ export default function HomePage() {
   const [explosionLoading, setExplosionLoading] = useState(true);
   const [secEdgarData, setSecEdgarData] = useState(null);
   const [secEdgarLoading, setSecEdgarLoading] = useState(true);
+  const [catalystData, setCatalystData] = useState(null);
+  const [catalystLoading, setCatalystLoading] = useState(true);
   const [setupData, setSetupData] = useState(null);
   const [setupLoading, setSetupLoading] = useState(true);
   const [liquidityData, setLiquidityData] = useState(null);
@@ -134,23 +137,26 @@ export default function HomePage() {
   useEffect(() => {
     const loadIntelligence = async () => {
       try {
-        const [swingRes, explosionRes, secEdgarRes, setupRes, liquidityRes] = await Promise.all([
+        const [swingRes, explosionRes, secEdgarRes, setupRes, liquidityRes, catalystRes] = await Promise.all([
           fetch('/api/swing-intelligence', { cache: 'no-store' }),
           fetch('/api/early-explosion', { cache: 'no-store' }),
           fetch('/api/sec-edgar', { cache: 'no-store' }),
           fetch('/api/setup-intelligence', { cache: 'no-store' }),
           fetch('/api/liquidity-intelligence', { cache: 'no-store' }),
+          fetch('/api/catalyst-intelligence', { cache: 'no-store' }),
         ]);
         const swingJson = await swingRes.json().catch(() => null);
         const explosionJson = await explosionRes.json().catch(() => null);
         const secEdgarJson = await secEdgarRes.json().catch(() => null);
         const setupJson = await setupRes.json().catch(() => null);
         const liquidityJson = await liquidityRes.json().catch(() => null);
+        const catalystJson = await catalystRes.json().catch(() => null);
         if (swingRes.ok && swingJson?.success) setSwingData(swingJson);
         if (explosionRes.ok && explosionJson?.success) setExplosionData(explosionJson);
         if (secEdgarRes.ok && secEdgarJson?.success) setSecEdgarData(secEdgarJson);
         if (setupRes.ok && setupJson?.success) setSetupData(setupJson);
         if (liquidityRes.ok && liquidityJson?.success) setLiquidityData(liquidityJson);
+        if (catalystRes.ok && catalystJson?.success) setCatalystData(catalystJson);
       } catch {
         // Intelligence feeds must never block the dashboard.
       } finally {
@@ -159,6 +165,7 @@ export default function HomePage() {
         setSecEdgarLoading(false);
         setSetupLoading(false);
         setLiquidityLoading(false);
+        setCatalystLoading(false);
       }
     };
     loadIntelligence();
@@ -592,6 +599,9 @@ export default function HomePage() {
       {secEdgarData && (
         <SecEdgarRadar secEdgarData={secEdgarData} loading={secEdgarLoading} />
       )}
+
+      {/* B6 Catalyst Intelligence (additive section) */}
+      <CatalystRadar catalystData={catalystData} loading={catalystLoading} />
 
       {/* A7 Technical Setup Intelligence (additive section) */}
       <SetupRadar setupData={setupData} loading={setupLoading} />
