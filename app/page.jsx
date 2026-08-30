@@ -9,6 +9,7 @@ import EarlyExplosionRadar from '@/components/EarlyExplosionRadar';
 import CatalystRadar from '@/components/CatalystRadar';
 import OpportunityRankingRadar from '@/components/OpportunityRankingRadar';
 import TradePlanRadar from '@/components/TradePlanRadar';
+import AIExplanationRadar from '@/components/AIExplanationRadar';
 import SecEdgarRadar from '@/components/SecEdgarRadar';
 import SetupRadar from '@/components/SetupRadar';
 import LiquidityRadar from '@/components/LiquidityRadar';
@@ -44,6 +45,8 @@ export default function HomePage() {
   const [opportunityLoading, setOpportunityLoading] = useState(true);
   const [tradePlanData, setTradePlanData] = useState(null);
   const [tradePlanLoading, setTradePlanLoading] = useState(true);
+  const [aiExplanationData, setAiExplanationData] = useState(null);
+  const [aiExplanationLoading, setAiExplanationLoading] = useState(true);
   const [setupData, setSetupData] = useState(null);
   const [setupLoading, setSetupLoading] = useState(true);
   const [liquidityData, setLiquidityData] = useState(null);
@@ -143,7 +146,7 @@ export default function HomePage() {
   useEffect(() => {
     const loadIntelligence = async () => {
       try {
-        const [swingRes, explosionRes, secEdgarRes, setupRes, liquidityRes, catalystRes, opportunityRes, tradePlanRes] = await Promise.all([
+        const [swingRes, explosionRes, secEdgarRes, setupRes, liquidityRes, catalystRes, opportunityRes, tradePlanRes, aiExplanationRes] = await Promise.all([
           fetch('/api/swing-intelligence', { cache: 'no-store' }),
           fetch('/api/early-explosion', { cache: 'no-store' }),
           fetch('/api/sec-edgar', { cache: 'no-store' }),
@@ -152,6 +155,7 @@ export default function HomePage() {
           fetch('/api/catalyst-intelligence', { cache: 'no-store' }),
           fetch('/api/opportunity-ranking', { cache: 'no-store' }),
           fetch('/api/trade-plan', { cache: 'no-store' }),
+          fetch('/api/ai-explanation', { cache: 'no-store' }),
         ]);
         const swingJson = await swingRes.json().catch(() => null);
         const explosionJson = await explosionRes.json().catch(() => null);
@@ -161,6 +165,7 @@ export default function HomePage() {
         const catalystJson = await catalystRes.json().catch(() => null);
         const opportunityJson = await opportunityRes.json().catch(() => null);
         const tradePlanJson = await tradePlanRes.json().catch(() => null);
+        const aiExplanationJson = await aiExplanationRes.json().catch(() => null);
         if (swingRes.ok && swingJson?.success) setSwingData(swingJson);
         if (explosionRes.ok && explosionJson?.success) setExplosionData(explosionJson);
         if (secEdgarRes.ok && secEdgarJson?.success) setSecEdgarData(secEdgarJson);
@@ -169,6 +174,7 @@ export default function HomePage() {
         if (catalystRes.ok && catalystJson?.success) setCatalystData(catalystJson);
         if (opportunityRes.ok && opportunityJson?.success) setOpportunityData(opportunityJson);
         if (tradePlanRes.ok && tradePlanJson?.success) setTradePlanData(tradePlanJson);
+        if (aiExplanationRes.ok && aiExplanationJson?.success) setAiExplanationData(aiExplanationJson);
       } catch {
         // Intelligence feeds must never block the dashboard.
       } finally {
@@ -180,6 +186,7 @@ export default function HomePage() {
         setCatalystLoading(false);
         setOpportunityLoading(false);
         setTradePlanLoading(false);
+        setAiExplanationLoading(false);
       }
     };
     loadIntelligence();
@@ -622,6 +629,9 @@ export default function HomePage() {
 
       {/* C8 Trade Plan Engine (additive section) */}
       <TradePlanRadar tradePlanData={tradePlanData} loading={tradePlanLoading} />
+
+      {/* C9 AI Explanation (additive section) */}
+      <AIExplanationRadar aiExplanationData={aiExplanationData} loading={aiExplanationLoading} />
 
       {/* A7 Technical Setup Intelligence (additive section) */}
       <SetupRadar setupData={setupData} loading={setupLoading} />
