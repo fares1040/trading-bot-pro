@@ -829,6 +829,116 @@ test('normalizeSetups — null input returns empty', () => {
   assertEqual(normalizeSetups(undefined).length, 0);
 });
 
+// === B5 API contract — extended fields for UI compatibility ===
+
+test('B5 API contract — setupClassification present (not setups)', () => {
+  const result = buildEarlyExplosionIntelligenceManager(makeFullMarketData('AAPL'));
+  assertTrue(Array.isArray(result.setupClassification), 'setupClassification must be an array');
+  assertTrue(!('setups' in result) || result.setups === undefined || result.setups === null,
+    'B5 output uses setupClassification, not setups');
+});
+
+test('B5 API contract — flattened zone fields present', () => {
+  const result = buildEarlyExplosionIntelligenceManager(makeFullMarketData('AAPL'));
+  assertTrue('entryZone' in result, 'entryZone must be present');
+  assertTrue('target1' in result, 'target1 must be present');
+  assertTrue('target2' in result, 'target2 must be present');
+  assertTrue('invalidation' in result, 'invalidation must be present');
+  assertTrue('riskPercent' in result, 'riskPercent must be present');
+  assertTrue('rewardPercent' in result, 'rewardPercent must be present');
+});
+
+test('B5 API contract — relativeVolume present (not rvol)', () => {
+  const result = buildEarlyExplosionIntelligenceManager(makeFullMarketData('AAPL'));
+  assertTrue('relativeVolume' in result, 'relativeVolume must be present');
+  assertNotNull(result.relativeVolume);
+});
+
+test('B5 API contract — bollingerSqueeze present (not bbSqueeze)', () => {
+  const result = buildEarlyExplosionIntelligenceManager(makeFullMarketData('AAPL'));
+  assertTrue('bollingerSqueeze' in result, 'bollingerSqueeze must be present');
+});
+
+test('B5 API contract — explosionRisk and liquidityRisk present', () => {
+  const result = buildEarlyExplosionIntelligenceManager(makeFullMarketData('AAPL'));
+  assertNotNull(result.explosionRisk);
+  assertNotNull(result.liquidityRisk);
+  assertTrue(
+    ['HIGH', 'MODERATE_HIGH', 'MODERATE', 'LOW_MODERATE', 'LOW', 'UNKNOWN'].includes(result.explosionRisk),
+    `Unexpected explosionRisk: ${result.explosionRisk}`
+  );
+  assertTrue(
+    ['HIGH', 'MODERATE', 'LOW'].includes(result.liquidityRisk),
+    `Unexpected liquidityRisk: ${result.liquidityRisk}`
+  );
+});
+
+test('B5 API contract — risks array with structured objects', () => {
+  const result = buildEarlyExplosionIntelligenceManager(makeFullMarketData('AAPL'));
+  assertTrue(Array.isArray(result.risks));
+  for (const risk of result.risks) {
+    assertTrue('label' in risk, 'risk must have label');
+    assertTrue('severity' in risk, 'risk must have severity');
+    assertTrue('description' in risk, 'risk must have description');
+  }
+});
+
+test('B5 API contract — timestamp present', () => {
+  const result = buildEarlyExplosionIntelligenceManager(makeFullMarketData('AAPL'));
+  assertNotNull(result.timestamp);
+});
+
+test('B5 API contract — componentWeights present', () => {
+  const result = buildEarlyExplosionIntelligenceManager(makeFullMarketData('AAPL'));
+  assertNotNull(result.componentWeights);
+  const sum = Object.values(result.componentWeights).reduce((a, b) => a + b, 0);
+  assertEqual(round(sum, 0), 100);
+});
+
+test('B5 API contract — explosionIntelligenceAvailability present', () => {
+  const result = buildEarlyExplosionIntelligenceManager(makeFullMarketData('AAPL'));
+  assertTrue(result.explosionIntelligenceAvailability === true);
+  const defaultResult = defaultEarlyExplosionIntelligenceManager('TEST');
+  assertTrue(defaultResult.explosionIntelligenceAvailability === false);
+});
+
+test('B5 API contract — qualityBreakdown structure (for API response)', () => {
+  const results = [
+    buildEarlyExplosionIntelligenceManager(makeFullMarketData('AAA', { relativeVolume: 2.5 })),
+    buildEarlyExplosionIntelligenceManager(makeFullMarketData('BBB', { relativeVolume: 0.3 })),
+  ];
+  const qualityBreakdown = results.reduce((acc, r) => {
+    const q = r.quality || 'UNAVAILABLE';
+    acc[q] = (acc[q] || 0) + 1;
+    return acc;
+  }, {});
+  assertTrue(Object.keys(qualityBreakdown).length > 0);
+  const total = Object.values(qualityBreakdown).reduce((a, b) => a + b, 0);
+  assertEqual(total, 2);
+});
+
+test('B5 API contract — ranking returns ranked/top/alternatives', () => {
+  const results = [
+    buildEarlyExplosionIntelligenceManager(makeFullMarketData('AAA', { relativeVolume: 2.5, riskReward: 3.0 })),
+    buildEarlyExplosionIntelligenceManager(makeFullMarketData('BBB', { relativeVolume: 0.3, riskReward: 0.5 })),
+    buildEarlyExplosionIntelligenceManager(makeFullMarketData('CCC', { relativeVolume: 1.5, riskReward: 1.5 })),
+  ];
+  const { ranked, top, alternatives } = rankEarlyExplosionOpportunitiesB5(results);
+  assertTrue(Array.isArray(ranked));
+  assertTrue(Array.isArray(top));
+  assertTrue(Array.isArray(alternatives));
+  assertTrue(ranked.length <= 20);
+  assertTrue(top.length <= 5);
+  assertTrue(alternatives.length <= 5);
+});
+
+test('B5 API contract — no rvol/bbSqueeze/atrPercentile in output', () => {
+  const result = buildEarlyExplosionIntelligenceManager(makeFullMarketData('AAPL'));
+  assertTrue(!('rvol' in result) || result.rvol === undefined, 'rvol should not be in B5 output');
+  assertTrue(!('bbSqueeze' in result) || result.bbSqueeze === undefined, 'bbSqueeze should not be in B5 output');
+  assertTrue(!('atrPercentile' in result) || result.atrPercentile === undefined, 'atrPercentile should not be in B5 output');
+});
+
 // ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------

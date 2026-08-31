@@ -25,6 +25,7 @@ const setupStrengthColor = {
 const riskColor = {
   LOW: '#34D399',
   MODERATE: '#FBBF24',
+  MODERATE_HIGH: '#FB923C',
   HIGH: '#F87171',
   EXTREME: '#EF4444',
   UNKNOWN: '#475569',
@@ -77,7 +78,14 @@ function Tag({ value, colorMap }) {
 }
 
 function SymbolCard({ symbol, data }) {
-  const { explosionScore, quality, setups, zones, componentScores, reasons, warnings, flags, dataCompleteness, riskReward, riskPercent, rewardPercent, atr, atrPercentile, bollinger, rsi, rvol, relativeVolume, volumeAcceleration, priceExpansion, atrExpansion, bbSqueeze, rangeCompression, momentumAcceleration, liquidityConfirmation, breakoutProximity, srProximity, signal, signalStrength, directionBias, riskLevel } = data;
+  const {
+    explosionScore, quality, setupClassification, componentScores, reasons, warnings, flags,
+    dataCompleteness, riskReward, riskPercent, rewardPercent, atr, bollinger, rsi, relativeVolume,
+    volumeAcceleration, priceExpansion, atrExpansion, bollingerSqueeze, rangeCompression,
+    momentumAcceleration, liquidityConfirmation, breakoutProximity, srProximity, signal,
+    signalStrength, directionBias, riskLevel, explosionRisk, liquidityRisk, entryZone, target1,
+    target2, invalidation,
+  } = data;
 
   return (
     <div
@@ -98,24 +106,24 @@ function SymbolCard({ symbol, data }) {
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
         <ScorePill score={explosionScore} label="Explosion" />
-         <ScorePill score={componentScores?.volumeAcceleration} label="Vol Accel" />
-         <ScorePill score={componentScores?.relativeVolumeExpansion} label="RVOL" />
-         <ScorePill score={componentScores?.priceExpansion} label="Price Exp" />
-         <ScorePill score={componentScores?.atrExpansion} label="ATR Exp" />
-         <ScorePill score={componentScores?.bollingerSqueeze} label="BB Squeeze" />
-         <ScorePill score={componentScores?.momentumAcceleration} label="Momentum" />
-         <ScorePill score={componentScores?.liquidityConfirmation} label="Liquidity" />
-         <ScorePill score={componentScores?.breakoutProximity} label="Breakout" />
-         <ScorePill score={componentScores?.supportResistanceProximity} label="S/R Prox" />
-         <ScorePill score={componentScores?.riskReward} label="R/R" />
+        <ScorePill score={componentScores?.volumeAcceleration} label="Vol Accel" />
+        <ScorePill score={componentScores?.relativeVolumeExpansion} label="RVOL" />
+        <ScorePill score={componentScores?.priceExpansion} label="Price Exp" />
+        <ScorePill score={componentScores?.atrExpansion} label="ATR Exp" />
+        <ScorePill score={componentScores?.bollingerSqueeze} label="BB Squeeze" />
+        <ScorePill score={componentScores?.momentumAcceleration} label="Momentum" />
+        <ScorePill score={componentScores?.liquidityConfirmation} label="Liquidity" />
+        <ScorePill score={componentScores?.breakoutProximity} label="Breakout" />
+        <ScorePill score={componentScores?.supportResistanceProximity} label="S/R Prox" />
+        <ScorePill score={componentScores?.riskReward} label="R/R" />
       </div>
 
       <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-        {setups?.slice(0, 2).map((setup, idx) => (
+        {setupClassification?.slice(0, 2).map((setup, idx) => (
           <Tag key={idx} value={setup.type} colorMap={setupStrengthColor} />
         ))}
-        {setups?.length > 2 && (
-          <Tag value={`+${setups.length - 2} more`} colorMap={setupStrengthColor} />
+        {setupClassification?.length > 2 && (
+          <Tag value={`+${setupClassification.length - 2} more`} colorMap={setupStrengthColor} />
         )}
         {riskReward != null && (
           <Tag value={`R/R ${riskReward}`} colorMap={riskColor} />
@@ -125,13 +133,11 @@ function SymbolCard({ symbol, data }) {
         )}
       </div>
 
-      {zones && (
-        <div style={{ fontSize: 10, color: '#94A3B8', marginBottom: 6, lineHeight: 1.6 }}>
-          <div>🎯 Entry: {zones.entryZone}</div>
-          <div>🎯 T1: {zones.target1} | T2: {zones.target2}</div>
-          <div>🛑 Stop: {zones.invalidation} ({zones.riskPercent}% risk / {zones.rewardPercent}% reward)</div>
-        </div>
-      )}
+      <div style={{ fontSize: 10, color: '#94A3B8', marginBottom: 6, lineHeight: 1.6 }}>
+        <div>🎯 Entry: {entryZone ?? '—'}</div>
+        <div>🎯 T1: {target1 ?? '—'} | T2: {target2 ?? '—'}</div>
+        <div>🛑 Stop: {invalidation ?? '—'} ({riskPercent ?? '—'}% risk / {rewardPercent ?? '—'}% reward)</div>
+      </div>
 
       {reasons?.length > 0 && (
         <div style={{ fontSize: 9, color: '#CBD5E1', marginBottom: 6, lineHeight: 1.5 }}>
@@ -162,7 +168,8 @@ function SymbolCard({ symbol, data }) {
         <div>Price Exp: {priceExpansion ?? '—'}% | ATR Exp: {atrExpansion ?? '—'}% | BB: {bollinger?.squeeze ? 'Squeeze' : bollinger?.bandwidth ? bollinger.bandwidth + '%' : '—'}</div>
         <div>Range Comp: {rangeCompression ?? '—'}% | Momentum Accel: {momentumAcceleration ?? '—'}</div>
         <div>Liquidity: {liquidityConfirmation ?? '—'} | Breakout: {breakoutProximity ?? '—'}% | S/R: {srProximity ?? '—'}%</div>
-        <div>ATR: {atr ?? '—'} ({atrPercentile ?? '—'}%) | Signal: {signal} ({signalStrength}) | Bias: {directionBias} | Risk: {riskLevel}</div>
+        <div>ATR: {atr ?? '—'} | Signal: {signal} ({signalStrength}) | Bias: {directionBias} | Risk: {riskLevel}</div>
+        <div>Explosion Risk: {explosionRisk ?? '—'} | Liquidity Risk: {liquidityRisk ?? '—'}</div>
       </div>
     </div>
   );
@@ -206,7 +213,7 @@ function ExplosionTable({ data }) {
                 <Tag value={item.quality} colorMap={qualityColor} />
               </td>
               <td style={{ textAlign: 'center', padding: '8px 6px' }}>
-                {item.setups?.slice(0, 2).map((s, i) => (
+                {item.setupClassification?.slice(0, 2).map((s, i) => (
                   <Tag key={i} value={s.type} colorMap={setupStrengthColor} />
                 ))}
               </td>
@@ -253,7 +260,7 @@ export default function EarlyExplosionRadar({ explosionData, loading }) {
       if (activeFilter === 'watch') return item.quality === 'WATCH';
       if (activeFilter === 'low') return item.quality === 'LOW';
       if (activeFilter === 'unavailable') return item.quality === 'UNAVAILABLE';
-      if (activeFilter === 'has-setup') return item.setups && item.setups.length > 0;
+      if (activeFilter === 'has-setup') return item.setupClassification && item.setupClassification.length > 0;
       if (activeFilter === 'high-rr') return item.riskReward != null && item.riskReward >= 2;
       if (activeFilter === 'high-data') return item.dataCompleteness != null && item.dataCompleteness >= 70;
       if (activeFilter === 'bb-squeeze') return item.bollinger?.squeeze === true;
@@ -269,8 +276,8 @@ export default function EarlyExplosionRadar({ explosionData, loading }) {
       if (activeSort === 'rr') return (b.riskReward ?? -1) - (a.riskReward ?? -1);
       if (activeSort === 'data') return (b.dataCompleteness ?? -1) - (a.dataCompleteness ?? -1);
       if (activeSort === 'risk') {
-        const rOrder = { LOW: 1, MODERATE: 2, HIGH: 3, EXTREME: 4, UNKNOWN: 0 };
-        return (rOrder[a.riskLevel] || 0) - (rOrder[b.riskLevel] || 0);
+        const rOrder = { LOW: 1, LOW_MODERATE: 2, MODERATE: 3, MODERATE_HIGH: 4, HIGH: 5, EXTREME: 6, UNKNOWN: 0 };
+        return (rOrder[b.riskLevel] || 0) - (rOrder[a.riskLevel] || 0);
       }
       if (activeSort === 'rvol') return (b.relativeVolume ?? -1) - (a.relativeVolume ?? -1);
       return 0;
@@ -309,7 +316,7 @@ export default function EarlyExplosionRadar({ explosionData, loading }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
         <div>
           <div style={{ color: '#EF4444', fontSize: 10, fontWeight: 900, letterSpacing: 1 }}>
-            📊 EARLY EXPLOSION RADAR · A5
+            📊 EARLY EXPLOSION RADAR · B5
           </div>
           <h3 style={{ color: '#F8FAFC', fontSize: 18, fontWeight: 900, margin: 0 }}>
             رادار الانفجار المبكر
@@ -325,7 +332,6 @@ export default function EarlyExplosionRadar({ explosionData, loading }) {
         تسارع الحجم، RVOL، توسع السعر، توسع ATR، ضغط بولينجر، ضغط المدى، تسارع الزخم، تأكيد السيولة، قرب الاختراق، قرب الدعم/المقاومة.
       </p>
 
-      {/* Top Opportunities */}
       {topOpportunities.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           <div style={{ color: '#EF4444', fontSize: 11, fontWeight: 700, marginBottom: 8 }}>
@@ -339,7 +345,6 @@ export default function EarlyExplosionRadar({ explosionData, loading }) {
         </div>
       )}
 
-      {/* Alternatives */}
       {alternatives.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           <div style={{ color: '#FBBF24', fontSize: 11, fontWeight: 700, marginBottom: 8 }}>
@@ -353,7 +358,6 @@ export default function EarlyExplosionRadar({ explosionData, loading }) {
         </div>
       )}
 
-      {/* Filters */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
         <div style={{ fontSize: 9, color: '#64748B', alignSelf: 'center' }}>تصفية:</div>
         {filterOptions.map((opt) => (
@@ -397,17 +401,15 @@ export default function EarlyExplosionRadar({ explosionData, loading }) {
         ))}
       </div>
 
-      {/* Table */}
       {loading ? (
         <div style={{ color: '#94A3B8', fontSize: 12, padding: 20 }}>⏳ جاري تحميل بيانات الانفجار المبكر…</div>
       ) : (
         <ExplosionTable data={filteredAndSorted} />
       )}
 
-      {/* Data limitations */}
       <div style={{ fontSize: 9, color: '#475569', marginTop: 12, lineHeight: 1.6 }}>
         <div>🚫 لا توجد بيانات Options Chain / Dark Pool / Institutional Flow من Yahoo Finance</div>
-        <div>🚫 ATR/VWAP تحسب فقط عند توفر High/Low/Close/Volume</div>
+        <div>🚫 ATR تحسب فقط عند توفر High/Low/Close/Volume</div>
         <div>🚫 RVOL يتطلب 10+ أيام حجم تاريخي</div>
         <div>⚠️ التحليل فقط — ليس توصية شراء/بيع</div>
       </div>
