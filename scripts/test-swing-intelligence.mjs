@@ -17,10 +17,10 @@ import {
   calculateSwingZones,
   buildSwingReasons,
   buildSwingWarnings,
-   buildSwingFlags,
-   classifySwingQuality,
-   rankSwingOpportunities,
-   SWING_WEIGHTS,
+  buildSwingFlags,
+  classifySwingQuality,
+  rankSwingOpportunities,
+  SWING_WEIGHTS,
   SWING_QUALITY_THRESHOLDS,
 } from '../lib/swing-intelligence.js';
 
@@ -461,9 +461,17 @@ test('Quality: STRONG 70-84', function() {
   assertEqual(classifySwingQuality(70), 'STRONG');
 });
 
-test('Quality: WATCH 55-69', function() {
-  assertEqual(classifySwingQuality(60), 'WATCH');
-  assertEqual(classifySwingQuality(55), 'WATCH');
+test('Quality: WATCH 54', function() {
+  assertEqual(classifySwingQuality(54), 'WATCH');
+});
+
+test('Quality: MEDIUM 55', function() {
+  assertEqual(classifySwingQuality(55), 'MEDIUM');
+});
+
+test('Quality: STRONG 56-69', function() {
+  assertEqual(classifySwingQuality(56), 'STRONG');
+  assertEqual(classifySwingQuality(60), 'STRONG');
 });
 
 test('Quality: WEAK 40-54', function() {
@@ -545,62 +553,62 @@ test('Swing Intelligence: never returns NaN or Infinity', function() {
   assertEqual(isFinite(result.swingScore), true);
 });
 
- test('Swing Intelligence: default returns UNAVAILABLE', function() {
-   var result = defaultSwingIntelligence();
-   assertEqual(result.quality, 'UNAVAILABLE');
-   assertEqual(result.swingScore, null);
-   assertEqual(result.dataCompleteness, 0);
-   assertNullish(result.relativeVolume);
- });
+test('Swing Intelligence: default returns UNAVAILABLE', function() {
+  var result = defaultSwingIntelligence();
+  assertEqual(result.quality, 'UNAVAILABLE');
+  assertEqual(result.swingScore, null);
+  assertEqual(result.dataCompleteness, 0);
+  assertNullish(result.relativeVolume);
+});
 
- // ===== Ranking =====
- test('Ranking: sorts by swingScore descending', function() {
-   var results = [
-     buildSwingIntelligence({ ticker: 'AAA', price: 100, rsi: 55, relativeVolume: 1.5, riskReward: 2.0 }),
-     buildSwingIntelligence({ ticker: 'BBB', price: 100, rsi: 55, relativeVolume: 3.0, riskReward: 3.0 }),
-     buildSwingIntelligence({ ticker: 'CCC', price: 100, rsi: 55, relativeVolume: 1.2, riskReward: 1.5 }),
-   ];
-   var ranked = rankSwingOpportunities(results);
-   assertNotNullish(ranked);
-   assertEqual(ranked.ranked.length, 3);
-   assertEqual(ranked.top.length, 3); // all have score > 40
-   assertEqual(ranked.alternatives.length >= 0, true);
- });
+// ===== Ranking =====
+test('Ranking: sorts by swingScore descending', function() {
+  var results = [
+    buildSwingIntelligence({ ticker: 'AAA', price: 100, rsi: 55, relativeVolume: 1.5, riskReward: 2.0 }),
+    buildSwingIntelligence({ ticker: 'BBB', price: 100, rsi: 55, relativeVolume: 3.0, riskReward: 3.0 }),
+    buildSwingIntelligence({ ticker: 'CCC', price: 100, rsi: 55, relativeVolume: 1.2, riskReward: 1.5 }),
+  ];
+  var ranked = rankSwingOpportunities(results);
+  assertNotNullish(ranked);
+  assertEqual(ranked.ranked.length, 3);
+  assertEqual(ranked.top.length, 3); // all have score > 40
+  assertEqual(ranked.alternatives.length >= 0, true);
+});
 
- test('Ranking: top has highest scores first', function() {
-   var high = buildSwingIntelligence({ ticker: 'AAA', price: 100, rsi: 55, relativeVolume: 3.0, riskReward: 3.0 });
-   var low = buildSwingIntelligence({ ticker: 'BBB', price: 100, rsi: 55, relativeVolume: 0.5, riskReward: 0.5 });
-   var ranked = rankSwingOpportunities([low, high]);
-   assertEqual(ranked.ranked[0].symbol, 'AAA');
-   assertEqual(ranked.ranked[1].symbol, 'BBB');
-   assertEqual(ranked.top[0].symbol, 'AAA');
- });
+test('Ranking: top has highest scores first', function() {
+  var high = buildSwingIntelligence({ ticker: 'AAA', price: 100, rsi: 55, relativeVolume: 3.0, riskReward: 3.0 });
+  var low = buildSwingIntelligence({ ticker: 'BBB', price: 100, rsi: 55, relativeVolume: 0.5, riskReward: 0.5 });
+  var ranked = rankSwingOpportunities([low, high]);
+  assertEqual(ranked.ranked[0].symbol, 'AAA');
+  assertEqual(ranked.ranked[1].symbol, 'BBB');
+  assertEqual(ranked.top[0].symbol, 'AAA');
+});
 
- test('Ranking: empty/non-array returns empty structure', function() {
-   var ranked = rankSwingOpportunities(null);
-   assertEqual(ranked.ranked.length, 0);
-   assertEqual(ranked.top.length, 0);
-   assertEqual(ranked.alternatives.length, 0);
-   var ranked2 = rankSwingOpportunities([]);
-   assertEqual(ranked2.ranked.length, 0);
- });
+test('Ranking: empty/non-array returns empty structure', function() {
+  var ranked = rankSwingOpportunities(null);
+  assertEqual(ranked.ranked.length, 0);
+  assertEqual(ranked.top.length, 0);
+  assertEqual(ranked.alternatives.length, 0);
+  var ranked2 = rankSwingOpportunities([]);
+  assertEqual(ranked2.ranked.length, 0);
+});
 
- test('Ranking: limits to 20 ranked, 5 top, 5 alternatives', function() {
-   var results = [];
-   for (var i = 0; i < 25; i++) {
-     results.push(buildSwingIntelligence({ ticker: 'S' + i, price: 100 + i, rsi: 55, relativeVolume: 2.0, riskReward: 2.5 }));
-   }
-   var ranked = rankSwingOpportunities(results);
-   assertEqual(ranked.ranked.length, 20);
-   assertEqual(ranked.top.length, 5);
-   assertEqual(ranked.alternatives.length, 5);
- });
+test('Ranking: limits to 20 ranked, 5 top, 5 alternatives', function() {
+  var results = [];
+  for (var i = 0; i < 25; i++) {
+    results.push(buildSwingIntelligence({ ticker: 'S' + i, price: 100 + i, rsi: 55, relativeVolume: 2.0, riskReward: 2.5 }));
+  }
+  var ranked = rankSwingOpportunities(results);
+  assertEqual(ranked.ranked.length, 20);
+  assertEqual(ranked.top.length, 5);
+  assertEqual(ranked.alternatives.length, 5);
+});
 
- test('Swing Intelligence: relativeVolume included in output', function() {
-   var result = buildSwingIntelligence({ ticker: 'AAA', price: 100, relativeVolume: 1.45 });
-   assertNotNullish(result.relativeVolume);
-   assertClose(result.relativeVolume, 1.45, 0.01);
- });
+test('Swing Intelligence: relativeVolume included in output', function() {
+  var result = buildSwingIntelligence({ ticker: 'AAA', price: 100, relativeVolume: 1.45 });
+  assertNotNullish(result.relativeVolume);
+  assertClose(result.relativeVolume, 1.45, 0.01);
+});
 
 // ===== Summary =====
 console.log('\n========================================');
