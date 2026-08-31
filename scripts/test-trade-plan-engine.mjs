@@ -372,11 +372,11 @@ test('calculateTradePlanScore with no components returns null', () => {
 });
 
 test('calculateTradePlanScore renormalizes partial weights', () => {
-  const res = calculateTradePlanScore({ setupQuality: 80, riskRewardQuality: null, technicalReadiness: null, opportunityScore: 60, catalystFlowSupport: null, dataCompleteness: null });
+  const res = calculateTradePlanScore({ setupQuality: 80, riskRewardQuality: null, technicalReadiness: null, opportunityScore: 60, catalystFlowSupport: null, dataCompleteness: null, horizonQuality: null });
   assertScoreBetween(res.planScore, 0, 100);
   const used = Object.values(res.usedWeights).reduce((a, b) => a + b, 0);
   assertTrue(Math.abs(used - 1.0) < 0.01, 'renormalized weights sum to 1, got ' + used);
-  assertTrue(res.rawWeights.setupQuality === 0.25, 'raw weight preserved');
+  assertTrue(res.rawWeights.setupQuality === 0.22, 'raw weight preserved');
   assertTrue(typeof res.totalWeightUsed === 'number', 'totalWeightUsed is number');
 });// ----------------------------------------------------------------------------
 // 7. Score / quality boundaries

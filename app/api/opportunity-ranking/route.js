@@ -33,6 +33,25 @@ import {
   buildQualityBreakdown,
   buildOpportunityDataAvailability,
 } from '@/lib/opportunity-ranking.js';
+import {
+  buildOpportunityHorizon,
+  defaultOpportunityHorizon,
+} from '@/lib/opportunity-horizon.js';
+import {
+  buildClassicalTechnicalEvidence,
+  defaultClassicalTechnicalEvidence,
+} from '@/lib/classical-technical-evidence.js';
+import {
+  buildCandlestickPatterns,
+  defaultCandlestickPatterns,
+} from '@/lib/candlestick-patterns.js';
+import {
+  buildGammaContext,
+  defaultGammaContext,
+} from '@/lib/gamma-context.js';
+import {
+  buildLiquidityIntelligence,
+} from '@/lib/liquidity-intelligence.js';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -115,7 +134,59 @@ async function analyzeSymbol(symbol) {
       ? buildCatalystIntelligenceManager(symbol, secIntelligence, marketData)
       : defaultCatalystIntelligenceManager(symbol);
 
-    // Compose C7 with all B1-B6 sources
+    // Build methodology evidence layers (pure functions, no network)
+    const liquidityIntelligence = marketData
+      ? buildLiquidityIntelligence(marketData)
+      : null;
+
+    const quote = marketData || {};
+    const highs = quote?.high || [];
+    const lows = quote?.low || [];
+    const closes = quote?.close || [];
+    const volumes = quote?.volume || [];
+    const opens = quote?.open || [];
+
+    const classicalEvidence = closes.length >= 10
+      ? buildClassicalTechnicalEvidence({
+          highs,
+          lows,
+          closes,
+          volumes,
+          existingSupport: quote?.support20 || null,
+          existingResistance: quote?.resistance20 || null,
+          significantLevels: [quote?.support20, quote?.resistance20].filter(Boolean),
+          symbol,
+        })
+      : defaultClassicalTechnicalEvidence(symbol);
+
+    const candlestickEvidence = opens.length >= 2 && highs.length >= 2 && lows.length >= 2 && closes.length >= 2
+      ? buildCandlestickPatterns({
+          opens,
+          highs,
+          lows,
+          closes,
+          symbol,
+        })
+      : defaultCandlestickPatterns(symbol);
+
+    const horizonEvidence = buildOpportunityHorizon(symbol, {
+      secIntelligence,
+      catalystIntelligence,
+      swingIntelligence,
+      marketData,
+      liquidityIntelligence,
+      institutionalRadar,
+      classicalEvidence,
+      optionsIntelligence,
+      gammaContext: null,
+    });
+
+    const gammaContext = buildGammaContext({
+      symbol,
+      optionsContracts: optionsData?.contracts || [],
+    });
+
+    // Compose C7 with all B1-B6 sources + methodology evidence
     return buildOpportunityRanking(symbol, {
       pennyIntelligence,
       optionsIntelligence,
@@ -123,6 +194,11 @@ async function analyzeSymbol(symbol) {
       swingIntelligence,
       earlyExplosion,
       catalystIntelligence,
+    }, {
+      horizonEvidence,
+      classicalEvidence,
+      candlestickEvidence,
+      gammaContext,
     });
   } catch (error) {
     console.error(`Opportunity Ranking error for ${symbol}:`, error?.message || error);
