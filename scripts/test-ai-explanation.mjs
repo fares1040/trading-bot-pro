@@ -965,6 +965,63 @@ test('headline/summary/thesis never fabricate a direction', () => {
 });
 
 // ----------------------------------------------------------------------------
+// Upcoming catalyst handling (no-look-ahead / data-honesty)
+// ----------------------------------------------------------------------------
+const b6ConfirmedSample = {
+  symbol: 'AAPL', catalystScore: 82, quality: 'STRONG', catalystType: 'EARNINGS',
+  catalystTypes: ['EARNINGS'], recency: 'VERY_RECENT', catalystRisk: 'LOW',
+  upcoming: false, upcomingDate: null,
+  catalysts: [{ type: 'EARNINGS', upcoming: false, recency: 'VERY_RECENT', description: 'Recent earnings filing', source: 'SEC EDGAR' }],
+  reasons: ['1 EARNINGS catalyst(s) detected'],
+  dataCompleteness: 90,
+  dataAvailability: { secData: true, catalysts: true, catalystScore: true, catalystType: true, recency: true },
+  provenance: { intelligence: 'B6', engine: 'B6 Catalyst Intelligence', manager: 'B6' },
+};
+
+const b6UpcomingSample = {
+  symbol: 'AAPL', catalystScore: 82, quality: 'STRONG', catalystType: 'EARNINGS',
+  catalystTypes: ['EARNINGS'], recency: 'UPCOMING', catalystRisk: 'LOW',
+  upcoming: true, upcomingDate: '2030-01-01',
+  catalysts: [{ type: 'EARNINGS', upcoming: true, upcomingDate: '2030-01-01', recency: 'UPCOMING', description: 'Upcoming earnings date', source: 'Yahoo Finance via market-engine.js' }],
+  reasons: ['Upcoming earnings date'],
+  dataCompleteness: 60,
+  dataAvailability: { secData: false, marketData: true, catalysts: true, catalystScore: true, catalystType: true, recency: true },
+  provenance: { intelligence: 'B6', engine: 'B6 Catalyst Intelligence', manager: 'B6' },
+};
+
+test('upcoming catalyst described as upcoming, never as confirmed current', () => {
+  const r = buildAIExplanation('AAPL', { catalystIntelligence: b6UpcomingSample });
+  assertTrue(r.catalystExplanation != null, 'catalyst explanation present');
+  assertTrue(/upcom/i.test(r.catalystExplanation), 'explanation mentions upcoming: ' + r.catalystExplanation);
+  assertFalse(r.catalystExplanation.includes('verified catalyst evidence'),
+    'no "verified catalyst evidence" wording for upcoming catalyst');
+});
+
+test('upcoming catalyst prose does not claim "supports current notability"', () => {
+  const r = buildAIExplanation('AAPL', { catalystIntelligence: b6UpcomingSample });
+  const wn = JSON.stringify(r.whyNow || []);
+  assertFalse(wn.includes('supports current notability'),
+    'whyNow does not claim upcoming supports current notability');
+  assertFalse(wn.includes('Verified catalyst'),
+    'whyNow does not call upcoming "Verified catalyst"');
+  assertTrue(/upcom/i.test(wn), 'whyNow mentions upcoming status: ' + wn);
+});
+
+test('upcoming catalyst surfaces a caution risk', () => {
+  const r = buildAIExplanation('AAPL', { catalystIntelligence: b6UpcomingSample });
+  const upcomingRisk = (r.risks || []).some((rk) => /upcom|unconfirmed future/.test(rk.description || ''));
+  assertTrue(upcomingRisk, 'upcoming risk surfaced in risks: ' + JSON.stringify(r.risks));
+});
+
+test('confirmed catalyst still uses verified wording (no upcoming leakage)', () => {
+  const r = buildAIExplanation('AAPL', { catalystIntelligence: b6ConfirmedSample });
+  assertTrue(r.catalystExplanation != null, 'catalyst explanation present for confirmed');
+  assertTrue(r.catalystExplanation.includes('verified catalyst evidence'),
+    'confirmed catalyst described as verified: ' + r.catalystExplanation);
+  assertFalse(/upcom/i.test(r.catalystExplanation), 'confirmed catalyst does not say upcoming');
+});
+
+// ----------------------------------------------------------------------------
 // Summary
 // ----------------------------------------------------------------------------
 console.log('\n========================================');
