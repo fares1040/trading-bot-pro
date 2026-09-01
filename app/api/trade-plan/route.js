@@ -51,6 +51,7 @@ import {
 } from '@/lib/liquidity-intelligence.js';
 import { fetchIndices } from '@/lib/market-engine.js';
 import { buildMarketRegime, defaultMarketRegime } from '@/lib/market-regime-engine.js';
+import { fetchInstitutionalData, calculateInstitutionalScore } from '@/lib/institutional-provider.js';
 import {
   buildTradePlan,
   defaultTradePlan,
@@ -86,6 +87,34 @@ function round(value, decimals = 2) {
 
 async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Fetch the live universe from the project's own /api/stocks endpoint so that
+// C10 Market Regime can compute breadth + volume from real per-symbol evidence.
+// No fabrication. Missing setupScore / relativeVolume are preserved as null.
+async function fetchUniverseForRegime(request) {
+  try {
+    const origin = new URL(request.url).origin;
+    const res = await fetch(`${origin}/api/stocks`, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return [];
+    const json = await res.json().catch(() => ({}));
+    const raw = Array.isArray(json?.data)
+      ? json.data
+      : Array.isArray(json?.stocks)
+      ? json.stocks
+      : [];
+    return raw
+      .map((x) => ({
+        setupScore: typeof x?.setupScore === 'number' ? x.setupScore : null,
+        relativeVolume: typeof x?.relativeVolume === 'number' ? x.relativeVolume : null,
+      }))
+      .filter((x) => x.setupScore != null || x.relativeVolume != null);
+  } catch {
+    return [];
+  }
 }
 
 async function analyzeSymbol(symbol, opts, marketRegime = null) {
@@ -124,6 +153,15 @@ async function analyzeSymbol(symbol, opts, marketRegime = null) {
       optionsData = null;
     }
 
+    // FINRA institutional data: for B3 only. Safe per-symbol fetch.
+    // Returns unavailable-state when credentials missing or verification fails.
+    let finraData = null;
+    try {
+      finraData = await fetchInstitutionalData(symbol);
+    } catch (e) {
+      finraData = null;
+    }
+
     const pennyIntelligence = stockData
       ? buildPennyIntelligence(stockData, { secIntelligence: secIntelligence || undefined })
       : defaultPennyIntelligence(symbol);
@@ -147,8 +185,8 @@ async function analyzeSymbol(symbol, opts, marketRegime = null) {
         })
       : defaultOptionsIntelligence(symbol);
 
-    const institutionalRadar = secIntelligence
-      ? buildInstitutionalRadarResult(symbol, secIntelligence, null, null)
+    const institutionalRadar = secIntelligence || finraData
+      ? buildInstitutionalRadarResult(symbol, secIntelligence, finraData, finraData && finraData.available ? calculateInstitutionalScore(finraData) : null)
       : defaultInstitutionalRadar(symbol);
 
     const catalystIntelligence = (secIntelligence || marketData)
@@ -252,8 +290,11 @@ export async function GET(request) {
 
     let marketRegime = null;
     try {
-      const indices = await fetchIndices();
-      if (indices && indices.length > 0) marketRegime = buildMarketRegime(indices, []);
+      const [indices, universe] = await Promise.all([
+        fetchIndices().catch(() => []),
+        fetchUniverseForRegime(request).catch(() => []),
+      ]);
+      if (indices && indices.length > 0) marketRegime = buildMarketRegime(indices, universe);
     } catch (e) { marketRegime = null; }
 
     const results = [];
