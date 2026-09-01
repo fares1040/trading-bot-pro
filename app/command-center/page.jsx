@@ -38,7 +38,9 @@ function TopBar({ indices, regime, regimeScore, regimeConfidence, marketStatus, 
       alignItems: 'center',
       gap: 12,
       flexWrap: 'wrap',
-    }}>
+    }}
+    className="top-bar"
+  >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: marketStatus?.open ? '#34D399' : '#EF4444', boxShadow: marketStatus?.open ? '0 0 8px #34D39960' : 'none' }} />
         <span style={{ color: marketStatus?.open ? '#34D399' : '#EF4444', fontSize: 11, fontWeight: 700 }}>
@@ -46,10 +48,10 @@ function TopBar({ indices, regime, regimeScore, regimeConfidence, marketStatus, 
         </span>
       </div>
 
-      <div style={{ width: 1, height: 20, backgroundColor: colors.border }} />
+      <div className="top-bar-divider" style={{ width: 1, height: 20, backgroundColor: colors.border }} />
 
       {indices.slice(0, 3).map((idx) => (
-        <div key={idx.symbol} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div key={idx.symbol} className="index-item" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ color: colors.text.faint, fontSize: 11, fontWeight: 700 }}>{idx.symbol}</span>
           <span style={{ color: colors.text.primary, fontSize: 11, fontFamily: 'inherit', fontWeight: 700 }}>
             {Number(idx.value).toLocaleString('en-US', { maximumFractionDigits: 2 })}
@@ -60,10 +62,10 @@ function TopBar({ indices, regime, regimeScore, regimeConfidence, marketStatus, 
         </div>
       ))}
 
-      <div style={{ width: 1, height: 20, backgroundColor: colors.border }} />
+      <div className="top-bar-divider regime-divider" style={{ width: 1, height: 20, backgroundColor: colors.border }} />
 
       {regime && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div className="regime-item" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ color: colors.text.faint, fontSize: 11 }}>Regime:</span>
           <span style={{ color: regimeColorMap[regime] || colors.text.disabled, fontSize: 11, fontWeight: 800 }}>
             {regime}
@@ -80,11 +82,37 @@ function TopBar({ indices, regime, regimeScore, regimeConfidence, marketStatus, 
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
         <span style={{ color: colors.text.faint, fontSize: 11, fontFamily: 'monospace' }}>{time}</span>
         {lastUpdate && (
-          <span style={{ color: colors.text.faint, fontSize: 10 }}>
+          <span className="last-update" style={{ color: colors.text.faint, fontSize: 10 }}>
             Updated {new Date(lastUpdate).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
           </span>
         )}
       </div>
+      <style>{`
+        @media (max-width: 768px) {
+          .top-bar {
+            gap: 8px !important;
+            padding: 8px 12px !important;
+          }
+          .top-bar-divider {
+            display: none !important;
+          }
+          .index-item {
+            font-size: 10px !important;
+          }
+          .regime-divider {
+            display: block !important;
+            width: 100% !important;
+            height: 1px !important;
+            margin: 4px 0 !important;
+          }
+          .regime-item {
+            flex-wrap: wrap !important;
+          }
+          .last-update {
+            display: none !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -154,7 +182,7 @@ function WatchlistPanel({ opportunities }) {
   return (
     <div style={{ ...panel, padding: 16 }}>
       <SectionTitle label="Watchlist" icon="👁" color={colors.accent.blue} />
-      <div style={{ overflowX: 'auto' }}>
+      <div className="responsive-table">
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
           <thead>
             <tr>
@@ -247,7 +275,7 @@ function OpportunityDetailPanel({ symbol, opportunityData, tradePlanData, aiExpl
       {plan && (
         <div style={{ backgroundColor: '#07090E', borderRadius: radius.md, padding: 12, marginBottom: 14 }}>
           <div style={{ color: colors.text.faint, fontSize: 10, fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>Trade Plan</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+          <div className="trade-plan-grid">
             {[
               ['Entry', plan.entryZone ?? plan.entryPrice ?? '—'],
               ['Stop', plan.stopLoss ?? plan.invalidation ?? '—'],
@@ -262,6 +290,18 @@ function OpportunityDetailPanel({ symbol, opportunityData, tradePlanData, aiExpl
               </div>
             ))}
           </div>
+          <style>{`
+            .trade-plan-grid {
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 8px;
+            }
+            @media (max-width: 480px) {
+              .trade-plan-grid {
+                grid-template-columns: repeat(2, 1fr);
+              }
+            }
+          `}</style>
         </div>
       )}
 
@@ -463,7 +503,15 @@ export default function CommandCenter() {
 
         {error && <ErrorState message={error} onRetry={fetchAll} />}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 16, marginBottom: 16, alignItems: 'start' }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr',
+          gap: 16,
+          marginBottom: 16,
+          alignItems: 'start'
+        }}
+        className="command-center-grid"
+      >
           <div>
             <div style={{ ...panel, padding: '14px 16px', marginBottom: 16 }}>
               <SectionTitle label="Top Opportunities" icon="🎯" color={colors.accent.gold} />
@@ -489,7 +537,7 @@ export default function CommandCenter() {
               </div>
 
               {activeTab === 'opportunities' && (
-                <div style={{ overflowX: 'auto' }}>
+                <div className="responsive-table">
                   {!topOpportunities.length && !loading ? (
                     <EmptyState icon="🎯" message="No opportunities available" />
                   ) : (
@@ -531,7 +579,7 @@ export default function CommandCenter() {
               )}
 
               {activeTab === 'plans' && (
-                <div style={{ overflowX: 'auto' }}>
+                <div className="responsive-table">
                   {!topPlan.length && !loading ? (
                     <EmptyState icon="🧭" message="No trade plans available" />
                   ) : (
@@ -564,29 +612,29 @@ export default function CommandCenter() {
               )}
 
               {activeTab === 'intelligence' && (
-                <div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    {[
-                      { label: 'Penny (B1)', available: opportunityData?.dataAvailability?.pennyIntelligence, color: '#22C55E' },
-                      { label: 'Options (B2)', available: opportunityData?.dataAvailability?.optionsIntelligence, color: '#818CF8' },
-                      { label: 'Institutional (B3)', available: opportunityData?.dataAvailability?.institutionalRadar, color: '#A78BFA' },
-                      { label: 'Swing (B4)', available: opportunityData?.dataAvailability?.swingIntelligence, color: '#34D399' },
-                      { label: 'Early Explosion (B5)', available: opportunityData?.dataAvailability?.earlyExplosion, color: '#EC4899' },
-                      { label: 'Catalyst (B6)', available: opportunityData?.dataAvailability?.catalystIntelligence, color: '#F59E0B' },
-                    ].map(src => (
-                      <div key={src.label} style={{ padding: 10, backgroundColor: '#07090E', borderRadius: radius.md, border: `1px solid ${colors.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: src.available ? src.color : colors.text.disabled, boxShadow: src.available ? `0 0 6px ${src.color}60` : 'none' }} />
-                        <span style={{ color: src.available ? colors.text.secondary : colors.text.disabled, fontSize: 10, fontWeight: 600 }}>{src.label}</span>
-                        <span style={{ marginLeft: 'auto', color: src.available ? '#34D399' : colors.text.disabled, fontSize: 9 }}>{src.available ? '✓' : '✗'}</span>
-                      </div>
-                    ))}
-                  </div>
+                <div className="intelligence-grid">
+                  {[
+                    { label: 'Penny (B1)', available: opportunityData?.dataAvailability?.pennyIntelligence, color: '#22C55E' },
+                    { label: 'Options (B2)', available: opportunityData?.dataAvailability?.optionsIntelligence, color: '#818CF8' },
+                    { label: 'Institutional (B3)', available: opportunityData?.dataAvailability?.institutionalRadar, color: '#A78BFA' },
+                    { label: 'Swing (B4)', available: opportunityData?.dataAvailability?.swingIntelligence, color: '#34D399' },
+                    { label: 'Early Explosion (B5)', available: opportunityData?.dataAvailability?.earlyExplosion, color: '#EC4899' },
+                    { label: 'Catalyst (B6)', available: opportunityData?.dataAvailability?.catalystIntelligence, color: '#F59E0B' },
+                  ].map(src => (
+                    <div key={src.label} style={{ padding: 10, backgroundColor: '#07090E', borderRadius: radius.md, border: `1px solid ${colors.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: src.available ? src.color : colors.text.disabled, boxShadow: src.available ? `0 0 6px ${src.color}60` : 'none' }} />
+                      <span style={{ color: src.available ? colors.text.secondary : colors.text.disabled, fontSize: 10, fontWeight: 600 }}>{src.label}</span>
+                      <span style={{ marginLeft: 'auto', color: src.available ? '#34D399' : colors.text.disabled, fontSize: 9 }}>{src.available ? '✓' : '✗'}</span>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+            className="command-center-sidebar"
+          >
             <OpportunityDetailPanel
               symbol={selectedSymbol}
               opportunityData={opportunityData}
@@ -641,7 +689,50 @@ export default function CommandCenter() {
 
       <style>{`
         @media (max-width: 1024px) {
-          .cc-grid { grid-template-columns: 1fr !important; }
+          .command-center-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .command-center-sidebar {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 12px !important;
+          }
+        }
+        @media (max-width: 768px) {
+          .command-center-sidebar {
+            grid-template-columns: 1fr !important;
+          }
+        }
+        @media (max-width: 640px) {
+          .command-center-grid {
+            gap: 12px !important;
+          }
+        }
+        .responsive-table {
+          overflow-x: auto;
+          display: block;
+        }
+        .responsive-table table {
+          min-width: 600px;
+        }
+        @media (max-width: 768px) {
+          .responsive-table {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+          }
+          .responsive-table table {
+            min-width: 500px;
+          }
+        }
+        .intelligence-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+        }
+        @media (max-width: 480px) {
+          .intelligence-grid {
+            grid-template-columns: 1fr;
+          }
         }
       `}</style>
     </div>
