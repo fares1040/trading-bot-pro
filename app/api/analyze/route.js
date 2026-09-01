@@ -1628,9 +1628,13 @@ async function fetchLiveStockData(
     );
   }
 
+  const instrumentType =
+    result.meta?.instrumentType ||
+    result.meta?.quoteType;
+
   if (
-    result.meta.quoteType &&
-    result.meta.quoteType !==
+    instrumentType &&
+    instrumentType !==
       'EQUITY'
   ) {
     throw new Error(

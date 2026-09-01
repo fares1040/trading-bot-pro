@@ -403,6 +403,7 @@ async function analyzeSymbol(symbol) {
   }
 
   const quoteType =
+    result.meta?.instrumentType ||
     result.meta?.quoteType;
 
   if (
