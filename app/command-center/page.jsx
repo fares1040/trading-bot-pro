@@ -332,16 +332,34 @@ function TradePlanDisplay({ plan }) {
         <Tag value={plan.planQuality} colorMap={qualityColorMap} size="sm" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 12 }}>
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(6, 1fr)', 
+        gap: 8, 
+        marginBottom: 12
+      }}>
         {entries.map(({ label, value, color }) => (
-          <div key={label} style={{ textAlign: 'center', padding: '8px 4px', backgroundColor: '#07090E', borderRadius: radius.sm }}>
-            <div style={{ fontSize: 8, color: colors.text.faint, marginBottom: 2, textTransform: 'uppercase' }}>{label}</div>
-            <div style={{ fontSize: 12, fontWeight: 800, color, fontFamily: 'monospace' }}>{value}</div>
+          <div key={label} style={{ 
+            textAlign: 'center', 
+            padding: '10px 4px', 
+            backgroundColor: '#07090E', 
+            borderRadius: radius.sm,
+            border: `1px solid ${colors.border}`
+          }}>
+            <div style={{ fontSize: 7.5, color: colors.text.faint, marginBottom: 3, textTransform: 'uppercase', fontWeight: 600 }}>{label}</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color, fontFamily: 'monospace', lineHeight: 1.2 }}>{value}</div>
           </div>
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      <div style={{ 
+        display: 'flex', 
+        gap: 8, 
+        flexWrap: 'wrap', 
+        marginTop: 12,
+        paddingTop: 12,
+        borderTop: `1px solid ${colors.border}`
+      }}>
         {plan.planSignal && <Tag value={plan.planSignal} colorMap={{ STRONG_PLAN: '#34D399', VALID_PLAN: '#22C55E', WATCH: '#FBBF24', AVOID: '#F87171', UNAVAILABLE: '#475569' }} size="sm" />}
         {plan.direction && <Tag value={plan.direction} colorMap={directionColorMap} size="sm" />}
         {plan.risks?.slice(0, 2).map((r, i) => (
