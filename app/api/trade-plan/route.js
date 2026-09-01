@@ -124,17 +124,23 @@ async function analyzeSymbol(symbol, opts, marketRegime = null) {
     let secIntelligence = null;
     let optionsData = null;
 
+    let highs = [];
+    let lows = [];
+    let closes = [];
+    let volumes = [];
+    let opens = [];
+
     try {
       const { meta, quote: rawQuote } = await fetchChart(symbol, '6mo');
       marketData = analyzeQuote(meta || {}, rawQuote || []);
       stockData = marketData;
       // Preserve raw OHLCV for Classical / Candlestick / Gamma / Horizon
       const quoteData = rawQuote || {};
-      const highs = quoteData?.high || [];
-      const lows = quoteData?.low || [];
-      const closes = quoteData?.close || [];
-      const volumes = quoteData?.volume || [];
-      const opens = quoteData?.open || [];
+      highs = quoteData?.high || [];
+      lows = quoteData?.low || [];
+      closes = quoteData?.close || [];
+      volumes = quoteData?.volume || [];
+      opens = quoteData?.open || [];
     } catch (e) {
       marketData = null;
       stockData = null;
