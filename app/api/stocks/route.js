@@ -1312,8 +1312,10 @@ async function fetchChart(
 }
 
 function isUsEquity(meta) {
+  const type = meta?.instrumentType || meta?.quoteType;
+
   return (
-    meta?.quoteType === 'EQUITY' &&
+    type === 'EQUITY' &&
     Boolean(
       meta?.exchangeTimezoneName ||
         meta?.fullExchangeName
