@@ -43,18 +43,28 @@ async function fetchIndex({ symbol, name }) {
 }
 
 async function fetchUniverse(request) {
-  const origin = new URL(request.url).origin;
-  const response = await fetch(`${origin}/api/stocks`, { cache: 'no-store', signal: AbortSignal.timeout(15000) });
-  if (!response.ok) return [];
-  const json = await response.json().catch(() => null);
-  const data = Array.isArray(json?.data) ? json.data : [];
-  return data.map((item) => ({
-    symbol: item?.symbol || null,
-    setupScore: item?.setupScore ?? null,
-    relativeVolume: item?.relativeVolume ?? null,
-    averageVolume20: item?.averageVolume20 ?? null,
-    price: item?.price ?? null,
-  }));
+  try {
+    const origin = new URL(request.url).origin;
+    const response = await fetch(`${origin}/api/stocks`, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) return [];
+    const json = await response.json().catch(() => null);
+    const raw = Array.isArray(json?.data)
+      ? json.data
+      : Array.isArray(json?.stocks)
+      ? json.stocks
+      : [];
+    return raw
+      .map((x) => ({
+        setupScore: typeof x?.setupScore === 'number' ? x.setupScore : null,
+        relativeVolume: typeof x?.relativeVolume === 'number' ? x.relativeVolume : null,
+      }))
+      .filter((x) => x.setupScore != null || x.relativeVolume != null);
+  } catch {
+    return [];
+  }
 }
 
 export async function GET(request) {
