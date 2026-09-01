@@ -2,55 +2,19 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import HunterRiskDesk from '@/components/HunterRiskDesk';
-import InstitutionalRadar from '@/components/InstitutionalRadar';
-import SwingRadar from '@/components/SwingRadar';
-import EarlyExplosionRadar from '@/components/EarlyExplosionRadar';
-import CatalystRadar from '@/components/CatalystRadar';
-import OpportunityRankingRadar from '@/components/OpportunityRankingRadar';
-import TradePlanRadar from '@/components/TradePlanRadar';
-import AIExplanationRadar from '@/components/AIExplanationRadar';
-import SecEdgarRadar from '@/components/SecEdgarRadar';
-import SetupRadar from '@/components/SetupRadar';
-import LiquidityRadar from '@/components/LiquidityRadar';
+import { colors, panelStyle } from '@/components/ui/DesignTokens';
 
-const panel = {
-  backgroundColor: '#0B0F17',
-  border: '1px solid #1F2636',
-  borderRadius: '16px',
-};
+const panel = { ...panelStyle };
 
 export default function HomePage() {
   const [riyadhTime, setRiyadhTime] = useState('');
   const [marketStatus, setMarketStatus] = useState('جاري الفحص...');
   const [indices, setIndices] = useState([]);
-  const [radar, setRadar] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(null);
-  const [error, setError] = useState('');
   const [hunter, setHunter] = useState(null);
-  const [radarTotal, setRadarTotal] = useState(0);
   const [production, setProduction] = useState(null);
   const [access, setAccess] = useState(null);
-  const [opportunities, setOpportunities] = useState(null);
-  const [swingData, setSwingData] = useState(null);
-  const [explosionData, setExplosionData] = useState(null);
-  const [swingLoading, setSwingLoading] = useState(true);
-  const [explosionLoading, setExplosionLoading] = useState(true);
-  const [secEdgarData, setSecEdgarData] = useState(null);
-  const [secEdgarLoading, setSecEdgarLoading] = useState(true);
-  const [catalystData, setCatalystData] = useState(null);
-  const [catalystLoading, setCatalystLoading] = useState(true);
-  const [opportunityData, setOpportunityData] = useState(null);
-  const [opportunityLoading, setOpportunityLoading] = useState(true);
-  const [tradePlanData, setTradePlanData] = useState(null);
-  const [tradePlanLoading, setTradePlanLoading] = useState(true);
-  const [aiExplanationData, setAiExplanationData] = useState(null);
-  const [aiExplanationLoading, setAiExplanationLoading] = useState(true);
-  const [setupData, setSetupData] = useState(null);
-  const [setupLoading, setSetupLoading] = useState(true);
-  const [liquidityData, setLiquidityData] = useState(null);
-  const [liquidityLoading, setLiquidityLoading] = useState(true);
 
   const loadDashboard = async () => {
     setLoading(true);
@@ -63,13 +27,10 @@ export default function HomePage() {
       }
 
       setIndices(json.indices || []);
-      setRadar(json.opportunities || []);
       setHunter(json.regime || null);
-      setRadarTotal(Number(json.radarCount || 0));
       setLastUpdate(json.timestamp || new Date().toISOString());
-      setError('');
     } catch (err) {
-      setError(err?.message || 'تعذر تحديث لوحة السوق');
+      console.error('Dashboard load error:', err);
     } finally {
       setLoading(false);
     }
@@ -99,8 +60,6 @@ export default function HomePage() {
       const minute = Number(part('minute'));
       const total = hour * 60 + minute;
       const weekdayOpen = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].includes(weekday);
-
-      // Regular session only: 09:30–16:00 New York time.
       const open = weekdayOpen && total >= 570 && total < 960;
       setMarketStatus(
         open
@@ -123,17 +82,14 @@ export default function HomePage() {
   useEffect(() => {
     const loadStatus = async () => {
       try {
-      const [healthRes, accessRes, oppsRes] = await Promise.all([
-        fetch('/api/health', { cache: 'no-store' }),
-        fetch('/api/access', { cache: 'no-store' }),
-        fetch('/api/opportunities', { cache: 'no-store' }),
-      ]);
-      const health = await healthRes.json().catch(() => null);
-      const access = await accessRes.json().catch(() => null);
-      const opps = await oppsRes.json().catch(() => null);
-      if (healthRes.ok) setProduction(health);
-      if (accessRes.ok) setAccess(access);
-      if (oppsRes.ok) setOpportunities(opps);
+        const [healthRes, accessRes] = await Promise.all([
+          fetch('/api/health', { cache: 'no-store' }),
+          fetch('/api/access', { cache: 'no-store' }),
+        ]);
+        const health = await healthRes.json().catch(() => null);
+        const access = await accessRes.json().catch(() => null);
+        if (healthRes.ok) setProduction(health);
+        if (accessRes.ok) setAccess(access);
       } catch {
         // Optional status services must never block the dashboard.
       }
@@ -142,70 +98,6 @@ export default function HomePage() {
     const timer = setInterval(loadStatus, 60_000);
     return () => clearInterval(timer);
   }, []);
-
-  useEffect(() => {
-    const loadIntelligence = async () => {
-      try {
-        const [swingRes, explosionRes, secEdgarRes, setupRes, liquidityRes, catalystRes, opportunityRes, tradePlanRes, aiExplanationRes] = await Promise.all([
-          fetch('/api/swing-intelligence', { cache: 'no-store' }),
-          fetch('/api/early-explosion', { cache: 'no-store' }),
-          fetch('/api/sec-edgar', { cache: 'no-store' }),
-          fetch('/api/setup-intelligence', { cache: 'no-store' }),
-          fetch('/api/liquidity-intelligence', { cache: 'no-store' }),
-          fetch('/api/catalyst-intelligence', { cache: 'no-store' }),
-          fetch('/api/opportunity-ranking', { cache: 'no-store' }),
-          fetch('/api/trade-plan', { cache: 'no-store' }),
-          fetch('/api/ai-explanation', { cache: 'no-store' }),
-        ]);
-        const swingJson = await swingRes.json().catch(() => null);
-        const explosionJson = await explosionRes.json().catch(() => null);
-        const secEdgarJson = await secEdgarRes.json().catch(() => null);
-        const setupJson = await setupRes.json().catch(() => null);
-        const liquidityJson = await liquidityRes.json().catch(() => null);
-        const catalystJson = await catalystRes.json().catch(() => null);
-        const opportunityJson = await opportunityRes.json().catch(() => null);
-        const tradePlanJson = await tradePlanRes.json().catch(() => null);
-        const aiExplanationJson = await aiExplanationRes.json().catch(() => null);
-        if (swingRes.ok && swingJson?.success) setSwingData(swingJson);
-        if (explosionRes.ok && explosionJson?.success) setExplosionData(explosionJson);
-        if (secEdgarRes.ok && secEdgarJson?.success) setSecEdgarData(secEdgarJson);
-        if (setupRes.ok && setupJson?.success) setSetupData(setupJson);
-        if (liquidityRes.ok && liquidityJson?.success) setLiquidityData(liquidityJson);
-        if (catalystRes.ok && catalystJson?.success) setCatalystData(catalystJson);
-        if (opportunityRes.ok && opportunityJson?.success) setOpportunityData(opportunityJson);
-        if (tradePlanRes.ok && tradePlanJson?.success) setTradePlanData(tradePlanJson);
-        if (aiExplanationRes.ok && aiExplanationJson?.success) setAiExplanationData(aiExplanationJson);
-      } catch {
-        // Intelligence feeds must never block the dashboard.
-      } finally {
-        setSwingLoading(false);
-        setExplosionLoading(false);
-        setSecEdgarLoading(false);
-        setSetupLoading(false);
-        setLiquidityLoading(false);
-        setCatalystLoading(false);
-        setOpportunityLoading(false);
-        setTradePlanLoading(false);
-        setAiExplanationLoading(false);
-      }
-    };
-    loadIntelligence();
-    const timer = setInterval(loadIntelligence, 60_000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const ready = useMemo(
-    () => radar.filter((x) => x?.setupScore != null).slice(0, 10),
-    [radar]
-  );
-
-  const top = ready.slice(0, 3);
-  const averageScore = ready.length
-    ? Math.round(
-        ready.reduce((sum, item) => sum + Number(item.setupScore || 0), 0) /
-          ready.length
-      )
-    : null;
 
   return (
     <div
@@ -374,21 +266,6 @@ export default function HomePage() {
         </div>
       </div>
 
-      {error && (
-        <div
-          style={{
-            ...panel,
-            borderColor: '#7F1D1D',
-            color: '#FCA5A5',
-            padding: 12,
-            marginBottom: 16,
-            fontSize: 12,
-          }}
-        >
-          ⚠️ {error}
-        </div>
-      )}
-
       {hunter && (
         <div
           style={{
@@ -421,7 +298,9 @@ export default function HomePage() {
           </div>
           <div style={{ ...panel, padding: 18 }}>
             <div style={{ color: '#A78BFA', fontSize: 10, fontWeight: 900 }}>🎯 RADAR DEPTH</div>
-            <div style={{ fontSize: 26, fontWeight: 900, color: '#F8FAFC', marginTop: 8 }}>{radarTotal}</div>
+            <div style={{ fontSize: 26, fontWeight: 900, color: '#F8FAFC', marginTop: 8 }}>
+              {hunter.count ?? hunter.radarCount ?? '—'}
+            </div>
             <div style={{ color: '#94A3B8', fontSize: 10 }}>سهمًا أعاده الرادار في آخر دورة</div>
           </div>
           <div style={{ ...panel, padding: 18 }}>
@@ -438,208 +317,172 @@ export default function HomePage() {
 
       <div
         style={{
-          background: 'linear-gradient(90deg, #1E1B4B 0%, #0B0F17 100%)',
-          border: '1px solid #3730A3',
-          borderRadius: '16px',
-          padding: '18px 24px',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: '16px',
           marginBottom: '20px',
         }}
       >
-        <span
+        <Link
+          href="/command-center"
           style={{
-            fontSize: '10px',
-            color: '#818CF8',
-            fontWeight: 'bold',
+            ...panel,
+            padding: '24px',
+            textDecoration: 'none',
             display: 'block',
-            marginBottom: '4px',
+            transition: 'border-color 0.15s',
           }}
+          onMouseEnter={(e) => e.currentTarget.style.borderColor = '#38BDF8'}
+          onMouseLeave={(e) => e.currentTarget.style.borderColor = '#1F2636'}
         >
-          🧠 V4 RADAR STATUS
-        </span>
-        <h2 style={{ fontSize: '18px', fontWeight: '900', margin: 0 }}>
-          {averageScore == null
-            ? 'لا توجد قراءة كافية حالياً'
-            : `متوسط Setup Score للرادار: ${averageScore}/100`}
-        </h2>
-        <p style={{ color: '#94A3B8', fontSize: 11, marginBottom: 0 }}>
-          هذا تقييم حسابي للرادار، وليس احتمال ربح أو توصية مضمونة.
-        </p>
+          <div style={{ color: '#38BDF8', fontSize: 10, fontWeight: 900, marginBottom: 8 }}>
+            COMMAND CENTER
+          </div>
+          <h2 style={{ fontSize: '18px', fontWeight: 900, color: '#F8FAFC', margin: '0 0 8px 0' }}>
+            🎯 مركز الفرص
+          </h2>
+          <p style={{ color: '#94A3B8', fontSize: 11, margin: 0 }}>
+            رادار الفرص المتاحة مع التصفية والتصنيف. انقر لفتح مركز التحكم.
+          </p>
+          <div style={{ marginTop: 12, color: '#38BDF8', fontSize: 11, fontWeight: 700 }}>
+            فتح ➔
+          </div>
+        </Link>
+
+        <Link
+          href="/analytics"
+          style={{
+            ...panel,
+            padding: '24px',
+            textDecoration: 'none',
+            display: 'block',
+            transition: 'border-color 0.15s',
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.borderColor = '#A78BFA'}
+          onMouseLeave={(e) => e.currentTarget.style.borderColor = '#1F2636'}
+        >
+          <div style={{ color: '#A78BFA', fontSize: 10, fontWeight: 900, marginBottom: 8 }}>
+            ANALYTICS
+          </div>
+          <h2 style={{ fontSize: '18px', fontWeight: 900, color: '#F8FAFC', margin: '0 0 8px 0' }}>
+            📊 التحليلات
+          </h2>
+          <p style={{ color: '#94A3B8', fontSize: 11, margin: 0 }}>
+            تحليلات شاملة للرادار والمؤشرات والأسواق.
+          </p>
+          <div style={{ marginTop: 12, color: '#A78BFA', fontSize: 11, fontWeight: 700 }}>
+            فتح ➔
+          </div>
+        </Link>
+
+        <Link
+          href="/alert-center"
+          style={{
+            ...panel,
+            padding: '24px',
+            textDecoration: 'none',
+            display: 'block',
+            transition: 'border-color 0.15s',
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.borderColor = '#EC4899'}
+          onMouseLeave={(e) => e.currentTarget.style.borderColor = '#1F2636'}
+        >
+          <div style={{ color: '#EC4899', fontSize: 10, fontWeight: 900, marginBottom: 8 }}>
+            ALERT CENTER
+          </div>
+          <h2 style={{ fontSize: '18px', fontWeight: 900, color: '#F8FAFC', margin: '0 0 8px 0' }}>
+            🔔 التنبيهات
+          </h2>
+          <p style={{ color: '#94A3B8', fontSize: 11, margin: 0 }}>
+            مركز التنبيهات والتنبيهات الجاهزة للتليجرام.
+          </p>
+          <div style={{ marginTop: 12, color: '#EC4899', fontSize: 11, fontWeight: 700 }}>
+            فتح ➔
+          </div>
+        </Link>
       </div>
 
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '2fr 1fr',
-          gap: '20px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: '12px',
           marginBottom: '20px',
         }}
       >
-        <div style={{ ...panel, padding: '24px' }}>
-          <div style={{ color: '#34D399', fontSize: 10, fontWeight: 'bold', marginBottom: 12 }}>
-            ● LIVE TECHNICAL RADAR
+        <Link
+          href="/command-center"
+          style={{
+            ...panel,
+            padding: '16px 20px',
+            textDecoration: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            transition: 'background-color 0.15s',
+          }}
+        >
+          <div style={{ fontSize: 24 }}>🎯</div>
+          <div>
+            <div style={{ color: '#F8FAFC', fontSize: 12, fontWeight: 800 }}>الفرص</div>
+            <div style={{ color: '#94A3B8', fontSize: 10 }}>Command Center</div>
           </div>
-          <h3 style={{ color: '#FBBF24', fontSize: '20px', marginBottom: 8 }}>
-            أفضل الفرص الحالية
-          </h3>
+        </Link>
 
-          {loading ? (
-            <div style={{ color: '#94A3B8', padding: 20 }}>⏳ جاري الفحص...</div>
-          ) : !top.length ? (
-            <div style={{ color: '#94A3B8', padding: 20 }}>
-              لا توجد أسهم اجتازت البوابة حالياً.
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gap: 10 }}>
-              {top.map((stock, index) => (
-                <div
-                  key={stock.symbol}
-                  style={{
-                    background: '#07090E',
-                    border: '1px solid #3730A3',
-                    padding: 14,
-                    borderRadius: 12,
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
-                    <strong style={{ color: '#FBBF24' }}>
-                      #{index + 1} {stock.symbol}
-                    </strong>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      {stock.conviction && (
-                        <span style={{ color: '#C4B5FD', fontSize: 10 }}>Hunter {stock.hunterTier || stock.conviction?.tier || '—'} · {stock.hunterScore ?? stock.conviction?.score ?? '—'}</span>
-                      )}
-                      <strong style={{ color: '#34D399' }}>
-                        {stock.setupScore}/100
-                      </strong>
-                    </div>
-                  </div>
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(4, 1fr)',
-                      gap: 8,
-                      marginTop: 10,
-                      fontSize: 11,
-                      color: '#CBD5E1',
-                    }}
-                  >
-                    <span>السعر: ${stock.price}</span>
-                    <span>RSI: {stock.rsi ?? '—'}</span>
-                    <span>RVOL: {stock.relativeVolume?.toFixed?.(2) ?? '—'}x</span>
-                    <span>{stock.conviction?.action || stock.signal || '—'}</span>
-                  </div>
-                  {stock.conviction?.reasons?.length > 0 && (
-                    <div style={{ color: '#64748B', fontSize: 10, marginTop: 8 }}>
-                      {stock.conviction.reasons.join(' • ')}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          <Link
-            href="/analytics"
-            style={{
-              backgroundColor: '#FBBF24',
-              color: '#000',
-              padding: '14px 24px',
-              borderRadius: '12px',
-              textDecoration: 'none',
-              fontWeight: '900',
-              fontSize: '14px',
-              display: 'block',
-              textAlign: 'center',
-              marginTop: 18,
-            }}
-          >
-            فتح الرادار والتحليلات ➔
-          </Link>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ ...panel, padding: 20 }}>
-            <h4 style={{ color: '#38BDF8', fontSize: 14, marginTop: 0 }}>
-              🎯 ملخص الرادار
-            </h4>
-            <div style={{ color: '#34D399', fontSize: 24, fontWeight: 900 }}>
-              {radarTotal || ready.length} فرصة في آخر دورة
-            </div>
-            <p style={{ color: '#94A3B8', fontSize: 11 }}>
-              مبنية على البيانات التي أعادها `/api/stocks` في آخر فحص.
-            </p>
-            <div style={{ fontSize: 11, color: '#CBD5E1', lineHeight: 1.9 }}>
-              <div>🟢 Score 90+: {ready.filter((x) => x.setupScore >= 90).length}</div>
-              <div>🟡 Score 80–89: {ready.filter((x) => x.setupScore >= 80 && x.setupScore < 90).length}</div>
-              <div>🟠 أقل من 80: {ready.filter((x) => x.setupScore < 80).length}</div>
-            </div>
+        <Link
+          href="/analytics"
+          style={{
+            ...panel,
+            padding: '16px 20px',
+            textDecoration: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+          }}
+        >
+          <div style={{ fontSize: 24 }}>📊</div>
+          <div>
+            <div style={{ color: '#F8FAFC', fontSize: 12, fontWeight: 800 }}>التحليلات</div>
+            <div style={{ color: '#94A3B8', fontSize: 10 }}>Analytics</div>
           </div>
+        </Link>
 
-          <div style={{ ...panel, padding: 20, flex: 1 }}>
-            <h4 style={{ color: '#C084FC', fontSize: 14, marginTop: 0 }}>
-              🛡️ حماية رأس المال
-            </h4>
-            <p style={{ color: '#94A3B8', fontSize: 11, lineHeight: 1.6 }}>
-              خيارات Options وDark Pool وInstitutional Flow لا يتم عرضها كبيانات
-              حقيقية في V4 ما لم يتوفر مزود فعلي لها.
-            </p>
-            <div
-              style={{
-                color: '#FBBF24',
-                fontSize: 11,
-                fontWeight: 'bold',
-                backgroundColor: '#07090E',
-                padding: 10,
-                borderRadius: 8,
-                border: '1px solid #1F2636',
-                textAlign: 'center',
-              }}
-            >
-              البيانات غير المتاحة = غير محسوبة
-            </div>
+        <Link
+          href="/alert-center"
+          style={{
+            ...panel,
+            padding: '16px 20px',
+            textDecoration: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+          }}
+        >
+          <div style={{ fontSize: 24 }}>🔔</div>
+          <div>
+            <div style={{ color: '#F8FAFC', fontSize: 12, fontWeight: 800 }}>التنبيهات</div>
+            <div style={{ color: '#94A3B8', fontSize: 10 }}>Alert Center</div>
           </div>
-        </div>
+        </Link>
+
+        <Link
+          href="/command-center"
+          style={{
+            ...panel,
+            padding: '16px 20px',
+            textDecoration: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+          }}
+        >
+          <div style={{ fontSize: 24 }}>📋</div>
+          <div>
+            <div style={{ color: '#F8FAFC', fontSize: 12, fontWeight: 800 }}>القائمة</div>
+            <div style={{ color: '#94A3B8', fontSize: 10 }}>Watchlist</div>
+          </div>
+        </Link>
       </div>
-
-      {/* A3.4 Institutional Radar (additive section) */}
-      {opportunities && (
-        <InstitutionalRadar opportunitiesData={opportunities} key="institutional-radar" />
-      )}
-
-      {/* A4 Swing Intelligence (additive section) */}
-      {swingData && (
-        <SwingRadar swingData={swingData} loading={swingLoading} />
-      )}
-
-      {/* A5 Early Explosion Radar (additive section) */}
-      {explosionData && (
-        <EarlyExplosionRadar explosionData={explosionData} loading={explosionLoading} />
-      )}
-
-      {/* A6 SEC EDGAR Intelligence (additive section) */}
-      {secEdgarData && (
-        <SecEdgarRadar secEdgarData={secEdgarData} loading={secEdgarLoading} />
-      )}
-
-      {/* B6 Catalyst Intelligence (additive section) */}
-      <CatalystRadar catalystData={catalystData} loading={catalystLoading} />
-
-      {/* C7 Opportunity Ranking (additive section) */}
-      <OpportunityRankingRadar opportunityData={opportunityData} loading={opportunityLoading} />
-
-      {/* C8 Trade Plan Engine (additive section) */}
-      <TradePlanRadar tradePlanData={tradePlanData} loading={tradePlanLoading} />
-
-      {/* C9 AI Explanation (additive section) */}
-      <AIExplanationRadar aiExplanationData={aiExplanationData} loading={aiExplanationLoading} />
-
-      {/* A7 Technical Setup Intelligence (additive section) */}
-      <SetupRadar setupData={setupData} loading={setupLoading} />
-
-      {/* A8 Liquidity Intelligence (additive section) */}
-      <LiquidityRadar liquidityData={liquidityData} loading={liquidityLoading} />
-
-      <HunterRiskDesk />
 
       <div style={{ ...panel, padding: '16px 24px', textAlign: 'center', marginTop: 20 }}>
         <p style={{ color: '#94A3B8', fontSize: 11, margin: 0 }}>
