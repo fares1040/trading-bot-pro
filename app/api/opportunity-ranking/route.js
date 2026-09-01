@@ -52,6 +52,8 @@ import {
 import {
   buildLiquidityIntelligence,
 } from '@/lib/liquidity-intelligence.js';
+import { fetchIndices } from '@/lib/market-engine.js';
+import { buildMarketRegime, defaultMarketRegime } from '@/lib/market-regime-engine.js';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -68,7 +70,7 @@ async function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function analyzeSymbol(symbol) {
+async function analyzeSymbol(symbol, marketRegime = null) {
   try {
     // Fetch market data ONCE — shared across B1-B6
     let marketData = null;
@@ -76,10 +78,12 @@ async function analyzeSymbol(symbol) {
     let secIntelligence = null;
     let optionsData = null;
     let finraData = null;
+    let quote = null;
 
     // Market data: fetchChart + analyzeQuote (shared by B4, B5, B6)
     try {
-      const { meta, quote } = await fetchChart(symbol, '6mo');
+      const { meta, quote: fetchedQuote } = await fetchChart(symbol, '6mo');
+      quote = fetchedQuote || {};
       marketData = analyzeQuote(meta || {}, quote || []);
       stockData = marketData;
     } catch (e) {
@@ -135,16 +139,25 @@ async function analyzeSymbol(symbol) {
       : defaultCatalystIntelligenceManager(symbol);
 
     // Build methodology evidence layers (pure functions, no network)
+    // Fix gamma context sequencing: compute gamma BEFORE horizon
     const liquidityIntelligence = marketData
       ? buildLiquidityIntelligence(marketData)
       : null;
 
-    const quote = marketData || {};
-    const highs = quote?.high || [];
-    const lows = quote?.low || [];
-    const closes = quote?.close || [];
-    const volumes = quote?.volume || [];
-    const opens = quote?.open || [];
+    // Preserve raw OHLCV arrays (fix shadowing: do NOT overwrite quote with marketData)
+    const rawQuote = quote || {};
+    const quoteData = marketData || {};
+    const highs = rawQuote?.high || [];
+    const lows = rawQuote?.low || [];
+    const closes = rawQuote?.close || [];
+    const volumes = rawQuote?.volume || [];
+    const opens = rawQuote?.open || [];
+
+    // Compute gamma BEFORE horizon so gamma feeds into opportunity evaluation
+    const gammaContext = buildGammaContext({
+      symbol,
+      optionsContracts: optionsData?.contracts || [],
+    });
 
     const classicalEvidence = closes.length >= 10
       ? buildClassicalTechnicalEvidence({
@@ -152,9 +165,9 @@ async function analyzeSymbol(symbol) {
           lows,
           closes,
           volumes,
-          existingSupport: quote?.support20 || null,
-          existingResistance: quote?.resistance20 || null,
-          significantLevels: [quote?.support20, quote?.resistance20].filter(Boolean),
+          existingSupport: quoteData?.support20 || null,
+          existingResistance: quoteData?.resistance20 || null,
+          significantLevels: [quoteData?.support20, quoteData?.resistance20].filter(Boolean),
           symbol,
         })
       : defaultClassicalTechnicalEvidence(symbol);
@@ -169,6 +182,10 @@ async function analyzeSymbol(symbol) {
         })
       : defaultCandlestickPatterns(symbol);
 
+    // Fetch market regime once per request (C10 feeds into Horizon)
+    // Note: regime is computed once at GET level below; here we rely on the
+    // regime passed from the route-level fetch (see below in analyzeSymbol).
+    // For per-symbol evaluation we accept marketRegime from the route context.
     const horizonEvidence = buildOpportunityHorizon(symbol, {
       secIntelligence,
       catalystIntelligence,
@@ -178,12 +195,13 @@ async function analyzeSymbol(symbol) {
       institutionalRadar,
       classicalEvidence,
       optionsIntelligence,
-      gammaContext: null,
-    });
-
-    const gammaContext = buildGammaContext({
-      symbol,
-      optionsContracts: optionsData?.contracts || [],
+      gammaContext,
+      marketRegime: marketRegime ? {
+        regimeScore: marketRegime.regimeScore,
+        score: marketRegime.regimeScore,
+        label: marketRegime.regime,
+        risk: marketRegime.regime === 'BULLISH' ? 'FAVORABLE' : marketRegime.regime === 'BEARISH' || marketRegime.regime === 'RISK_OFF' ? 'DEFENSIVE' : 'NORMAL',
+      } : null,
     });
 
     // Compose C7 with all B1-B6 sources + methodology evidence
@@ -272,6 +290,17 @@ export async function GET(request) {
       .filter(Boolean)
       .slice(0, 25);
 
+    // Fetch market regime once (C10 feeds Horizon — minimal overhead, 4 parallel index fetches)
+    let marketRegime = null;
+    try {
+      const indices = await fetchIndices();
+      if (indices && indices.length > 0) {
+        marketRegime = buildMarketRegime(indices, []);
+      }
+    } catch (e) {
+      marketRegime = null;
+    }
+
     let symbols = requested;
 
     if (!symbols.length) {
@@ -301,13 +330,13 @@ export async function GET(request) {
       }, { status: 503 });
     }
 
-    const results = [];
-    const errors = [];
+  const results = [];
+  const errors = [];
 
-    for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
-      const batch = await Promise.allSettled(
-        symbols.slice(i, i + BATCH_SIZE).map((symbol) => analyzeSymbol(symbol))
-      );
+  for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
+    const batch = await Promise.allSettled(
+      symbols.slice(i, i + BATCH_SIZE).map((symbol) => analyzeSymbol(symbol, marketRegime))
+    );
       for (const item of batch) {
         if (item.status === 'fulfilled') {
           results.push(item.value);

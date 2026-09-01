@@ -31,6 +31,27 @@ import {
   defaultOpportunityRanking,
 } from '@/lib/opportunity-ranking.js';
 import {
+  buildOpportunityHorizon,
+  defaultOpportunityHorizon,
+} from '@/lib/opportunity-horizon.js';
+import {
+  buildClassicalTechnicalEvidence,
+  defaultClassicalTechnicalEvidence,
+} from '@/lib/classical-technical-evidence.js';
+import {
+  buildCandlestickPatterns,
+  defaultCandlestickPatterns,
+} from '@/lib/candlestick-patterns.js';
+import {
+  buildGammaContext,
+  defaultGammaContext,
+} from '@/lib/gamma-context.js';
+import {
+  buildLiquidityIntelligence,
+} from '@/lib/liquidity-intelligence.js';
+import { fetchIndices } from '@/lib/market-engine.js';
+import { buildMarketRegime, defaultMarketRegime } from '@/lib/market-regime-engine.js';
+import {
   buildTradePlan,
   defaultTradePlan,
   rankTradePlans,
@@ -67,7 +88,7 @@ async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function analyzeSymbol(symbol, opts) {
+async function analyzeSymbol(symbol, opts, marketRegime = null) {
   try {
     let marketData = null;
     let stockData = null;
@@ -75,9 +96,16 @@ async function analyzeSymbol(symbol, opts) {
     let optionsData = null;
 
     try {
-      const { meta, quote } = await fetchChart(symbol, '6mo');
-      marketData = analyzeQuote(meta || {}, quote || []);
+      const { meta, quote: rawQuote } = await fetchChart(symbol, '6mo');
+      marketData = analyzeQuote(meta || {}, rawQuote || []);
       stockData = marketData;
+      // Preserve raw OHLCV for Classical / Candlestick / Gamma / Horizon
+      const quoteData = rawQuote || {};
+      const highs = quoteData?.high || [];
+      const lows = quoteData?.low || [];
+      const closes = quoteData?.close || [];
+      const volumes = quoteData?.volume || [];
+      const opens = quoteData?.open || [];
     } catch (e) {
       marketData = null;
       stockData = null;
@@ -134,6 +162,22 @@ async function analyzeSymbol(symbol, opts) {
       swingIntelligence,
       earlyExplosion,
       catalystIntelligence,
+    }, {
+      horizonEvidence: marketRegime ? buildOpportunityHorizon(symbol, {
+        secIntelligence,
+        catalystIntelligence,
+        swingIntelligence,
+        marketData,
+        liquidityIntelligence: marketData ? buildLiquidityIntelligence(marketData) : null,
+        institutionalRadar,
+        classicalEvidence: closes.length >= 10 ? buildClassicalTechnicalEvidence({ highs, lows, closes, volumes, symbol }) : defaultClassicalTechnicalEvidence(symbol),
+        optionsIntelligence,
+        gammaContext: buildGammaContext({ symbol, optionsContracts: optionsData?.contracts || [] }),
+        marketRegime: marketRegime ? { regimeScore: marketRegime.regimeScore, score: marketRegime.regimeScore, label: marketRegime.regime, risk: marketRegime.regime === 'BULLISH' ? 'FAVORABLE' : marketRegime.regime === 'BEARISH' || marketRegime.regime === 'RISK_OFF' ? 'DEFENSIVE' : 'NORMAL' } : null,
+      }) : null,
+      classicalEvidence: closes.length >= 10 ? buildClassicalTechnicalEvidence({ highs, lows, closes, volumes, symbol }) : defaultClassicalTechnicalEvidence(symbol),
+      candlestickEvidence: opens.length >= 2 ? buildCandlestickPatterns({ opens, highs, lows, closes, symbol }) : defaultCandlestickPatterns(symbol),
+      gammaContext: buildGammaContext({ symbol, optionsContracts: optionsData?.contracts || [] }),
     });
 
     return buildTradePlan(symbol, {
@@ -206,12 +250,18 @@ export async function GET(request) {
     const maxRiskPercent = normalizeRiskPercent(searchParams.get('riskPercent'));
     const opts = { capital, maxRiskPercent };
 
+    let marketRegime = null;
+    try {
+      const indices = await fetchIndices();
+      if (indices && indices.length > 0) marketRegime = buildMarketRegime(indices, []);
+    } catch (e) { marketRegime = null; }
+
     const results = [];
     const errors = [];
 
     for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
       const batch = await Promise.allSettled(
-        symbols.slice(i, i + BATCH_SIZE).map((symbol) => analyzeSymbol(symbol, opts))
+        symbols.slice(i, i + BATCH_SIZE).map((symbol) => analyzeSymbol(symbol, opts, marketRegime))
       );
       for (const item of batch) {
         if (item.status === 'fulfilled') {

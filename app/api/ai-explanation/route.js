@@ -41,6 +41,27 @@ import {
   buildExplanationQualityBreakdown,
   buildExplanationDataAvailability,
 } from '@/lib/ai-explanation.js';
+import {
+  buildOpportunityHorizon,
+  defaultOpportunityHorizon,
+} from '@/lib/opportunity-horizon.js';
+import {
+  buildClassicalTechnicalEvidence,
+  defaultClassicalTechnicalEvidence,
+} from '@/lib/classical-technical-evidence.js';
+import {
+  buildCandlestickPatterns,
+  defaultCandlestickPatterns,
+} from '@/lib/candlestick-patterns.js';
+import {
+  buildGammaContext,
+  defaultGammaContext,
+} from '@/lib/gamma-context.js';
+import {
+  buildLiquidityIntelligence,
+} from '@/lib/liquidity-intelligence.js';
+import { fetchIndices } from '@/lib/market-engine.js';
+import { buildMarketRegime, defaultMarketRegime } from '@/lib/market-regime-engine.js';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -57,17 +78,24 @@ async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function analyzeSymbol(symbol) {
+async function analyzeSymbol(symbol, marketRegime = null) {
   try {
     let marketData = null;
     let stockData = null;
     let secIntelligence = null;
     let optionsData = null;
+    let highs = [], lows = [], closes = [], volumes = [], opens = [];
 
     try {
-      const { meta, quote } = await fetchChart(symbol, '6mo');
-      marketData = analyzeQuote(meta || {}, quote || []);
+      const { meta, quote: rawQuote } = await fetchChart(symbol, '6mo');
+      marketData = analyzeQuote(meta || {}, rawQuote || []);
       stockData = marketData;
+      const quoteData = rawQuote || {};
+      highs = quoteData?.high || [];
+      lows = quoteData?.low || [];
+      closes = quoteData?.close || [];
+      volumes = quoteData?.volume || [];
+      opens = quoteData?.open || [];
     } catch (e) {
       marketData = null;
       stockData = null;
@@ -124,6 +152,22 @@ async function analyzeSymbol(symbol) {
       swingIntelligence,
       earlyExplosion,
       catalystIntelligence,
+    }, {
+      horizonEvidence: marketRegime ? buildOpportunityHorizon(symbol, {
+        secIntelligence,
+        catalystIntelligence,
+        swingIntelligence,
+        marketData,
+        liquidityIntelligence: marketData ? buildLiquidityIntelligence(marketData) : null,
+        institutionalRadar,
+        classicalEvidence: (highs && highs.length >= 10) ? buildClassicalTechnicalEvidence({ highs, lows, closes, volumes, symbol }) : defaultClassicalTechnicalEvidence(symbol),
+        optionsIntelligence,
+        gammaContext: buildGammaContext({ symbol, optionsContracts: optionsData?.contracts || [] }),
+        marketRegime: marketRegime ? { regimeScore: marketRegime.regimeScore, score: marketRegime.regimeScore, label: marketRegime.regime, risk: marketRegime.regime === 'BULLISH' ? 'FAVORABLE' : marketRegime.regime === 'BEARISH' || marketRegime.regime === 'RISK_OFF' ? 'DEFENSIVE' : 'NORMAL' } : null,
+      }) : null,
+      classicalEvidence: (highs && highs.length >= 10) ? buildClassicalTechnicalEvidence({ highs, lows, closes, volumes, symbol }) : defaultClassicalTechnicalEvidence(symbol),
+      candlestickEvidence: (opens && opens.length >= 2) ? buildCandlestickPatterns({ opens, highs, lows, closes, symbol }) : defaultCandlestickPatterns(symbol),
+      gammaContext: buildGammaContext({ symbol, optionsContracts: optionsData?.contracts || [] }),
     });
 
     const tradePlan = buildTradePlan(symbol, {
@@ -197,12 +241,18 @@ export async function GET(request) {
       }, { status: 503 });
     }
 
+    let marketRegime = null;
+    try {
+      const indices = await fetchIndices();
+      if (indices && indices.length > 0) marketRegime = buildMarketRegime(indices, []);
+    } catch (e) { marketRegime = null; }
+
     const results = [];
     const errors = [];
 
     for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
       const batch = await Promise.allSettled(
-        symbols.slice(i, i + BATCH_SIZE).map((symbol) => analyzeSymbol(symbol))
+        symbols.slice(i, i + BATCH_SIZE).map((symbol) => analyzeSymbol(symbol, marketRegime))
       );
       for (const item of batch) {
         if (item.status === 'fulfilled') {
