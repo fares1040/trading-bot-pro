@@ -85,6 +85,7 @@ function mapContractToRoute(normalized) {
 }
 
 export async function GET(request) {
+  let finraAvailable = false;
   try {
     const { searchParams } = new URL(request.url);
 
@@ -115,7 +116,7 @@ export async function GET(request) {
 
     // === A3.1 Institutional Radar Core ===
     const finraStatus = getInstitutionalProviderStatus();
-    const finraAvailable = finraStatus.available === true && finraStatus.verified === true;
+    finraAvailable = finraStatus.available === true && finraStatus.verified === true;
 
     const settled = await Promise.allSettled(
       symbols.map(async (symbol) => {
@@ -192,6 +193,7 @@ export async function GET(request) {
           institutionalIntelligence,
           institutionalSignal,
           institutionalRank,
+          institutionalDecision,
         };
       })
     );

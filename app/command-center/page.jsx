@@ -9,7 +9,7 @@ import {
   Tag, SmallTag, SectionTitle, EmptyState, LoadingState, ErrorState, StatusDot,
   TabGroup, ScoreBar,
 } from '@/components/ui/Primitives';
-import { deriveTradeStage, DecisionBanner } from '@/components/ui/Lifecycle';
+import { deriveTradeStage, DecisionBanner, TradeLifecycleStepper } from '@/components/ui/Lifecycle';
 import { NotificationAlertPanel } from '@/components/ui/NotificationAlertPanel';
 import { NOTIFICATION_STATUSES } from '@/lib/notification-contract';
 
@@ -667,7 +667,7 @@ function TradePlanBlock({ plan }) {
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingTop: 10, borderTop: `1px solid ${colors.border}` }}>
         {plan.planSignal && <Tag value={plan.planSignal} colorMap={S_COLOR} />}
-        {plan.direction && <Tag value={plan.direction} colorMap={DIRECTION_COLOR} />}
+        {plan.direction && <Tag value={plan.direction} colorMap={D_COLOR} />}
         {(plan.risks || []).slice(0, 2).map((r, i) => (
           <SmallTag key={i} value={r.label} color={r.severity === 'HIGH' ? '#EF4444' : '#FBBF24'} />
         ))}
@@ -676,17 +676,40 @@ function TradePlanBlock({ plan }) {
   );
 }
 
-function StructureBlock({ opportunity }) {
+function StructureBlock({ opportunity, structureData }) {
   if (!opportunity) return null;
+
   const ce = opportunity.classicalEvidence || {};
-  const ms = ce.marketStructure || {};
   const flags = opportunity.flags || [];
-  const hasBreaker = ce.breaker?.detected || flags.some(f => f.includes('BREAKER'));
-  const hasFvg = ce.fvg?.detected || flags.some(f => f.includes('FVG'));
-  const hasMss = ms.mssDetected || flags.some(f => f.includes('MARKET_STRUCTURE'));
-  const hasSweep = ce.sweep?.detected || flags.some(f => f.includes('SWEEP') || f.includes('TURTLE'));
-  const hasSupport = ce.support?.length > 0;
-  const hasResistance = ce.resistance?.length > 0;
+
+  const si = structureData && structureData.dataStatus !== 'unavailable' ? structureData : null;
+  const source = si || ce;
+  const ms = source.marketStructure || {};
+  const breaker = source.breaker || {};
+  const fvg = source.fvg || {};
+  const sweep = si ? (si.liquiditySweep || {}) : (ce.sweep || ce.liquiditySweep || {});
+
+  const hasBreaker = !!(breaker && breaker.detected) || flags.some((f) => f.includes('BREAKER'));
+  const hasFvg = !!(fvg && fvg.detected) || flags.some((f) => f.includes('FVG'));
+  const hasMss = !!(ms && ms.mssDetected) || flags.some((f) => f.includes('MARKET_STRUCTURE'));
+  const hasSweep = !!(sweep && sweep.detected) || flags.some((f) => f.includes('SWEEP') || f.includes('TURTLE'));
+
+  let supportLevels = [];
+  let resistanceLevels = [];
+  if (si) {
+    const sr = si.supportResistance || {};
+    if (sr.support != null) supportLevels.push(sr.support);
+    if (sr.resistance != null) resistanceLevels.push(sr.resistance);
+    (si.demandZones || []).forEach((z) => { if (z.level != null) supportLevels.push(z.level); });
+    (si.supplyZones || []).forEach((z) => { if (z.level != null) resistanceLevels.push(z.level); });
+  } else if (ce) {
+    if (Array.isArray(ce.support)) supportLevels = ce.support;
+    if (Array.isArray(ce.resistance)) resistanceLevels = ce.resistance;
+  }
+
+  const hasSupport = supportLevels.length > 0;
+  const hasResistance = resistanceLevels.length > 0;
+
   if (!hasBreaker && !hasFvg && !hasMss && !hasSweep && !hasSupport && !hasResistance) {
     return (
       <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
@@ -695,17 +718,33 @@ function StructureBlock({ opportunity }) {
       </div>
     );
   }
-  const sTrend = ms.trend || 'UNAVAILABLE';
+
+  const sTrend = si ? (si.structureBias || ms.trend || 'UNAVAILABLE') : (ms.trend || 'UNAVAILABLE');
+  const score = si ? (si.structureScore ?? null) : null;
+  const state = si ? (si.structureState || null) : null;
+  const confidence = si ? (si.confidence ?? null) : null;
+  const dataStatus = si ? (si.dataStatus || null) : null;
+  const provenance = si ? si.provenance : ce.provenance;
+
   return (
     <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
         <ZoneLabel label="STRUCTURE" icon="🏔" color={colors.accent.violet} />
-        {sTrend !== 'UNAVAILABLE' && <Tag value={sTrend} colorMap={{ BULLISH: '#34D399', BEARISH: '#EF4444', NEUTRAL: '#FBBF24', UNAVAILABLE: '#475569' }} />}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {sTrend !== 'UNAVAILABLE' && <Tag value={sTrend} colorMap={{ BULLISH: '#34D399', BEARISH: '#EF4444', NEUTRAL: '#FBBF24', UNAVAILABLE: '#475569' }} size="sm" />}
+          {state && state !== 'INSUFFICIENT_DATA' && <SmallTag value={state} color={colors.accent.violet} />}
+          {score != null && (
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center', padding: '4px 8px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
+              <span style={{ fontSize: 8, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700 }}>Score</span>
+              <span style={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 900, color: scoreColor(score) }}>{score}</span>
+            </div>
+          )}
+        </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 12 }}>
         {[
           { label: 'Breaker', active: hasBreaker },
-          { label: 'FVG', active: hasFvg, extra: ce.fvg?.gaps?.length ? `${ce.fvg.gaps.length} gaps` : null },
+          { label: 'FVG', active: hasFvg, extra: (fvg.gaps?.length ? `${fvg.gaps.length} gaps` : null) },
           { label: 'Liquidity', active: hasSweep },
           { label: 'MSS', active: hasMss },
           { label: 'HH / HL', active: ms.higherHighs && ms.higherLows },
@@ -726,9 +765,231 @@ function StructureBlock({ opportunity }) {
         ))}
       </div>
       {(hasSupport || hasResistance) && (
-        <div style={{ fontSize: 9, color: colors.text.faint, lineHeight: 1.6 }}>
-          {hasSupport && <div>Support: {Array.isArray(ce.support) ? ce.support.map(s => fmtLvl(s)).join(', ') : '—'}</div>}
-          {hasResistance && <div>Resistance: {Array.isArray(ce.resistance) ? ce.resistance.map(r => fmtLvl(r)).join(', ') : '—'}</div>}
+        <div style={{ fontSize: 9, color: colors.text.faint, lineHeight: 1.6, marginBottom: 8 }}>
+          {hasSupport && <div>Demand: {supportLevels.map((s) => fmtLvl(s)).join(', ')}</div>}
+          {hasResistance && <div>Supply: {resistanceLevels.map((r) => fmtLvl(r)).join(', ')}</div>}
+        </div>
+      )}
+      {si && (
+        <div style={{ fontSize: 8, color: colors.text.muted, lineHeight: 1.6 }}>
+          <div>Provenance: Structure Intelligence (📐) · State: {state || '—'} · Data quality: {dataStatus || '—'} · Confidence: {confidence != null ? confidence : '—'}</div>
+          {provenance && (
+            <div style={{ marginTop: 2 }}>Source: MSS/FVG/Breaker → {provenance.mss || '—'} / {provenance.fvg || '—'} / {provenance.breaker || '—'}</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const SWING_QUALITY_COLOR = { EXCEPTIONAL: '#34D399', STRONG: '#22C55E', GOOD: '#34D399', WATCH: '#FBBF24', WEAK: '#EF4444', INSUFFICIENT_DATA: '#475569' };
+const SWING_STATUS_COLOR = { FAVORABLE: '#34D399', WATCH: '#FBBF24', EXTENDED: '#EF4444', HIGH_RISK: '#EF4444', INSUFFICIENT_DATA: '#475569' };
+const TREND_DIRECTION_COLOR = { BULLISH: '#34D399', EARLY_BULLISH: '#6EE7B7', NEUTRAL: '#FBBF24', EARLY_BEARISH: '#FCA5A5', BEARISH: '#EF4444', INSUFFICIENT_DATA: '#475569' };
+const CONFIDENCE_COLOR = { HIGH: '#34D399', MODERATE: '#22C55E', LOW: '#F87171', VERY_LOW: '#EF4444', UNKNOWN: '#475569' };
+const SETUP_COLOR = {
+  EARLY_TREND: '#22C55E', TREND_CONTINUATION: '#34D399', PULLBACK_TO_DEMAND: '#34D399',
+  BREAKOUT_SETUP: '#34D399', BREAKOUT_CONFIRMED: '#22C55E', ACCUMULATION: '#6EE7B7',
+  REACCUMULATION: '#FCA5A5', RANGE_BREAK: '#FBBF24', EXTENDED: '#EF4444',
+  HIGH_RISK: '#EF4444', INVALID: '#EF4444', INSUFFICIENT_DATA: '#475569',
+};
+
+function HorizonRow({ label, value, sub, color }) {
+  return (
+    <div style={{
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      padding: '6px 10px', backgroundColor: '#07090E', borderRadius: radius.sm,
+      border: `1px solid ${colors.border}`,
+    }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <span style={{ fontSize: 8, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700 }}>{label}</span>
+        {sub && <span style={{ fontSize: 8, color: colors.text.muted }}>{sub}</span>}
+      </div>
+      <span style={{ fontSize: 10, fontWeight: 900, color: color || colors.text.primary, fontFamily: 'monospace' }}>{value != null ? value : '—'}</span>
+    </div>
+  );
+}
+
+function SwingHorizonBlock({ swingHorizonData, loading, symbol }) {
+  if (loading) {
+    return (
+      <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
+        <ZoneLabel label="SWING HORIZON" icon="📊" color="#34D399" />
+        <LoadingState message="Loading 1-3 month horizon intelligence..." />
+      </div>
+    );
+  }
+
+  if (!swingHorizonData) {
+    return (
+      <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
+        <ZoneLabel label="SWING HORIZON" icon="📊" color="#34D399" />
+        <div style={{ color: colors.text.muted, fontSize: 11 }}>Swing Horizon intelligence unavailable</div>
+      </div>
+    );
+  }
+
+  const {
+    horizon, swingScore, quality, swingStatus,
+    trend, momentum, supplyDemand, catalyst,
+    marketRegime, regimeAlignment, riskReward, setup,
+    keySignals, invalidation, risks, thesis, confidence,
+    dataQuality, dataStatus, provenance,
+  } = swingHorizonData;
+
+  const scoreHex = scoreColor(swingScore);
+  const trendDir = trend?.direction || 'INSUFFICIENT_DATA';
+
+  const hasAny = (swingScore != null || quality || swingStatus || confidence
+    || (trend && trend.direction !== 'INSUFFICIENT_DATA')
+    || setup?.classification);
+
+  if (!hasAny) {
+    return (
+      <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
+        <ZoneLabel label="SWING HORIZON" icon="📊" color="#34D399" />
+        <EmptyState message="Swing Horizon data unavailable" sub="Horizon intelligence not yet computed" />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <ZoneLabel label="SWING HORIZON" icon="📊" color="#34D399" />
+          <span style={{ fontSize: 9, color: colors.text.faint, fontWeight: 700 }}>{horizon || '1_3_MONTHS'} horizon · supporting 1–3 month view</span>
+        </div>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Tag value={quality || 'INSUFFICIENT_DATA'} colorMap={SWING_QUALITY_COLOR} size="sm" />
+          <Tag value={swingStatus || 'INSUFFICIENT_DATA'} colorMap={SWING_STATUS_COLOR} size="sm" />
+          {confidence && <Tag value={confidence} colorMap={CONFIDENCE_COLOR} size="sm" />}
+        </div>
+      </div>
+
+      {swingScore != null && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          <div style={{ fontSize: 26, fontWeight: 900, color: scoreHex, fontFamily: 'monospace' }}>{swingScore}</div>
+          <div style={{ fontSize: 9, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700 }}>Swing Horizon Score</div>
+          <ScoreBar score={Math.min(swingScore, 100)} max={100} color={scoreHex} height={5} />
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 12 }}>
+        <HorizonRow
+          label="Trend"
+          value={trend?.direction || '—'}
+          sub={trend?.maturity || trend?.maAlignment ? `Strength ${trend?.strength != null ? trend.strength : '—'} · ${trend?.maturity || '—'} · ${trend?.maAlignment || '—'}` : null}
+          color={TREND_DIRECTION_COLOR[trendDir] || TREND_DIRECTION_COLOR.INSUFFICIENT_DATA}
+        />
+        <HorizonRow
+          label="Momentum"
+          value={momentum?.score != null ? momentum.score : '—'}
+          sub={momentum?.direction ? `${momentum.direction}` : null}
+          color={momentum?.score != null ? scoreColor(momentum.score) : colors.text.disabled}
+        />
+        <HorizonRow
+          label="Setup"
+          value={setup?.classification || '—'}
+          color={SETUP_COLOR[setup?.classification] || colors.text.disabled}
+        />
+        <HorizonRow
+          label="Risk / Reward"
+          value={riskReward?.rewardRisk != null ? `${riskReward.rewardRisk}x` : '—'}
+          color={riskRewardColor(riskReward?.rewardRisk)}
+        />
+        <HorizonRow
+          label="Nearest Demand"
+          value={supplyDemand?.nearestDemand != null ? fmtLvl(supplyDemand.nearestDemand) : '—'}
+          sub={supplyDemand?.distanceToDemand != null ? `${supplyDemand.distanceToDemand}% from price` : null}
+        />
+        <HorizonRow
+          label="Nearest Supply"
+          value={supplyDemand?.nearestSupply != null ? fmtLvl(supplyDemand.nearestSupply) : '—'}
+          sub={supplyDemand?.distanceToSupply != null ? `${supplyDemand.distanceToSupply}% from price` : null}
+        />
+        <HorizonRow
+          label="Catalyst"
+          value={catalyst?.timing || (catalyst?.available ? 'PRESENT' : 'UNAVAILABLE')}
+          sub={catalyst?.strength ? `Strength: ${catalyst.strength}` : null}
+          color={catalyst?.available ? '#34D399' : '#475569'}
+        />
+        <HorizonRow
+          label="Regime Context"
+          value={marketRegime?.regime || regimeAlignment?.alignment || '—'}
+          sub={regimeAlignment?.alignment ? `Alignment: ${regimeAlignment.alignment}` : null}
+          color={marketRegime?.regime === 'BULLISH' ? '#34D399' : marketRegime?.regime === 'BEARISH' || marketRegime?.regime === 'RISK_OFF' ? '#EF4444' : '#475569'}
+        />
+      </div>
+
+      {(riskReward?.entry != null || riskReward?.stop != null || riskReward?.target != null) && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 12 }}>
+          {riskReward?.entry != null && <HorizonRow label="Entry" value={fmtLvl(riskReward.entry)} />}
+          {riskReward?.stop != null && <HorizonRow label="Stop" value={fmtLvl(riskReward.stop)} />}
+          {riskReward?.target != null && <HorizonRow label="Target 1" value={fmtLvl(riskReward.target)} />}
+          {riskReward?.target2 != null && <HorizonRow label="Target 2" value={fmtLvl(riskReward.target2)} />}
+        </div>
+      )}
+
+      {invalidation && invalidation.length > 0 && (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 8, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>Invalidation</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 9, color: colors.text.secondary, lineHeight: 1.5 }}>
+            {invalidation.slice(0, 3).map((inv, i) => (
+              <div key={i} style={{ padding: '2px 0' }}>• {inv}</div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {keySignals && keySignals.length > 0 && (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 8, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>Key Signals</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, fontSize: 9 }}>
+            {keySignals.slice(0, 8).map((s, i) => (
+              <span key={i} style={{ color: colors.text.secondary, backgroundColor: '#07090E', padding: '2px 6px', borderRadius: 3, border: `1px solid ${colors.border}` }}>
+                 {s.type ? `${s.type}: ` : ''}{s.description || s.label || s.classification || s.direction || (s.confidence != null ? `conf ${s.confidence}` : '')}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {thesis && (
+        <div style={{ marginTop: 10, fontSize: 9, color: colors.text.secondary, lineHeight: 1.5, padding: '8px 10px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
+          {thesis}
+        </div>
+      )}
+
+      {risks && risks.length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{ fontSize: 8, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>Risks</div>
+          <div style={{ fontSize: 9, color: '#EF4444', lineHeight: 1.5 }}>
+            {risks.slice(0, 4).map((r, i) => (<div key={i}>• {r}</div>))}
+          </div>
+        </div>
+      )}
+
+      {dataQuality && (
+        <div style={{ marginTop: 10, fontSize: 8, color: colors.text.faint, lineHeight: 1.6 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+            <span>Data Quality</span>
+            <span>{dataQuality.completeness != null ? `${dataQuality.completeness}%` : '—'}</span>
+          </div>
+          <ScoreBar score={dataQuality.completeness != null ? dataQuality.completeness : 0} max={100} color={scoreColor(dataQuality.completeness)} height={3} />
+          <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {dataQuality.hasSwingData && <SmallTag value="SWING" color="#34D399" />}
+            {dataQuality.hasStructure && <SmallTag value="STRUCTURE" color="#34D399" />}
+            {dataQuality.hasCatalyst && <SmallTag value="CATALYST" color="#34D399" />}
+            {dataQuality.hasRegime && <SmallTag value="REGIME" color="#34D399" />}
+            {dataQuality.hasRiskReward && <SmallTag value="R/R" color="#34D399" />}
+          </div>
+        </div>
+      )}
+
+      {provenance && (
+        <div style={{ marginTop: 8, fontSize: 7, color: colors.text.muted, lineHeight: 1.5 }}>
+          <div>Provenance: trend/momentum/risk-reward — swing-horizon.js · structure — {provenance.structureIntelligence || provenance.structure || '—'} · swing/catalyst — {provenance.swingIntelligence || provenance.catalystIntelligence || '—'} · regime — {provenance.marketRegime || '—'}</div>
+          {disclaimer && <div style={{ marginTop: 2 }}>{disclaimer}</div>}
         </div>
       )}
     </div>
@@ -813,6 +1074,7 @@ function DataConfidenceBlock({ opportunity, plan }) {
     { key: 'earlyExplosion', label: 'B5 EXPLOSION', opp: oppDa.earlyExplosion, plan: planDa.earlyExplosion },
     { key: 'catalystIntelligence', label: 'B6 CATALYST', opp: oppDa.catalystIntelligence, plan: planDa.catalystIntelligence },
   ];
+  const scoredCount = sources.filter((s) => Boolean(s.opp || s.plan)).length;
   const hasPartial = scoredCount > 0 && scoredCount < sources.length;
   return (
     <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
@@ -873,7 +1135,7 @@ function AlertCenterPanel({ alerts, highPriorityAlerts }) {
   );
 }
 
-function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanationData, optionsRadarData }) {
+function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanationData, optionsRadarData, swingHorizonData, horizonLoading }) {
   const opp = useMemo(() => {
     if (!opportunityData?.data) return null;
     return opportunityData.data.find(o => o.symbol === symbol) || null;
@@ -955,7 +1217,8 @@ function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanati
       {whyNowSection(explanation, opp)}
 
       <EvidenceBlock explanation={explanation} opportunity={opp} />
-      <StructureBlock opportunity={opp} />
+      <StructureBlock opportunity={opp} structureData={swingHorizonData?.structure || null} />
+      <SwingHorizonBlock swingHorizonData={swingHorizonData || null} loading={horizonLoading} symbol={symbol} />
       <OptionsCentsPanel optionsRadarData={optionsRadarData} symbol={symbol} />
       <TradePlanBlock plan={plan} />
       <DataConfidenceBlock opportunity={opp} plan={plan} />
@@ -1057,6 +1320,9 @@ export default function CommandCenter() {
   const [error, setError] = useState('');
   const [marketStatus, setMarketStatus] = useState({ open: false });
   const [indices, setIndices] = useState([]);
+  const [swingHorizonMap, setSwingHorizonMap] = useState({});
+  const [horizonLoading, setHorizonLoading] = useState(false);
+  const [horizonError, setHorizonError] = useState('');
 
   const fetchAll = useCallback(async () => {
     const origin = window.location.origin;
@@ -1144,6 +1410,45 @@ export default function CommandCenter() {
     return () => { clearInterval(t); clearInterval(refresh); };
   }, [fetchAll]);
 
+  // On-demand, cached fetch of Swing Horizon (which embeds Structure Intelligence).
+  // Fetched once per selected symbol; reused on re-selection. No duplicate calls.
+  // Structure Intelligence (📐) is consumed from the Swing Horizon `.structure` field
+  // rather than a separate request, avoiding duplicate structure calculations.
+  useEffect(() => {
+    if (!selectedSymbol) return;
+    if (swingHorizonMap[selectedSymbol]) return;
+
+    setHorizonLoading(true);
+    setHorizonError('');
+    const ac = new AbortController();
+    const loadHorizon = async () => {
+      try {
+        const res = await fetch(
+          `${window.location.origin}/api/swing-horizon?symbols=${encodeURIComponent(selectedSymbol)}`,
+          { cache: 'no-store', signal: ac.signal }
+        );
+        if (res.ok) {
+          const json = await res.json().catch(() => null);
+          const list = Array.isArray(json?.data) ? json.data : [];
+          const found = list.find((d) => d && d.symbol === selectedSymbol) || list[0] || null;
+          if (found) {
+            setSwingHorizonMap((prev) => ({ ...prev, [selectedSymbol]: found }));
+          } else {
+            setHorizonError('No horizon data returned');
+          }
+        } else if (res.status !== 401 && res.status !== 403) {
+          setHorizonError(`Horizon request failed (${res.status})`);
+        }
+      } catch (e) {
+        if (e?.name !== 'AbortError') setHorizonError(e?.message || 'Failed to load horizon data');
+      } finally {
+        setHorizonLoading(false);
+      }
+    };
+    loadHorizon();
+    return () => ac.abort();
+  }, [selectedSymbol, swingHorizonMap]);
+
   const regimeData = commandCenterData?.regime ?? commandCenterData?.sections?.marketRegime;
   const regime = regimeData?.regime || regimeData?.regimeName || null;
   const regimeScore = regimeData?.regimeScore ?? commandCenterData?.regimeScore ?? commandCenterData?.sections?.marketRegime?.regimeScore ?? null;
@@ -1214,6 +1519,8 @@ export default function CommandCenter() {
           tradePlanData={tradePlanData}
           aiExplanationData={aiExplanationData}
           optionsRadarData={optionsRadarData}
+          swingHorizonData={swingHorizonMap[selectedSymbol] || null}
+          horizonLoading={horizonLoading}
           regime={regime}
           regimeScore={regimeScore}
           regimeConfidence={regimeConfidence}
