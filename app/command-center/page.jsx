@@ -261,6 +261,280 @@ function TopHunts({ opportunities, plansBySymbol, explanationsBySymbol, selected
   );
 }
 
+const OPTION_TYPE_COLORS = {
+  CALL: '#34D399',
+  PUT: '#F87171',
+  UNKNOWN: '#475569',
+};
+
+const OPTION_DECISION_COLORS = {
+  HIGH_QUALITY: '#34D399',
+  GOOD_QUALITY: '#22C55E',
+  WATCH: '#FBBF24',
+  LOW_QUALITY: '#EF4444',
+  UNAVAILABLE: '#475569',
+};
+
+const OPTION_EXEC_COLORS = {
+  EXCELLENT: '#34D399',
+  GOOD: '#22C55E',
+  MODERATE: '#FBBF24',
+  POOR: '#EF4444',
+  UNAVAILABLE: '#475569',
+};
+
+function OptionsCentsRadar({ optionsRadarData }) {
+  if (!optionsRadarData) {
+    return (
+      <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
+        <ZoneLabel label="OPTIONS CENTS" icon="⚡" color={colors.accent.amber} />
+        <LoadingState message="Loading options cents..." />
+      </div>
+    );
+  }
+
+  if (!optionsRadarData.success) {
+    return (
+      <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
+        <ZoneLabel label="OPTIONS CENTS" icon="⚡" color={colors.accent.amber} />
+        <ErrorState message={optionsRadarData.error || 'Options radar unavailable'} />
+      </div>
+    );
+  }
+
+  const contracts = (optionsRadarData.data || []).filter(c => c && c.premium != null && c.premium > 0 && c.premium <= 1);
+
+  if (contracts.length === 0) {
+    return (
+      <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
+        <ZoneLabel label="OPTIONS CENTS" icon="⚡" color={colors.accent.amber} />
+        <EmptyState message="No sub-$1 premium contracts found" />
+      </div>
+    );
+  }
+
+  const fmt = (v, digits = 2) => {
+    if (v == null) return '—';
+    const n = Number(v);
+    if (!Number.isFinite(n)) return '—';
+    return n.toLocaleString('en-US', { maximumFractionDigits: digits, minimumFractionDigits: 0 });
+  };
+
+  const fmtPrice = (v) => {
+    if (v == null) return '—';
+    const n = Number(v);
+    if (!Number.isFinite(n)) return '—';
+    return '$' + n.toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+  };
+
+  return (
+    <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <ZoneLabel label="OPTIONS CENTS" icon="⚡" color={colors.accent.amber} />
+          <span style={{ fontSize: 9, color: colors.text.faint, fontWeight: 700 }}>
+            Premium ≤ $1 • {contracts.length} contracts
+          </span>
+        </div>
+        <div style={{ fontSize: 9, color: colors.text.faint }}>
+          Source: {optionsRadarData.source || 'Yahoo Finance'}
+        </div>
+      </div>
+
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+          <thead>
+            <tr>
+              <th style={{ textAlign: 'left', padding: '6px 8px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 8, borderBottom: `1px solid ${colors.border}` }}>Symbol</th>
+              <th style={{ textAlign: 'center', padding: '6px 8px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 8, borderBottom: `1px solid ${colors.border}` }}>Type</th>
+              <th style={{ textAlign: 'right', padding: '6px 8px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 8, borderBottom: `1px solid ${colors.border}` }}>Strike</th>
+              <th style={{ textAlign: 'right', padding: '6px 8px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 8, borderBottom: `1px solid ${colors.border}` }}>Premium</th>
+              <th style={{ textAlign: 'right', padding: '6px 8px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 8, borderBottom: `1px solid ${colors.border}` }}>Cost</th>
+              <th style={{ textAlign: 'right', padding: '6px 8px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 8, borderBottom: `1px solid ${colors.border}` }}>Bid/Ask</th>
+              <th style={{ textAlign: 'right', padding: '6px 8px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 8, borderBottom: `1px solid ${colors.border}` }}>Spread%</th>
+              <th style={{ textAlign: 'right', padding: '6px 8px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 8, borderBottom: `1px solid ${colors.border}` }}>DTE</th>
+              <th style={{ textAlign: 'right', padding: '6px 8px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 8, borderBottom: `1px solid ${colors.border}` }}>IV%</th>
+              <th style={{ textAlign: 'right', padding: '6px 8px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 8, borderBottom: `1px solid ${colors.border}` }}>Vol</th>
+              <th style={{ textAlign: 'right', padding: '6px 8px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 8, borderBottom: `1px solid ${colors.border}` }}>OI</th>
+              <th style={{ textAlign: 'right', padding: '6px 8px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 8, borderBottom: `1px solid ${colors.border}` }}>Score</th>
+              <th style={{ textAlign: 'center', padding: '6px 8px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 8, borderBottom: `1px solid ${colors.border}` }}>Quality</th>
+            </tr>
+          </thead>
+          <tbody>
+            {contracts.map((c, i) => {
+              const typeColor = OPTION_TYPE_COLORS[c.side || 'UNKNOWN'];
+              const decisionStatus = c.decisionStatus || 'UNAVAILABLE';
+              const execQuality = c.executionQuality || 'UNAVAILABLE';
+              return (
+                <tr key={`${c.symbol}-${c.contract}-${i}`} style={{ borderBottom: `1px solid ${colors.border}20` }}>
+                  <td style={{ padding: '8px 8px', fontFamily: 'monospace', fontSize: 10, fontWeight: 700, color: colors.text.primary }}>{c.symbol || '—'}</td>
+                  <td style={{ padding: '4px 8px', textAlign: 'center' }}>
+                    <span style={{ color: typeColor, fontWeight: 900, fontSize: 9, textTransform: 'uppercase' }}>{c.side || '—'}</span>
+                  </td>
+                  <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'monospace', fontSize: 10 }}>{fmt(c.strike)}</td>
+                  <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'monospace', fontSize: 10, fontWeight: 700, color: c.premium <= 1 ? colors.accent.amber : colors.text.primary }}>
+                    {fmtPrice(c.premium)}
+                  </td>
+                  <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'monospace', fontSize: 10 }}>{fmt(c.contractCost)}</td>
+                  <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'monospace', fontSize: 10 }}>{c.bid != null && c.ask != null ? fmt(c.bid) + '/' + fmt(c.ask) : '—'}</td>
+                  <td style={{ padding: '4px 8px', textAlign: 'right', fontSize: 10 }}>{c.spreadPct != null ? fmt(c.spreadPct) + '%' : '—'}</td>
+                  <td style={{ padding: '4px 8px', textAlign: 'right', fontSize: 10 }}>{c.daysToExpiration != null ? c.daysToExpiration : '—'}</td>
+                  <td style={{ padding: '4px 8px', textAlign: 'right', fontSize: 10 }}>{c.impliedVolatility != null ? fmt(c.impliedVolatility * 100, 0) + '%' : '—'}</td>
+                  <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'monospace', fontSize: 10 }}>{fmt(c.volume, 0)}</td>
+                  <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'monospace', fontSize: 10 }}>{fmt(c.openInterest, 0)}</td>
+                  <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'monospace', fontSize: 10, fontWeight: 900, color: scoreColor(c.score) }}>{c.score ?? '—'}</td>
+                  <td style={{ padding: '4px 8px', textAlign: 'center' }}>
+                    <Tag value={execQuality} colorMap={OPTION_EXEC_COLORS} size="sm" />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ marginTop: 10, fontSize: 8, color: colors.text.faint }}>
+        Premium = mid price per share. Cost = premium × 100 shares. Contracts sorted by score descending.
+      </div>
+    </div>
+  );
+}
+
+function OptionsCentsPanel({ optionsRadarData, symbol }) {
+  if (!optionsRadarData?.optionsRanking) return null;
+  const symRanking = optionsRadarData.optionsRanking[symbol];
+  if (!symRanking) return null;
+
+  const strategy = symRanking.strategy;
+  const strategyDecision = symRanking.strategyDecision;
+  const summary = symRanking.summary;
+
+  const hasStrategies = strategy && strategy.dataStatus !== 'unavailable';
+  const hasContractRanking = symRanking.ranking && symRanking.ranking.length > 0;
+  const hasFlow = symRanking.flow && symRanking.flow.dataStatus !== 'unavailable';
+
+  if (!hasStrategies && !hasContractRanking && !hasFlow) return null;
+
+  return (
+    <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
+      <ZoneLabel label="OPTIONS CENTS DETAIL" icon="⚡" color={colors.accent.amber} />
+
+      {strategy && strategy.bestStrategy && strategy.bestStrategy.strategyEconomics && (
+        <div style={{ marginTop: 12, marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: 9, color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase' }}>Recommended Strategy</span>
+            <Tag value={strategy.bestStrategy.strategyType || 'UNAVAILABLE'} colorMap={{
+              SINGLE_CALL: '#34D399', SINGLE_PUT: '#F87171',
+              CALL_SPREAD: '#34D399', PUT_SPREAD: '#F87171',
+              UNAVAILABLE: '#475569',
+            }} size="sm" />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, marginBottom: 8 }}>
+            {strategy.bestStrategy.strategyEconomics.breakeven != null && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
+                <span style={{ fontSize: 9, color: colors.text.faint }}>Breakeven</span>
+                <span style={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 700, color: colors.text.primary }}>${fmt(strategy.bestStrategy.strategyEconomics.breakeven)}</span>
+              </div>
+            )}
+            {strategy.bestStrategy.strategyEconomics.maxLoss != null && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
+                <span style={{ fontSize: 9, color: colors.text.faint }}>Max Loss</span>
+                <span style={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 700, color: '#EF4444' }}>${fmt(strategy.bestStrategy.strategyEconomics.maxLoss)}</span>
+              </div>
+            )}
+            {strategy.bestStrategy.strategyEconomics.maxProfit != null && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
+                <span style={{ fontSize: 9, color: colors.text.faint }}>Max Profit</span>
+                <span style={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 700, color: '#34D399' }}>${fmt(strategy.bestStrategy.strategyEconomics.maxProfit)}</span>
+              </div>
+            )}
+            {strategy.bestStrategy.strategyEconomics.netPremium != null && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
+                <span style={{ fontSize: 9, color: colors.text.faint }}>Net Premium</span>
+                <span style={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 700, color: colors.text.primary }}>${fmt(strategy.bestStrategy.strategyEconomics.netPremium, 2)}</span>
+              </div>
+            )}
+            {strategy.bestStrategy.strategyEconomics.spreadWidth != null && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
+                <span style={{ fontSize: 9, color: colors.text.faint }}>Spread Width</span>
+                <span style={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 700, color: colors.text.primary }}>${fmt(strategy.bestStrategy.strategyEconomics.spreadWidth)}</span>
+              </div>
+            )}
+            {strategy.bestStrategy.strategyScore != null && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
+                <span style={{ fontSize: 9, color: colors.text.faint }}>Strategy Score</span>
+                <span style={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 700, color: scoreColor(strategy.bestStrategy.strategyScore) }}>{strategy.bestStrategy.strategyScore}</span>
+              </div>
+            )}
+          </div>
+          {strategy.bestStrategy.legs && strategy.bestStrategy.legs.length > 0 && (
+            <div>
+              <div style={{ fontSize: 8, color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>Legs</div>
+              {strategy.bestStrategy.legs.map((leg, li) => {
+                const c = leg.contract;
+                return (
+                  <div key={li} style={{ fontSize: 9, color: colors.text.secondary, lineHeight: 1.5, paddingLeft: 8 }}>
+                    <span style={{ color: OPTION_TYPE_COLORS[c?.optionType || 'UNKNOWN'], fontWeight: 700 }}>{c?.optionType || '—'}</span>
+                    {' '} {c?.strike != null ? fmt(c.strike) : '—'} {' '}
+                    <span style={{ color: colors.text.faint }}>premium ${c?.premium != null ? fmt(c.premium, 2) : '—'}</span>
+                    {' '} ({leg.role})
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {summary && summary.dataStatus !== 'unavailable' && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {summary.bestContractSymbol && (
+              <div style={{ display: 'flex', gap: 4, alignItems: 'center', padding: '4px 8px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
+                <span style={{ fontSize: 8, color: colors.text.faint }}>Best Contract</span>
+                <span style={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 700, color: colors.text.primary }}>{summary.bestContractSymbol}</span>
+              </div>
+            )}
+            {summary.bestContractRankScore != null && (
+              <div style={{ display: 'flex', gap: 4, alignItems: 'center', padding: '4px 8px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
+                <span style={{ fontSize: 8, color: colors.text.faint }}>Best Score</span>
+                <span style={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 700, color: scoreColor(summary.bestContractRankScore) }}>{summary.bestContractRankScore}</span>
+              </div>
+            )}
+            {summary.averageRankScore != null && (
+              <div style={{ display: 'flex', gap: 4, alignItems: 'center', padding: '4px 8px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
+                <span style={{ fontSize: 8, color: colors.text.faint }}>Avg Score</span>
+                <span style={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 700, color: colors.text.primary }}>{summary.averageRankScore}</span>
+              </div>
+            )}
+            {summary.contractCount != null && (
+              <div style={{ display: 'flex', gap: 4, alignItems: 'center', padding: '4px 8px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
+                <span style={{ fontSize: 8, color: colors.text.faint }}>Contracts</span>
+                <span style={{ fontSize: 9, fontFamily: 'monospace', fontWeight: 700, color: colors.text.primary }}>{summary.contractCount}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {strategyDecision && strategyDecision.recommended && strategyDecision.recommended.strategyEconomics && strategyDecision.recommended.strategyType && (
+        <div style={{ marginTop: 12, paddingTop: 8, borderTop: `1px solid ${colors.border}` }}>
+          <div style={{ fontSize: 8, color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>Recommended via Decision Engine</div>
+          <Tag value={strategyDecision.recommended.strategyType} colorMap={{
+            SINGLE_CALL: '#34D399', SINGLE_PUT: '#F87171',
+            CALL_SPREAD: '#34D399', PUT_SPREAD: '#F87171',
+          }} size="sm" />
+          {strategyDecision.recommended.strategyDecisionScore != null && (
+            <span style={{ fontSize: 9, color: scoreColor(strategyDecision.recommended.strategyDecisionScore), fontWeight: 700, marginLeft: 6 }}>
+              score {strategyDecision.recommended.strategyDecisionScore}/100
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const RADAR_TABS = [
   { key: 'ALL', label: 'ALL' },
   { key: 'PENNY', label: '💰 PENNY' },
@@ -539,7 +813,6 @@ function DataConfidenceBlock({ opportunity, plan }) {
     { key: 'earlyExplosion', label: 'B5 EXPLOSION', opp: oppDa.earlyExplosion, plan: planDa.earlyExplosion },
     { key: 'catalystIntelligence', label: 'B6 CATALYST', opp: oppDa.catalystIntelligence, plan: planDa.catalystIntelligence },
   ];
-  const scoredCount = sources.filter(s => s.opp || s.plan).length;
   const hasPartial = scoredCount > 0 && scoredCount < sources.length;
   return (
     <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
@@ -600,7 +873,7 @@ function AlertCenterPanel({ alerts, highPriorityAlerts }) {
   );
 }
 
-function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanationData }) {
+function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanationData, optionsRadarData }) {
   const opp = useMemo(() => {
     if (!opportunityData?.data) return null;
     return opportunityData.data.find(o => o.symbol === symbol) || null;
@@ -683,6 +956,7 @@ function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanati
 
       <EvidenceBlock explanation={explanation} opportunity={opp} />
       <StructureBlock opportunity={opp} />
+      <OptionsCentsPanel optionsRadarData={optionsRadarData} symbol={symbol} />
       <TradePlanBlock plan={plan} />
       <DataConfidenceBlock opportunity={opp} plan={plan} />
 
@@ -773,7 +1047,8 @@ export default function CommandCenter() {
   const [opportunityData, setOpportunityData] = useState(null);
   const [tradePlanData, setTradePlanData] = useState(null);
   const [aiExplanationData, setAiExplanationData] = useState(null);
-  const [alertCenterData, setAlertCenterData] = useState(null);
+  const [alertCenterData] = useState(null);
+  const [optionsRadarData, setOptionsRadarData] = useState(null);
   const [notificationAlerts, setNotificationAlerts] = useState([]);
   const [notificationFilter, setNotificationFilter] = useState('all');
   const [notificationAlertsByStage, setNotificationAlertsByStage] = useState({});
@@ -786,12 +1061,13 @@ export default function CommandCenter() {
   const fetchAll = useCallback(async () => {
     const origin = window.location.origin;
     try {
-      const [ccRes, oppRes, planRes, aiRes, alertRes] = await Promise.allSettled([
+      const [ccRes, oppRes, planRes, aiRes, alertRes, optionsRadarRes] = await Promise.allSettled([
         fetch(`${origin}/api/command-center`, { cache: 'no-store' }),
         fetch(`${origin}/api/opportunity-ranking`, { cache: 'no-store' }),
         fetch(`${origin}/api/trade-plan`, { cache: 'no-store' }),
         fetch(`${origin}/api/ai-explanation`, { cache: 'no-store' }),
         fetch(`${origin}/api/alert-center`, { cache: 'no-store' }),
+        fetch(`${origin}/api/options-radar`, { cache: 'no-store' }),
       ]);
 
       if (ccRes.status === 'fulfilled' && ccRes.value.ok) {
@@ -824,6 +1100,9 @@ export default function CommandCenter() {
           });
           setNotificationAlertsByStage(byStage);
         }
+      }
+      if (optionsRadarRes.status === 'fulfilled' && optionsRadarRes.value.ok) {
+        setOptionsRadarData(await optionsRadarRes.value.json().catch(() => null));
       }
     } catch (err) {
       setError(err?.message || 'Failed to load data');
@@ -934,10 +1213,13 @@ export default function CommandCenter() {
           opportunityData={opportunityData}
           tradePlanData={tradePlanData}
           aiExplanationData={aiExplanationData}
+          optionsRadarData={optionsRadarData}
           regime={regime}
           regimeScore={regimeScore}
           regimeConfidence={regimeConfidence}
         />
+
+        <OptionsCentsRadar optionsRadarData={optionsRadarData} />
 
         <RadarHub
           opportunities={topOpportunities}
