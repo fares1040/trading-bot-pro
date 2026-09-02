@@ -26,6 +26,29 @@ const stageColorMap = {
   EXIT: '#60A5FA',
 };
 
+const classificationColorMap = {
+  STRONG: '#34D399',
+  WATCH: '#FBBF24',
+  WEAK: '#F87171',
+  AVOID: '#EF4444',
+};
+
+function classifyOpportunity(quality, planSignal, riskReward) {
+  if (planSignal === 'AVOID' || quality === 'UNAVAILABLE' || quality === 'WEAK') {
+    if (quality === 'WEAK' && planSignal !== 'AVOID') {
+      return { label: 'WEAK', emoji: '⚠️', color: classificationColorMap.WEAK };
+    }
+    return { label: 'AVOID', emoji: '❌', color: classificationColorMap.AVOID };
+  }
+  if (quality === 'TOP' || quality === 'STRONG') {
+    return { label: 'STRONG', emoji: '🔥', color: classificationColorMap.STRONG };
+  }
+  if (quality === 'WATCH') {
+    return { label: 'WATCH', emoji: '👀', color: classificationColorMap.WATCH };
+  }
+  return { label: 'AVOID', emoji: '❌', color: classificationColorMap.AVOID };
+}
+
 function ZoneHeader({ label, icon }) {
   return (
     <div style={{
@@ -129,16 +152,20 @@ function MarketStatusBar({ indices, regime, regimeScore, regimeConfidence, marke
   );
 }
 
-function OpportunityRow({ item, isSelected, onClick }) {
+function OpportunityRow({ item, plan, isSelected, onClick }) {
   const oppScore = item.opportunityScore ?? item.setupScore ?? null;
-  const direction = item.directionBias || item.direction || null;
+  const planScore = plan?.planScore ?? null;
+  const direction = plan?.direction || item.directionBias || item.direction || null;
+  const riskReward = plan?.riskReward ?? item.riskReward ?? null;
+  const planSignal = plan?.planSignal || null;
+  const classification = classifyOpportunity(item.quality, planSignal, riskReward);
 
   return (
     <div
       onClick={onClick}
       style={{
         display: 'grid',
-        gridTemplateColumns: '80px 1fr 70px 70px 60px 60px 50px',
+        gridTemplateColumns: '70px 1fr 60px 55px 55px 60px 50px 40px',
         gap: 8,
         alignItems: 'center',
         padding: '10px 12px',
@@ -152,11 +179,17 @@ function OpportunityRow({ item, isSelected, onClick }) {
         {item.symbol || '—'}
       </span>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 16, fontWeight: 900, color: scoreColor(oppScore), fontFamily: 'monospace' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ fontSize: 14, fontWeight: 900, color: scoreColor(oppScore), fontFamily: 'monospace' }}>
           {oppScore ?? '—'}
         </span>
+        {planScore != null && (
+          <span style={{ fontSize: 12, fontWeight: 700, color: scoreColor(planScore), fontFamily: 'monospace', opacity: 0.8 }}>
+            /{planScore}
+          </span>
+        )}
         <Tag value={item.quality} colorMap={qualityColorMap} size="sm" />
+        <span style={{ fontSize: 13 }} title={classification.label}>{classification.emoji}</span>
       </div>
 
       <span style={{ fontSize: 10, color: colors.text.secondary }}>
@@ -167,35 +200,42 @@ function OpportunityRow({ item, isSelected, onClick }) {
         {direction && <Tag value={direction} colorMap={directionColorMap} size="sm" />}
       </div>
 
-      <span style={{ fontFamily: 'monospace', fontSize: 10, color: riskRewardColor(item.riskReward), fontWeight: 700 }}>
-        {item.riskReward != null ? `${item.riskReward}` : '—'}
+      <span style={{ fontFamily: 'monospace', fontSize: 10, color: riskRewardColor(riskReward), fontWeight: 700 }}>
+        {riskReward != null ? `${riskReward}` : '—'}
       </span>
 
-      <span style={{ fontSize: 10, color: item.confidence != null ? confidenceColorMap[item.confidence] || colors.text.secondary : colors.text.disabled }}>
+      <span style={{ fontSize: 10, color: item.confidence != null ? confidenceColorMap[item.confidenceLevel || item.confidence] || colors.text.secondary : colors.text.disabled }}>
         {item.confidence ?? item.confidenceLevel ?? '—'}
       </span>
 
       <span style={{ fontSize: 9, color: colors.text.faint }}>
         {item.availableComponents ? `${item.availableComponents.length}/6` : '—'}
       </span>
+
+      <span style={{ fontSize: 10, color: planSignal ? (planSignal === 'AVOID' ? '#EF4444' : planSignal === 'WATCH' ? '#FBBF24' : '#34D399') : colors.text.disabled }}>
+        {planSignal || '—'}
+      </span>
     </div>
   );
 }
 
-function OpportunityRadar({ opportunities, selectedSymbol, onSelectSymbol, loading }) {
-  const headerCols = ['Ticker', 'Score / Quality', 'Price', 'Direction', 'R/R', 'Conf', 'Src'];
+ function OpportunityRadar({ opportunities, plansBySymbol, selectedSymbol, onSelectSymbol, loading }) {
+  const headerCols = ['Ticker', 'C7/C8 / Q', 'Price', 'Dir', 'R/R', 'Conf', 'Src', 'Plan'];
 
   return (
     <div style={{ ...panel, overflow: 'hidden' }}>
-      <div style={{ padding: '12px 16px', borderBottom: `1px solid ${colors.border}` }}>
+      <div style={{ padding: '12px 16px', borderBottom: `1px solid ${colors.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <ZoneHeader label="Opportunity Radar" icon="🎯" />
+        <div style={{ display: 'flex', gap: 8, fontSize: 9, color: colors.text.faint }}>
+          <span>🔥 STRONG • 👀 WATCH • ⚠️ WEAK • ❌ AVOID</span>
+        </div>
       </div>
 
       <div style={{ overflowX: 'auto' }}>
         <div style={{ minWidth: 600 }}>
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '80px 1fr 70px 70px 60px 60px 50px',
+            gridTemplateColumns: '70px 1fr 60px 55px 55px 60px 50px 40px',
             gap: 8,
             padding: '8px 12px',
             borderBottom: `1px solid ${colors.border}`,
@@ -205,67 +245,146 @@ function OpportunityRadar({ opportunities, selectedSymbol, onSelectSymbol, loadi
             ))}
           </div>
 
-          {loading ? (
-            <div style={{ padding: 24, textAlign: 'center' }}>
-              <span style={{ color: colors.text.muted, fontSize: 11 }}>Loading opportunities…</span>
-            </div>
-          ) : opportunities.length === 0 ? (
-            <div style={{ padding: 24, textAlign: 'center' }}>
-              <span style={{ color: colors.text.muted, fontSize: 11 }}>No opportunities available</span>
-            </div>
-          ) : (
-            opportunities.map((item) => (
-              <OpportunityRow
-                key={item.symbol}
-                item={item}
-                isSelected={selectedSymbol === item.symbol}
-                onClick={() => onSelectSymbol(item.symbol)}
-              />
-            ))
-          )}
+           {loading ? (
+             <div style={{ padding: 24, textAlign: 'center' }}>
+               <span style={{ color: colors.text.muted, fontSize: 11 }}>Loading opportunities…</span>
+             </div>
+           ) : opportunities.length === 0 ? (
+             <div style={{ padding: 24, textAlign: 'center' }}>
+               <span style={{ color: colors.text.muted, fontSize: 11 }}>No opportunities available</span>
+             </div>
+           ) : (
+             opportunities.map((item) => (
+               <OpportunityRow
+                 key={item.symbol}
+                 item={item}
+                 plan={plansBySymbol?.[item.symbol]}
+                 isSelected={selectedSymbol === item.symbol}
+                 onClick={() => onSelectSymbol(item.symbol)}
+               />
+             ))
+           )}
         </div>
       </div>
     </div>
   );
 }
 
-function WhyNowPanel({ explanation }) {
-  if (!explanation?.whyNow?.length) return null;
+function WhyNowPanel({ explanation, opportunity }) {
+  const whyNow = explanation?.whyNow || [];
+  const fallbackReasons = opportunity?.reasons || [];
+
+  if (!whyNow.length && !fallbackReasons.length) return null;
 
   return (
     <div style={{ marginBottom: 12 }}>
       <div style={{ fontSize: 9, color: colors.accent.amber, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
         Why Now
       </div>
-      {explanation.whyNow.slice(0, 3).map((f, i) => (
+      {whyNow.slice(0, 3).map((f, i) => (
         <div key={i} style={{ fontSize: 10, color: colors.text.secondary, lineHeight: 1.5, marginBottom: 3 }}>
           <span style={{ color: colors.accent.amber }}>•</span> {f.factor}: {f.explanation}
+          {f.evidence?.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 3, marginRight: 12 }}>
+              {f.evidence.slice(0, 3).map((e, j) => (
+                <span key={j} style={{ fontSize: 8, color: colors.text.muted, backgroundColor: '#07090E', padding: '1px 6px', borderRadius: 3 }}>
+                  {e}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       ))}
+      {whyNow.length === 0 && fallbackReasons.length > 0 && (
+        fallbackReasons.slice(0, 3).map((r, i) => (
+          <div key={i} style={{ fontSize: 10, color: colors.text.secondary, lineHeight: 1.5, marginBottom: 3 }}>
+            <span style={{ color: colors.accent.amber }}>•</span> {r}
+          </div>
+        ))
+      )}
     </div>
   );
 }
 
-function EvidencePanel({ opportunity }) {
-  if (!opportunity?.evidence?.length && !opportunity?.setup) return null;
+function EvidencePanel({ opportunity, explanation }) {
+  const positive = explanation?.positiveEvidence || opportunity?.evidence || [];
+  const negative = explanation?.negativeEvidence || [];
+  const sources = explanation?.supportingEvidence || [];
+  const flags = opportunity?.flags || [];
+
+  if (!positive.length && !negative.length && !sources.length && !flags.length) return null;
 
   return (
     <div style={{ marginBottom: 12 }}>
       <div style={{ fontSize: 9, color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
         Evidence
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        {opportunity.evidence?.slice(0, 4).map((e, i) => (
-          <span key={i} style={{ fontSize: 9, color: colors.text.secondary, backgroundColor: '#07090E', padding: '2px 8px', borderRadius: 4 }}>
-            {e}
-          </span>
-        )) || null}
-        {opportunity.setup && (
-          <span style={{ fontSize: 9, color: colors.text.secondary, backgroundColor: '#07090E', padding: '2px 8px', borderRadius: 4 }}>
-            {opportunity.setup}
-          </span>
-        )}
+      {sources.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
+          {sources.slice(0, 6).map((s, i) => {
+            const found = typeof s.evidence === 'string' ? s.evidence : (Array.isArray(s.evidence) ? s.evidence.join(', ') : String(s.evidence || s));
+            return (
+              <span key={i} style={{ fontSize: 9, color: colors.text.secondary, backgroundColor: '#07090E', padding: '2px 8px', borderRadius: 4 }}>
+                {s.source ? `${s.source}: ${found}` : found}
+              </span>
+            );
+          })}
+        </div>
+      )}
+      {positive.length > 0 && (
+        <div style={{ marginBottom: 6 }}>
+          <div style={{ fontSize: 8, color: colors.text.faint, marginBottom: 3 }}>Strongest Evidence</div>
+          {positive.slice(0, 3).map((ev, i) => (
+            <div key={i} style={{ fontSize: 9, color: colors.semantic.long, lineHeight: 1.4, marginBottom: 2 }}>
+              <span style={{ color: colors.semantic.long }}>•</span> {ev.factor || ev.signal || 'Evidence'}: {ev.explanation || ev.signal}
+              {ev.evidence?.length > 0 && (
+                <span style={{ color: colors.text.muted, fontSize: 8 }}> [{ev.evidence.slice(0, 2).join(', ')}]</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {negative.length > 0 && (
+        <div>
+          <div style={{ fontSize: 8, color: colors.text.faint, marginBottom: 3 }}>Weakest Evidence</div>
+          {negative.slice(0, 3).map((ev, i) => (
+            <div key={i} style={{ fontSize: 9, color: colors.semantic.short, lineHeight: 1.4, marginBottom: 2 }}>
+              <span style={{ color: colors.semantic.short }}>•</span> {ev.factor || ev.label || 'Weakness'}: {ev.explanation || ev.description || 'Noted'}</div>
+          ))}
+        </div>
+      )}
+      {positive.length === 0 && negative.length === 0 && flags.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {flags.slice(0, 5).map((f, i) => (
+            <span key={i} style={{ fontSize: 9, color: colors.text.secondary, backgroundColor: '#07090E', padding: '2px 8px', borderRadius: 4 }}>
+              {f}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WarningsPanel({ opportunity, plan, explanation }) {
+  const warnings = [
+    ...(opportunity?.warnings || []),
+    ...(plan?.warnings || []),
+    ...(explanation?.warnings || []),
+  ];
+
+  if (!warnings.length) return null;
+
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ fontSize: 9, color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+        Warnings
       </div>
+      {warnings.map((w, i) => (
+        <div key={i} style={{ fontSize: 9, color: '#FBBF24', lineHeight: 1.4, marginBottom: 2, padding: '2px 0' }}>
+          <span style={{ color: '#FBBF24' }}>⚠</span> {w}
+        </div>
+      ))}
     </div>
   );
 }
@@ -370,7 +489,7 @@ function TradePlanDisplay({ plan }) {
   );
 }
 
-function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanationData }) {
+function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanationData, regime, regimeScore, regimeConfidence }) {
   const opp = useMemo(() => {
     if (!opportunityData?.data) return null;
     return opportunityData.data.find(o => o.symbol === symbol);
@@ -398,28 +517,55 @@ function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanati
 
   const tradeStage = plan ? deriveTradeStage(plan.planSignal, plan.riskReward, plan.planScore, plan.planQuality) : deriveTradeStage(null, null, null, null);
   const oppScore = opp?.opportunityScore ?? opp?.setupScore ?? null;
+  const planScore = plan?.planScore ?? opp?.componentScores?.opportunityScore ?? null;
+  const classification = classifyOpportunity(opp?.quality, plan?.planSignal, plan?.riskReward ?? opp?.riskReward);
 
   return (
     <div style={{ ...panel, padding: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
         <div>
-          <div style={{ fontSize: 24, fontWeight: 900, color: colors.text.primary, fontFamily: 'monospace' }}>
-            {symbol}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <div style={{ fontSize: 24, fontWeight: 900, color: colors.text.primary, fontFamily: 'monospace' }}>
+              {symbol}
+            </div>
+            <span style={{ fontSize: 16 }} title={classification.label}>{classification.emoji}</span>
           </div>
           {opp?.price != null && (
             <div style={{ fontSize: 11, color: colors.text.muted, marginTop: 2 }}>
               ${Number(opp.price).toLocaleString('en-US', { maximumFractionDigits: 2 })}
             </div>
           )}
+          {plan?.direction && (
+            <div style={{ marginTop: 2 }}>
+              <Tag value={plan.direction} colorMap={directionColorMap} size="sm" />
+            </div>
+          )}
+          {regime && (
+            <div style={{ marginTop: 4 }}>
+              <Tag value={regime} colorMap={regimeColorMap} size="sm" />
+              {regimeScore != null && (
+                <span style={{ fontSize: 9, color: colors.text.faint, marginLeft: 4 }}>({regimeScore})</span>
+              )}
+            </div>
+          )}
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 22, fontWeight: 900, color: scoreColor(oppScore), fontFamily: 'monospace' }}>
+            <div style={{ fontSize: 20, fontWeight: 900, color: scoreColor(oppScore), fontFamily: 'monospace' }}>
               {oppScore ?? '—'}
             </div>
-            <div style={{ fontSize: 8, color: colors.text.faint }}>Score</div>
+            <div style={{ fontSize: 7, color: colors.text.faint }}>C7 Score</div>
           </div>
-          {opp && <Tag value={opp.quality || 'UNAVAILABLE'} colorMap={qualityColorMap} />}
+          {planScore != null && (
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 20, fontWeight: 900, color: scoreColor(planScore), fontFamily: 'monospace' }}>
+                {planScore}
+              </div>
+              <div style={{ fontSize: 7, color: colors.text.faint }}>C8 Plan</div>
+            </div>
+          )}
+          <Tag value={opp?.quality || 'UNAVAILABLE'} colorMap={qualityColorMap} />
+          <Tag value={plan?.planSignal || '—'} colorMap={{ STRONG_PLAN: '#34D399', VALID_PLAN: '#22C55E', WATCH: '#FBBF24', AVOID: '#F87171', UNAVAILABLE: '#475569' }} size="sm" />
         </div>
       </div>
 
@@ -435,9 +581,11 @@ function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanati
         </div>
       )}
 
-      <WhyNowPanel explanation={explanation} />
+      <WhyNowPanel explanation={explanation} opportunity={opp} />
 
-      <EvidencePanel opportunity={opp} />
+      <EvidencePanel opportunity={opp} explanation={explanation} />
+
+      <WarningsPanel opportunity={opp} plan={plan} explanation={explanation} />
 
       <IntelligenceSources opportunity={opp} />
 
@@ -760,14 +908,20 @@ export default function CommandCenter() {
     return () => { clearInterval(t); clearInterval(refresh); };
   }, [fetchAll]);
 
-  const regime = commandCenterData?.regime || commandCenterData?.sections?.marketRegime?.regime;
-  const regimeScore = commandCenterData?.regimeScore ?? commandCenterData?.sections?.marketRegime?.regimeScore;
-  const regimeConfidence = commandCenterData?.confidenceLevel || commandCenterData?.sections?.marketRegime?.confidenceLevel;
+  const regimeData = commandCenterData?.regime ?? commandCenterData?.sections?.marketRegime;
+  const regime = regimeData?.regime || regimeData?.regimeName || null;
+  const regimeScore = regimeData?.regimeScore ?? commandCenterData?.regimeScore ?? commandCenterData?.sections?.marketRegime?.regimeScore ?? null;
+  const regimeConfidence = regimeData?.confidenceLevel ?? commandCenterData?.confidenceLevel ?? commandCenterData?.sections?.marketRegime?.confidenceLevel ?? null;
   const lastUpdate = commandCenterData?.timestamp;
   const vix = commandCenterData?.vix ?? commandCenterData?.sections?.marketRegime?.vix;
   const marketWarning = commandCenterData?.limitations || commandCenterData?.sections?.marketRegime?.limitations;
 
   const topOpportunities = (opportunityData?.top || opportunityData?.data || []).slice(0, 15);
+  const plansBySymbol = useMemo(() => {
+    const map = {};
+    (tradePlanData?.data || []).forEach(p => { if (p?.symbol) map[p.symbol] = p; });
+    return map;
+  }, [tradePlanData]);
   const alerts = alertCenterData?.alerts || [];
   const highPriorityAlerts = alerts.filter(a => (a.priority || 0) >= 50);
 
@@ -812,6 +966,7 @@ export default function CommandCenter() {
           <div className="main-column">
             <OpportunityRadar
               opportunities={topOpportunities}
+              plansBySymbol={plansBySymbol}
               selectedSymbol={selectedSymbol}
               onSelectSymbol={setSelectedSymbol}
               loading={loading}
@@ -819,12 +974,15 @@ export default function CommandCenter() {
           </div>
 
           <div className="detail-column">
-            <OpportunityDetail
-              symbol={selectedSymbol}
-              opportunityData={opportunityData}
-              tradePlanData={tradePlanData}
-              aiExplanationData={aiExplanationData}
-            />
+           <OpportunityDetail
+             symbol={selectedSymbol}
+             opportunityData={opportunityData}
+             tradePlanData={tradePlanData}
+             aiExplanationData={aiExplanationData}
+             regime={regime}
+             regimeScore={regimeScore}
+             regimeConfidence={regimeConfidence}
+           />
 
             {selectedSymbol && (
               <>
