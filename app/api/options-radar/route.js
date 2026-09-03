@@ -298,7 +298,7 @@ export async function GET(request) {
         dataAvailability: {
           options: optionsAvailable,
           darkPool: false,
-          institutionalFlow: finraAvailable || true,
+          institutionalFlow: finraAvailable,
         },
         methodology: {
           premiumMax: 1,
@@ -324,7 +324,7 @@ export async function GET(request) {
         dataAvailability: {
           options: false,
           darkPool: false,
-          institutionalFlow: finraAvailable || true,
+          institutionalFlow: finraAvailable,
          },
       },
       {
