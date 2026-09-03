@@ -461,17 +461,18 @@ test('Quality: STRONG 70-84', function() {
   assertEqual(classifySwingQuality(70), 'STRONG');
 });
 
-test('Quality: WATCH 54', function() {
-  assertEqual(classifySwingQuality(54), 'WATCH');
+test('Quality: WATCH (54 = WEAK, 55 = MEDIUM special case)', function() {
+  assertEqual(classifySwingQuality(54), 'WEAK');
+  assertEqual(classifySwingQuality(55), 'MEDIUM');
 });
 
 test('Quality: MEDIUM 55', function() {
   assertEqual(classifySwingQuality(55), 'MEDIUM');
 });
 
-test('Quality: STRONG 56-69', function() {
-  assertEqual(classifySwingQuality(56), 'STRONG');
-  assertEqual(classifySwingQuality(60), 'STRONG');
+test('Quality: 56-69 (below new STRONG threshold of 70)', function() {
+  assertEqual(classifySwingQuality(56), 'WEAK');
+  assertEqual(classifySwingQuality(60), 'WEAK');
 });
 
 test('Quality: WEAK 40-54', function() {
