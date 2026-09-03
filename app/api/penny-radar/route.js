@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { calculateSupportProximity, calculateResistanceProximity, classifyBreakoutProximity, calculateStructureScore, generateEntryTargetZones, calculateDollarVolume, classifyDollarVolume, calculateVolumeQuality, calculatePennyLiquidityScore, getLiquidityWarning, getLiquidityFlags, calculateLiquidityRisk, calculateVolatilityRisk, calculateResistanceRisk, calculateStructureRisk, calculateVolumeTrapRisk, calculateMomentumRisk, calculatePennyRiskScore, classifyPennyRisk, getPennyRiskLabel, getPennyRiskFlags, buildRiskReasons } from '@/lib/penny-intelligence';
+import { calculatePennyScore, buildPennyReasons, calculateSupportProximity, calculateResistanceProximity, classifyBreakoutProximity, calculateStructureScore, generateEntryTargetZones, calculateDollarVolume, classifyDollarVolume, calculateVolumeQuality, calculatePennyLiquidityScore, getLiquidityWarning, getLiquidityFlags, calculateLiquidityRisk, calculateVolatilityRisk, calculateResistanceRisk, calculateStructureRisk, calculateVolumeTrapRisk, calculateMomentumRisk, calculatePennyRiskScore, classifyPennyRisk, getPennyRiskLabel, getPennyRiskFlags, buildRiskReasons } from '@/lib/penny-intelligence';
 import { buildSecIntelligence } from '@/lib/sec-filings';
 
 export const dynamic = 'force-dynamic';
