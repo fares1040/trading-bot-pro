@@ -283,6 +283,22 @@ const OPTION_EXEC_COLORS = {
   UNAVAILABLE: '#475569',
 };
 
+const LIQUIDITY_COLORS = {
+  EXCELLENT: '#34D399',
+  GOOD: '#22C55E',
+  MODERATE: '#FBBF24',
+  WEAK: '#EF4444',
+  UNAVAILABLE: '#475569',
+};
+
+const RISK_COLORS = {
+  LOW: '#34D399',
+  MODERATE: '#FBBF24',
+  HIGH: '#F87171',
+  EXTREME: '#EF4444',
+  UNAVAILABLE: '#475569',
+};
+
 function OptionsCentsRadar({ optionsRadarData }) {
   if (!optionsRadarData) {
     return (
@@ -308,7 +324,7 @@ function OptionsCentsRadar({ optionsRadarData }) {
     return (
       <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
         <ZoneLabel label="OPTIONS CENTS" icon="⚡" color={colors.accent.amber} />
-        <EmptyState message="No sub-$1 premium contracts found" />
+        <EmptyState message="No sub-$1 premium contracts found" sub="Options data unavailable from current provider" />
       </div>
     );
   }
@@ -345,46 +361,56 @@ function OptionsCentsRadar({ optionsRadarData }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
           <thead>
             <tr>
-              <th style={{ textAlign: 'left', padding: '6px 8px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 8, borderBottom: `1px solid ${colors.border}` }}>Symbol</th>
-              <th style={{ textAlign: 'center', padding: '6px 8px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 8, borderBottom: `1px solid ${colors.border}` }}>Type</th>
-              <th style={{ textAlign: 'right', padding: '6px 8px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 8, borderBottom: `1px solid ${colors.border}` }}>Strike</th>
-              <th style={{ textAlign: 'right', padding: '6px 8px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 8, borderBottom: `1px solid ${colors.border}` }}>Premium</th>
-              <th style={{ textAlign: 'right', padding: '6px 8px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 8, borderBottom: `1px solid ${colors.border}` }}>Cost</th>
-              <th style={{ textAlign: 'right', padding: '6px 8px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 8, borderBottom: `1px solid ${colors.border}` }}>Bid/Ask</th>
-              <th style={{ textAlign: 'right', padding: '6px 8px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 8, borderBottom: `1px solid ${colors.border}` }}>Spread%</th>
-              <th style={{ textAlign: 'right', padding: '6px 8px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 8, borderBottom: `1px solid ${colors.border}` }}>DTE</th>
-              <th style={{ textAlign: 'right', padding: '6px 8px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 8, borderBottom: `1px solid ${colors.border}` }}>IV%</th>
-              <th style={{ textAlign: 'right', padding: '6px 8px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 8, borderBottom: `1px solid ${colors.border}` }}>Vol</th>
-              <th style={{ textAlign: 'right', padding: '6px 8px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 8, borderBottom: `1px solid ${colors.border}` }}>OI</th>
-              <th style={{ textAlign: 'right', padding: '6px 8px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 8, borderBottom: `1px solid ${colors.border}` }}>Score</th>
-              <th style={{ textAlign: 'center', padding: '6px 8px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 8, borderBottom: `1px solid ${colors.border}` }}>Quality</th>
+              <th style={{ textAlign: 'left', padding: '6px 4px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 7, borderBottom: `1px solid ${colors.border}`, whiteSpace: 'nowrap' }}>Symbol</th>
+              <th style={{ textAlign: 'center', padding: '6px 4px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 7, borderBottom: `1px solid ${colors.border}`, whiteSpace: 'nowrap' }}>Type</th>
+              <th style={{ textAlign: 'center', padding: '6px 4px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 7, borderBottom: `1px solid ${colors.border}`, whiteSpace: 'nowrap' }}>Expiry</th>
+              <th style={{ textAlign: 'right', padding: '6px 4px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 7, borderBottom: `1px solid ${colors.border}`, whiteSpace: 'nowrap' }}>Strike</th>
+              <th style={{ textAlign: 'right', padding: '6px 4px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 7, borderBottom: `1px solid ${colors.border}`, whiteSpace: 'nowrap' }}>DTE</th>
+              <th style={{ textAlign: 'right', padding: '6px 4px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 7, borderBottom: `1px solid ${colors.border}`, whiteSpace: 'nowrap' }}>Premium</th>
+              <th style={{ textAlign: 'right', padding: '6px 4px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 7, borderBottom: `1px solid ${colors.border}`, whiteSpace: 'nowrap' }}>Cost</th>
+              <th style={{ textAlign: 'right', padding: '6px 4px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 7, borderBottom: `1px solid ${colors.border}`, whiteSpace: 'nowrap' }}>Bid/Ask</th>
+              <th style={{ textAlign: 'right', padding: '6px 4px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 7, borderBottom: `1px solid ${colors.border}`, whiteSpace: 'nowrap' }}>Spread</th>
+              <th style={{ textAlign: 'right', padding: '6px 4px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 7, borderBottom: `1px solid ${colors.border}`, whiteSpace: 'nowrap' }}>Vol</th>
+              <th style={{ textAlign: 'right', padding: '6px 4px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 7, borderBottom: `1px solid ${colors.border}`, whiteSpace: 'nowrap' }}>OI</th>
+              <th style={{ textAlign: 'right', padding: '6px 4px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 7, borderBottom: `1px solid ${colors.border}`, whiteSpace: 'nowrap' }}>IV%</th>
+              <th style={{ textAlign: 'right', padding: '6px 4px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 7, borderBottom: `1px solid ${colors.border}`, whiteSpace: 'nowrap' }}>Score</th>
+              <th style={{ textAlign: 'center', padding: '6px 4px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 7, borderBottom: `1px solid ${colors.border}`, whiteSpace: 'nowrap' }}>Liq</th>
+              <th style={{ textAlign: 'center', padding: '6px 4px', color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 7, borderBottom: `1px solid ${colors.border}`, whiteSpace: 'nowrap' }}>Risk</th>
             </tr>
           </thead>
           <tbody>
             {contracts.map((c, i) => {
               const typeColor = OPTION_TYPE_COLORS[c.side || 'UNKNOWN'];
-              const decisionStatus = c.decisionStatus || 'UNAVAILABLE';
-              const execQuality = c.executionQuality || 'UNAVAILABLE';
+              const liqStrength = c.liquidityStrength || 'UNAVAILABLE';
+              const liqColor = LIQUIDITY_COLORS[liqStrength] || LIQUIDITY_COLORS.UNAVAILABLE;
+              const riskLevel = c.riskLevel || 'UNAVAILABLE';
+              const riskColor = RISK_COLORS[riskLevel] || RISK_COLORS.UNAVAILABLE;
               return (
                 <tr key={`${c.symbol}-${c.contract}-${i}`} style={{ borderBottom: `1px solid ${colors.border}20` }}>
-                  <td style={{ padding: '8px 8px', fontFamily: 'monospace', fontSize: 10, fontWeight: 700, color: colors.text.primary }}>{c.symbol || '—'}</td>
-                  <td style={{ padding: '4px 8px', textAlign: 'center' }}>
-                    <span style={{ color: typeColor, fontWeight: 900, fontSize: 9, textTransform: 'uppercase' }}>{c.side || '—'}</span>
+                  <td style={{ padding: '6px 4px', fontFamily: 'monospace', fontSize: 10, fontWeight: 700, color: colors.text.primary }}>{c.symbol || '—'}</td>
+                  <td style={{ padding: '4px 4px', textAlign: 'center' }}>
+                    <span style={{ color: typeColor, fontWeight: 900, fontSize: 8, textTransform: 'uppercase' }}>{c.side || '—'}</span>
                   </td>
-                  <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'monospace', fontSize: 10 }}>{fmt(c.strike)}</td>
-                  <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'monospace', fontSize: 10, fontWeight: 700, color: c.premium <= 1 ? colors.accent.amber : colors.text.primary }}>
+                  <td style={{ padding: '4px 4px', textAlign: 'center', fontFamily: 'monospace', fontSize: 9, color: colors.text.secondary }}>
+                    {c.expiry ? new Date(c.expiry).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+                  </td>
+                  <td style={{ padding: '4px 4px', textAlign: 'right', fontFamily: 'monospace', fontSize: 10 }}>{fmt(c.strike)}</td>
+                  <td style={{ padding: '4px 4px', textAlign: 'right', fontFamily: 'monospace', fontSize: 9, color: colors.text.secondary }}>{c.daysToExpiration != null ? c.daysToExpiration : '—'}</td>
+                  <td style={{ padding: '4px 4px', textAlign: 'right', fontFamily: 'monospace', fontSize: 10, fontWeight: 700, color: c.premium <= 1 ? colors.accent.amber : colors.text.primary }}>
                     {fmtPrice(c.premium)}
                   </td>
-                  <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'monospace', fontSize: 10 }}>{fmt(c.contractCost)}</td>
-                  <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'monospace', fontSize: 10 }}>{c.bid != null && c.ask != null ? fmt(c.bid) + '/' + fmt(c.ask) : '—'}</td>
-                  <td style={{ padding: '4px 8px', textAlign: 'right', fontSize: 10 }}>{c.spreadPct != null ? fmt(c.spreadPct) + '%' : '—'}</td>
-                  <td style={{ padding: '4px 8px', textAlign: 'right', fontSize: 10 }}>{c.daysToExpiration != null ? c.daysToExpiration : '—'}</td>
-                  <td style={{ padding: '4px 8px', textAlign: 'right', fontSize: 10 }}>{c.impliedVolatility != null ? fmt(c.impliedVolatility * 100, 0) + '%' : '—'}</td>
-                  <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'monospace', fontSize: 10 }}>{fmt(c.volume, 0)}</td>
-                  <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'monospace', fontSize: 10 }}>{fmt(c.openInterest, 0)}</td>
-                  <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'monospace', fontSize: 10, fontWeight: 900, color: scoreColor(c.score) }}>{c.score ?? '—'}</td>
-                  <td style={{ padding: '4px 8px', textAlign: 'center' }}>
-                    <Tag value={execQuality} colorMap={OPTION_EXEC_COLORS} size="sm" />
+                  <td style={{ padding: '4px 4px', textAlign: 'right', fontFamily: 'monospace', fontSize: 9, color: colors.text.secondary }}>{fmt(c.contractCost)}</td>
+                  <td style={{ padding: '4px 4px', textAlign: 'right', fontFamily: 'monospace', fontSize: 9 }}>{c.bid != null && c.ask != null ? fmt(c.bid) + '/' + fmt(c.ask) : '—'}</td>
+                  <td style={{ padding: '4px 4px', textAlign: 'right', fontSize: 9 }}>{c.spreadPct != null ? fmt(c.spreadPct) + '%' : '—'}</td>
+                  <td style={{ padding: '4px 4px', textAlign: 'right', fontFamily: 'monospace', fontSize: 9 }}>{fmt(c.volume, 0)}</td>
+                  <td style={{ padding: '4px 4px', textAlign: 'right', fontFamily: 'monospace', fontSize: 9 }}>{fmt(c.openInterest, 0)}</td>
+                  <td style={{ padding: '4px 4px', textAlign: 'right', fontSize: 9 }}>{c.impliedVolatility != null ? fmt(c.impliedVolatility * 100, 0) + '%' : '—'}</td>
+                  <td style={{ padding: '4px 4px', textAlign: 'right', fontFamily: 'monospace', fontSize: 9, fontWeight: 900, color: scoreColor(c.score) }}>{c.score ?? '—'}</td>
+                  <td style={{ padding: '4px 4px', textAlign: 'center' }}>
+                    <span style={{ fontSize: 8, fontWeight: 700, color: liqColor }}>{liqStrength}</span>
+                  </td>
+                  <td style={{ padding: '4px 4px', textAlign: 'center' }}>
+                    <span style={{ fontSize: 8, fontWeight: 700, color: riskColor }}>{riskLevel}</span>
                   </td>
                 </tr>
               );
@@ -394,7 +420,7 @@ function OptionsCentsRadar({ optionsRadarData }) {
       </div>
 
       <div style={{ marginTop: 10, fontSize: 8, color: colors.text.faint }}>
-        Premium = mid price per share. Cost = premium × 100 shares. Contracts sorted by score descending.
+        Premium = mid price per share. Cost = premium × 100 shares. Contracts sorted by score descending. Data from Yahoo Finance options chain.
       </div>
     </div>
   );
