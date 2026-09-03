@@ -54,6 +54,82 @@ function ZoneLabel({ label, icon, color = colors.accent.blue }) {
   );
 }
 
+function DecisionPipelineStepper({ regime, opportunityCount, planCount }) {
+  const steps = [
+    { key: 'DISCOVERY', label: 'Discovery', icon: '🔍' },
+    { key: 'INTELLIGENCE', label: 'B1-B6', icon: '🧠' },
+    { key: 'C7', label: 'C7', icon: '📊' },
+    { key: 'C10', label: 'C10', icon: '🌐' },
+    { key: 'C8', label: 'C8', icon: '📐' },
+    { key: 'C9', label: 'C9', icon: '💡' },
+    { key: 'DECISION', label: 'Decision', icon: '✅' },
+  ];
+
+  const getStepState = (step, idx) => {
+    if (idx === steps.length - 1) return 'final';
+    if (regime === 'UNAVAILABLE' || regime == null) return 'pending';
+    if (opportunityCount > 0 || planCount > 0) return 'done';
+    return 'pending';
+  };
+
+  return (
+    <div style={{ ...panel, padding: '10px 16px', marginBottom: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <div style={{ fontSize: 8, color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          DECISION PIPELINE
+        </div>
+        <div style={{ fontSize: 8, color: colors.text.faint }}>
+          {opportunityCount > 0 ? `${opportunityCount} opportunities` : '—'} · {planCount > 0 ? `${planCount} plans` : '—'}
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 0, alignItems: 'center' }}>
+        {steps.map((step, idx) => {
+          const state = getStepState(step, idx);
+          const isLast = idx === steps.length - 1;
+          const isFinal = state === 'final';
+          const isDone = state === 'done';
+
+          const bgColor = isFinal ? (planCount > 0 ? '#34D39915' : '#EF444415') :
+                          isDone ? '#38BDF815' : '#07090E';
+          const borderColor = isFinal ? (planCount > 0 ? '#34D39940' : '#EF444440') :
+                             isDone ? '#38BDF840' : colors.border;
+          const textColor = isFinal ? (planCount > 0 ? '#34D399' : '#EF4444') :
+                            isDone ? '#38BDF8' : colors.text.disabled;
+
+          return (
+            <React.Fragment key={step.key}>
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 4,
+                flex: 1,
+                padding: '6px 4px',
+                backgroundColor: bgColor,
+                border: `1px solid ${borderColor}`,
+                borderRadius: radius.sm,
+              }}>
+                <span style={{ fontSize: 12 }}>{step.icon}</span>
+                <span style={{ fontSize: 7, fontWeight: 700, color: textColor, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+                  {step.label}
+                </span>
+              </div>
+              {!isLast && (
+                <div style={{
+                  width: 12,
+                  height: 1,
+                  backgroundColor: colors.border,
+                  flexShrink: 0,
+                }} />
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function MarketHeader({ indices, regime, regimeScore, confidenceLevel, vix, marketStatus, lastUpdate, warning }) {
   const meta = REGIME_META[regime] || REGIME_META.UNAVAILABLE;
   return (
@@ -130,14 +206,15 @@ function HuntCard({ item, plan, explanation, isSelected, onClick }) {
   const riskReward = plan?.riskReward ?? item.riskReward ?? null;
   const planSignal = plan?.planSignal || null;
   const classification = classifyOpportunity(item.quality, planSignal);
+  const isAvoid = classification.label === 'AVOID';
   const whyNow = explanation?.whyNow?.slice(0, 2) || [];
   const strongest = explanation?.positiveEvidence?.slice(0, 2) || item.evidence?.slice(0, 2) || [];
   const warning = plan?.warnings?.[0] || item.warnings?.[0] || explanation?.warnings?.[0] || null;
 
   return (
     <div onClick={onClick} style={{
-      backgroundColor: isSelected ? '#0F1420' : '#0B0F17',
-      border: `1px solid ${isSelected ? colors.accent.blue + '55' : colors.border}`,
+      backgroundColor: isAvoid ? '#1A0A0A' : (isSelected ? '#0F1420' : '#0B0F17'),
+      border: `2px solid ${isAvoid ? '#EF4444' : (isSelected ? colors.accent.blue + '55' : colors.border)}`,
       borderRadius: radius.lg, padding: '14px 16px', cursor: 'pointer',
       transition: 'all 0.15s', display: 'flex', flexDirection: 'column', gap: 10,
     }}>
@@ -148,6 +225,30 @@ function HuntCard({ item, plan, explanation, isSelected, onClick }) {
         </div>
         <Tag value={classification.label} colorMap={CLASS_COLOR} size="sm" />
       </div>
+
+      {isAvoid && (
+        <div style={{
+          padding: '8px 10px',
+          backgroundColor: '#2A0A0A',
+          border: '1px solid #EF444440',
+          borderRadius: radius.sm,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}>
+          <span style={{ fontSize: 16 }}>🚫</span>
+          <div>
+            <div style={{ fontSize: 9, fontWeight: 800, color: '#EF4444', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              C8 Final Decision: AVOID
+            </div>
+            {plan?.riskReward != null && (
+              <div style={{ fontSize: 8, color: '#F87171', marginTop: 2 }}>
+                Poor R/R: {plan.riskReward}x
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 20, fontWeight: 900, color: scoreColor(oppScore), fontFamily: 'monospace' }}>{oppScore ?? '—'}</div>
@@ -1205,10 +1306,25 @@ function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanati
               ${Number(opp.price).toLocaleString('en-US', { maximumFractionDigits: 2 })}
             </div>
           )}
-          <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             {plan?.direction && <Tag value={plan.direction} colorMap={D_COLOR} />}
             <Tag value={opp?.quality || 'UNAVAILABLE'} colorMap={Q_COLOR} />
             {plan?.planSignal && <Tag value={plan.planSignal} colorMap={S_COLOR} />}
+            {swingHorizonData?.horizon && (
+              <span style={{
+                fontSize: 8,
+                fontWeight: 700,
+                padding: '2px 8px',
+                borderRadius: 4,
+                backgroundColor: swingHorizonData.horizon.includes('3') || swingHorizonData.horizon.includes('SWING') ? '#34D3991A' : '#FBBF241A',
+                border: `1px solid ${swingHorizonData.horizon.includes('3') || swingHorizonData.horizon.includes('SWING') ? '#34D39940' : '#FBBF2440'}`,
+                color: swingHorizonData.horizon.includes('3') || swingHorizonData.horizon.includes('SWING') ? '#34D399' : '#FBBF24',
+                textTransform: 'uppercase',
+                letterSpacing: 0.3,
+              }}>
+                {swingHorizonData.horizon.includes('3') || swingHorizonData.horizon.includes('SWING') ? '📈 SWING 1-3M' : '⚡ INTRADAY'}
+              </span>
+            )}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -1528,6 +1644,12 @@ export default function CommandCenter() {
           marketStatus={marketStatus}
           lastUpdate={lastUpdate}
           warning={marketWarning}
+        />
+
+        <DecisionPipelineStepper
+          regime={regime}
+          opportunityCount={topOpportunities.length}
+          planCount={Object.keys(plansBySymbol).length}
         />
 
         <TopHunts
