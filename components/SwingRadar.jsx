@@ -10,9 +10,9 @@ const panel = {
 
 const qualityColor = {
   TOP: '#34D399',
-  STRONG: '#FBBF24',
-  WATCH: '#F87171',
-  WEAK: '#94A3B8',
+  STRONG: '#22C55E',
+  WATCH: '#FBBF24',
+  WEAK: '#F87171',
   UNAVAILABLE: '#475569',
 };
 
