@@ -207,118 +207,64 @@ function HuntCard({ item, plan, explanation, isSelected, onClick }) {
   const planSignal = plan?.planSignal || null;
   const classification = classifyOpportunity(item.quality, planSignal);
   const isAvoid = classification.label === 'AVOID';
-  const whyNow = explanation?.whyNow?.slice(0, 2) || [];
-  const strongest = explanation?.positiveEvidence?.slice(0, 2) || item.evidence?.slice(0, 2) || [];
+  const whyNow = explanation?.whyNow?.[0] || item.reasons?.[0] || null;
   const warning = plan?.warnings?.[0] || item.warnings?.[0] || explanation?.warnings?.[0] || null;
 
   return (
     <div onClick={onClick} style={{
       backgroundColor: isAvoid ? '#1A0A0A' : (isSelected ? '#0F1420' : '#0B0F17'),
       border: `2px solid ${isAvoid ? '#EF4444' : (isSelected ? colors.accent.blue + '55' : colors.border)}`,
-      borderRadius: radius.lg, padding: '14px 16px', cursor: 'pointer',
-      transition: 'all 0.15s', display: 'flex', flexDirection: 'column', gap: 10,
+      borderRadius: radius.lg, padding: '12px 14px', cursor: 'pointer',
+      transition: 'all 0.15s', display: 'flex', flexDirection: 'column', gap: 8,
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontFamily: 'monospace', fontWeight: 900, fontSize: 16, color: colors.text.primary }}>{item.symbol || '—'}</span>
-          <span style={{ fontSize: 14 }} title={classification.label}>{classification.emoji}</span>
+          <span style={{ fontFamily: 'monospace', fontWeight: 900, fontSize: 15, color: colors.text.primary }}>{item.symbol || '—'}</span>
+          <span style={{ fontSize: 13 }} title={classification.label}>{classification.emoji}</span>
         </div>
         <Tag value={classification.label} colorMap={CLASS_COLOR} size="sm" />
       </div>
 
-      {isAvoid && (
-        <div style={{
-          padding: '8px 10px',
-          backgroundColor: '#2A0A0A',
-          border: '1px solid #EF444440',
-          borderRadius: radius.sm,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-        }}>
-          <span style={{ fontSize: 16 }}>🚫</span>
-          <div>
-            <div style={{ fontSize: 9, fontWeight: 800, color: '#EF4444', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              C8 Final Decision: AVOID
-            </div>
-            {plan?.riskReward != null && (
-              <div style={{ fontSize: 8, color: '#F87171', marginTop: 2 }}>
-                Poor R/R: {plan.riskReward}x
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 20, fontWeight: 900, color: scoreColor(oppScore), fontFamily: 'monospace' }}>{oppScore ?? '—'}</div>
-          <div style={{ fontSize: 7, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700 }}>C7</div>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ textAlign: 'center', minWidth: 36 }}>
+          <div style={{ fontSize: 18, fontWeight: 900, color: scoreColor(oppScore), fontFamily: 'monospace' }}>{oppScore ?? '—'}</div>
+          <div style={{ fontSize: 6, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700 }}>C7</div>
         </div>
         {planScore != null && (
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 20, fontWeight: 900, color: scoreColor(planScore), fontFamily: 'monospace' }}>{planScore}</div>
-            <div style={{ fontSize: 7, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700 }}>C8</div>
+          <div style={{ textAlign: 'center', minWidth: 36 }}>
+            <div style={{ fontSize: 18, fontWeight: 900, color: scoreColor(planScore), fontFamily: 'monospace' }}>{planScore}</div>
+            <div style={{ fontSize: 6, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700 }}>C8</div>
           </div>
         )}
-        <div style={{ width: 1, height: 28, backgroundColor: colors.border }} />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ width: 1, height: 24, backgroundColor: colors.border }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           {direction && <Tag value={direction} colorMap={D_COLOR} size="sm" />}
           <Tag value={item.quality} colorMap={Q_COLOR} size="sm" />
-          {planSignal && <Tag value={planSignal} colorMap={S_COLOR} size="sm" />}
         </div>
       </div>
-      {(plan?.entryZone || plan?.entryPrice || plan?.stopLoss || plan?.target1) && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-          {(plan.entryZone || plan.entryPrice) ? (
-            <div style={{ padding: '6px 8px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
-              <div style={{ fontSize: 7, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700 }}>Entry</div>
-              <div style={{ fontSize: 11, fontWeight: 800, color: colors.text.primary, fontFamily: 'monospace' }}>{fmtLvl(plan.entryZone || plan.entryPrice)}</div>
-            </div>
-          ) : null}
-          {(plan.stopLoss || plan.invalidation) ? (
-            <div style={{ padding: '6px 8px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
-              <div style={{ fontSize: 7, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700 }}>Stop</div>
-              <div style={{ fontSize: 11, fontWeight: 800, color: '#EF4444', fontFamily: 'monospace' }}>{fmtLvl(plan.stopLoss || plan.invalidation)}</div>
-            </div>
-          ) : null}
-          {plan.target1 ? (
-            <div style={{ padding: '6px 8px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
-              <div style={{ fontSize: 7, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700 }}>Target</div>
-              <div style={{ fontSize: 11, fontWeight: 800, color: '#34D399', fontFamily: 'monospace' }}>{fmtLvl(plan.target1)}</div>
-            </div>
-          ) : null}
-        </div>
+
+      {isAvoid && plan?.riskReward != null && (
+        <div style={{ fontSize: 9, color: '#F87171' }}>Poor R/R: {plan.riskReward}x</div>
       )}
-      {riskReward != null && (
+
+      {!isAvoid && riskReward != null && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 9, color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase' }}>R/R</span>
+          <span style={{ fontSize: 8, color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase' }}>R/R</span>
           <span style={{ fontSize: 13, fontWeight: 900, color: riskRewardColor(riskReward), fontFamily: 'monospace' }}>{riskReward}</span>
-          <ScoreBar score={Math.min(riskReward * 20, 100)} max={100} color={riskRewardColor(riskReward)} height={4} />
+          <ScoreBar score={Math.min(riskReward * 20, 100)} max={100} color={riskRewardColor(riskReward)} height={3} />
         </div>
       )}
-      {whyNow.length > 0 && (
-        <div style={{ fontSize: 9, color: colors.accent.amber, lineHeight: 1.5 }}>
-          <span style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>WHY NOW</span>
-          <div style={{ marginTop: 2, color: colors.text.secondary }}>
-            {whyNow.map((f, i) => (<div key={i} style={{ marginBottom: 2 }}><span style={{ color: colors.accent.amber }}>•</span> {f.factor}: {f.explanation}</div>))}
-          </div>
+
+      {whyNow && (
+        <div style={{ fontSize: 9, color: colors.accent.amber, lineHeight: 1.4 }}>
+          <span style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.3, fontSize: 8 }}>Why Now</span>
+          <div style={{ marginTop: 2, color: colors.text.secondary }}>• {whyNow.factor || whyNow}: {whyNow.explanation || ''}</div>
         </div>
       )}
-      {strongest.length > 0 && (
-        <div style={{ fontSize: 9, color: colors.text.secondary, lineHeight: 1.5 }}>
-          <span style={{ color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Evidence</span>
-          <div style={{ marginTop: 2 }}>
-            {strongest.slice(0, 2).map((ev, i) => (
-              <div key={i} style={{ marginBottom: 1 }}>
-                <span style={{ color: '#34D399' }}>+</span> {typeof ev === 'string' ? ev : (ev.factor || ev.signal || ev.label || 'Evidence')}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+
       {warning && (
-        <div style={{ fontSize: 9, color: '#FBBF24', lineHeight: 1.4, padding: '4px 8px', backgroundColor: '#1A1500', borderRadius: radius.sm }}>
-          <span style={{ fontWeight: 700 }}>⚠</span> {warning}
+        <div style={{ fontSize: 9, color: '#FBBF24', lineHeight: 1.3, padding: '3px 6px', backgroundColor: '#1A1500', borderRadius: radius.sm }}>
+          ⚠ {warning}
         </div>
       )}
     </div>
@@ -333,7 +279,14 @@ function TopHunts({ opportunities, plansBySymbol, explanationsBySymbol, selected
       </div>
     );
   }
-  if (!opportunities?.length) {
+  const sorted = useMemo(() => {
+    return [...(opportunities || [])].sort((a, b) => {
+      const scoreA = a.opportunityScore ?? a.setupScore ?? 0;
+      const scoreB = b.opportunityScore ?? b.setupScore ?? 0;
+      return scoreB - scoreA;
+    });
+  }, [opportunities]);
+  if (!sorted.length) {
     return (
       <div style={{ ...panel, padding: 24, textAlign: 'center', marginBottom: 12 }}>
         <EmptyState icon="🎯" message="No opportunities available" sub="Top hunts will appear here" />
@@ -344,10 +297,10 @@ function TopHunts({ opportunities, plansBySymbol, explanationsBySymbol, selected
     <div style={{ marginBottom: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <ZoneLabel label="TOP HUNTS" icon="🔥" />
-        <span style={{ fontSize: 9, color: colors.text.faint }}>{opportunities.length} opportunities</span>
+        <span style={{ fontSize: 9, color: colors.text.faint }}>{sorted.length} opportunities</span>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 10 }}>
-        {opportunities.slice(0, 12).map((item) => (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+        {sorted.slice(0, 12).map((item) => (
           <HuntCard
             key={item.symbol}
             item={item}
@@ -676,26 +629,33 @@ const RADAR_TABS = [
 function RadarHub({ opportunities, plansBySymbol, explanationsBySymbol, selectedSymbol, onSelectSymbol }) {
   const [activeTab, setActiveTab] = useState('ALL');
   const filtered = useMemo(() => {
-    if (activeTab === 'ALL') return opportunities;
-    return opportunities.filter((o) => {
-      const da = o.dataAvailability || {};
-      switch (activeTab) {
-        case 'PENNY': return da.pennyIntelligence === true;
-        case 'EXPLOSION': return da.earlyExplosion === true;
-        case 'OPTIONS': return da.optionsIntelligence === true;
-        case 'INSTITUTIONAL': return da.institutionalRadar === true;
-        case 'SWING': return da.swingIntelligence === true;
-        case 'STRUCTURE': {
-          const ce = o.classicalEvidence || {};
-          return ce.breaker?.detected || ce.fvg?.detected || ce.marketStructure?.mssDetected ||
-            (o.flags || []).some(f => f.includes('BREAKER') || f.includes('FVG') || f.includes('MARKET_STRUCTURE'));
+    let result = opportunities;
+    if (activeTab !== 'ALL') {
+      result = opportunities.filter((o) => {
+        const da = o.dataAvailability || {};
+        switch (activeTab) {
+          case 'PENNY': return da.pennyIntelligence === true;
+          case 'EXPLOSION': return da.earlyExplosion === true;
+          case 'OPTIONS': return da.optionsIntelligence === true;
+          case 'INSTITUTIONAL': return da.institutionalRadar === true;
+          case 'SWING': return da.swingIntelligence === true;
+          case 'STRUCTURE': {
+            const ce = o.classicalEvidence || {};
+            return ce.breaker?.detected || ce.fvg?.detected || ce.marketStructure?.mssDetected ||
+              (o.flags || []).some(f => f.includes('BREAKER') || f.includes('FVG') || f.includes('MARKET_STRUCTURE'));
+          }
+          case 'SUPPLY_DEMAND': {
+            const plan = plansBySymbol?.[o.symbol];
+            return !!(plan?.entryZone || plan?.entryPrice || plan?.stopLoss || plan?.target1);
+          }
+          default: return true;
         }
-        case 'SUPPLY_DEMAND': {
-          const plan = plansBySymbol?.[o.symbol];
-          return !!(plan?.entryZone || plan?.entryPrice || plan?.stopLoss || plan?.target1);
-        }
-        default: return true;
-      }
+      });
+    }
+    return [...result].sort((a, b) => {
+      const scoreA = a.opportunityScore ?? a.setupScore ?? 0;
+      const scoreB = b.opportunityScore ?? b.setupScore ?? 0;
+      return scoreB - scoreA;
     });
   }, [opportunities, activeTab, plansBySymbol]);
 
@@ -1292,14 +1252,28 @@ function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanati
   const oppScore = opp?.opportunityScore ?? opp?.setupScore ?? null;
   const planScore = plan?.planScore ?? null;
   const classification = classifyOpportunity(opp?.quality, plan?.planSignal);
+  const isSwing = swingHorizonData?.horizon && (swingHorizonData.horizon.includes('3') || swingHorizonData.horizon.includes('SWING'));
 
   return (
     <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
             <div style={{ fontSize: 24, fontWeight: 900, color: colors.text.primary, fontFamily: 'monospace' }}>{symbol}</div>
             <span style={{ fontSize: 18 }} title={classification.label}>{classification.emoji}</span>
+            <div style={{
+              padding: '4px 10px',
+              borderRadius: radius.sm,
+              backgroundColor: isSwing ? '#34D3991A' : '#FBBF241A',
+              border: `1px solid ${isSwing ? '#34D39940' : '#FBBF2440'}`,
+              fontSize: 8,
+              fontWeight: 800,
+              color: isSwing ? '#34D399' : '#FBBF24',
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
+            }}>
+              {isSwing ? '📈 SWING 1-3M' : '⚡ INTRADAY'}
+            </div>
           </div>
           {opp?.price != null && (
             <div style={{ fontSize: 12, color: colors.text.muted, fontFamily: 'monospace' }}>
@@ -1310,21 +1284,6 @@ function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanati
             {plan?.direction && <Tag value={plan.direction} colorMap={D_COLOR} />}
             <Tag value={opp?.quality || 'UNAVAILABLE'} colorMap={Q_COLOR} />
             {plan?.planSignal && <Tag value={plan.planSignal} colorMap={S_COLOR} />}
-            {swingHorizonData?.horizon && (
-              <span style={{
-                fontSize: 8,
-                fontWeight: 700,
-                padding: '2px 8px',
-                borderRadius: 4,
-                backgroundColor: swingHorizonData.horizon.includes('3') || swingHorizonData.horizon.includes('SWING') ? '#34D3991A' : '#FBBF241A',
-                border: `1px solid ${swingHorizonData.horizon.includes('3') || swingHorizonData.horizon.includes('SWING') ? '#34D39940' : '#FBBF2440'}`,
-                color: swingHorizonData.horizon.includes('3') || swingHorizonData.horizon.includes('SWING') ? '#34D399' : '#FBBF24',
-                textTransform: 'uppercase',
-                letterSpacing: 0.3,
-              }}>
-                {swingHorizonData.horizon.includes('3') || swingHorizonData.horizon.includes('SWING') ? '📈 SWING 1-3M' : '⚡ INTRADAY'}
-              </span>
-            )}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -1345,43 +1304,72 @@ function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanati
       <DecisionBanner decision={tradeStage.decision} reason={tradeStage.reason} stage={tradeStage.stage} />
 
       {plan && (
-        <div style={{ marginTop: 12, marginBottom: 12 }}>
+        <div style={{ marginTop: 10, marginBottom: 10 }}>
           <TradeLifecycleStepper stage={tradeStage.stage} decision={tradeStage.decision} />
         </div>
       )}
 
       {explanation?.headline && (
-        <div style={{ fontSize: 11, color: colors.accent.gold, marginBottom: 12, padding: '8px 10px', backgroundColor: '#1A1500', borderRadius: radius.sm }}>
+        <div style={{ fontSize: 11, color: colors.accent.gold, marginBottom: 10, padding: '8px 10px', backgroundColor: '#1A1500', borderRadius: radius.sm }}>
           {explanation.headline}
         </div>
       )}
 
       {whyNowSection(explanation, opp)}
 
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 12 }}>
+        {(plan?.entryZone || plan?.entryPrice) ? (
+          <div style={{ padding: '8px 10px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}`, textAlign: 'center' }}>
+            <div style={{ fontSize: 7, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>Entry</div>
+            <div style={{ fontSize: 14, fontWeight: 900, color: colors.text.primary, fontFamily: 'monospace' }}>{fmtLvl(plan.entryZone || plan.entryPrice)}</div>
+          </div>
+        ) : null}
+        {(plan?.stopLoss || plan?.invalidation) ? (
+          <div style={{ padding: '8px 10px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}`, textAlign: 'center' }}>
+            <div style={{ fontSize: 7, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>Stop</div>
+            <div style={{ fontSize: 14, fontWeight: 900, color: '#EF4444', fontFamily: 'monospace' }}>{fmtLvl(plan.stopLoss || plan.invalidation)}</div>
+          </div>
+        ) : null}
+        {plan?.target1 ? (
+          <div style={{ padding: '8px 10px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}`, textAlign: 'center' }}>
+            <div style={{ fontSize: 7, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>Target</div>
+            <div style={{ fontSize: 14, fontWeight: 900, color: '#34D399', fontFamily: 'monospace' }}>{fmtLvl(plan.target1)}</div>
+          </div>
+        ) : null}
+      </div>
+
+      {plan?.riskReward != null && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '6px 10px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
+          <span style={{ fontSize: 9, color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase' }}>Risk / Reward</span>
+          <span style={{ fontSize: 16, fontWeight: 900, color: riskRewardColor(plan.riskReward), fontFamily: 'monospace' }}>{plan.riskReward}x</span>
+          <ScoreBar score={Math.min(plan.riskReward * 20, 100)} max={100} color={riskRewardColor(plan.riskReward)} height={5} />
+          {plan.target2 && <span style={{ fontSize: 8, color: colors.text.faint }}>T2: {fmtLvl(plan.target2)}</span>}
+        </div>
+      )}
+
       <EvidenceBlock explanation={explanation} opportunity={opp} />
       <StructureBlock opportunity={opp} structureData={swingHorizonData?.structure || null} />
       <SwingHorizonBlock swingHorizonData={swingHorizonData || null} loading={horizonLoading} symbol={symbol} />
       <OptionsCentsPanel optionsRadarData={optionsRadarData} symbol={symbol} />
-      <TradePlanBlock plan={plan} />
       <DataConfidenceBlock opportunity={opp} plan={plan} />
 
-      {opp?.risks?.length > 0 && (
-        <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
-          <ZoneLabel label="RISKS" icon="⚠" color="#EF4444" />
-          {opp.risks.slice(0, 3).map((r, i) => (
-            <div key={i} style={{ fontSize: 10, color: '#EF4444', marginBottom: 2, paddingLeft: 10 }}>
-              <span style={{ fontWeight: 700 }}>[{r.severity}]</span> {r.label}
+      {(plan?.warnings || opp?.warnings || explanation?.warnings) && (
+        <div style={{ marginBottom: 10, padding: '8px 10px', backgroundColor: '#1A1500', border: '1px solid #FBBF2440', borderRadius: radius.sm }}>
+          <ZoneLabel label="WARNINGS" icon="⚠" color="#FBBF24" />
+          {([...(plan?.warnings || []), ...(opp?.warnings || []), ...(explanation?.warnings || [])]).map((w, i) => (
+            <div key={i} style={{ fontSize: 10, color: '#FBBF24', lineHeight: 1.4, marginBottom: 2 }}>
+              <span style={{ fontWeight: 700 }}>⚠</span> {w}
             </div>
           ))}
         </div>
       )}
 
-      {(plan?.warnings || opp?.warnings || explanation?.warnings) && (
-        <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
-          <ZoneLabel label="WARNINGS" icon="⚠" color="#FBBF24" />
-          {([...(plan?.warnings || []), ...(opp?.warnings || []), ...(explanation?.warnings || [])]).map((w, i) => (
-            <div key={i} style={{ fontSize: 10, color: '#FBBF24', lineHeight: 1.4, marginBottom: 2 }}>
-              <span style={{ fontWeight: 700 }}>⚠</span> {w}
+      {opp?.risks?.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <ZoneLabel label="RISKS" icon="⚠" color="#EF4444" />
+          {opp.risks.slice(0, 3).map((r, i) => (
+            <div key={i} style={{ fontSize: 10, color: '#EF4444', marginBottom: 2, paddingLeft: 10 }}>
+              <span style={{ fontWeight: 700 }}>[{r.severity}]</span> {r.label}
             </div>
           ))}
         </div>
