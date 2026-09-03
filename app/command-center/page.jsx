@@ -12,6 +12,7 @@ import {
 import { deriveTradeStage, DecisionBanner, TradeLifecycleStepper } from '@/components/ui/Lifecycle';
 import { NotificationAlertPanel } from '@/components/ui/NotificationAlertPanel';
 import { NOTIFICATION_STATUSES } from '@/lib/notification-contract';
+import HunterRiskDesk from '@/components/HunterRiskDesk';
 
 const panel = { ...panelStyle };
 const REGIME_META = {
@@ -1238,6 +1239,8 @@ function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanati
     return aiExplanationData.data.find(e => e.symbol === symbol) || null;
   }, [aiExplanationData, symbol]);
 
+  const [showRiskCalc, setShowRiskCalc] = useState(false);
+
   if (!symbol) {
     return (
       <div style={{ ...panel, padding: 32, textAlign: 'center', marginBottom: 12 }}>
@@ -1344,6 +1347,38 @@ function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanati
           <span style={{ fontSize: 16, fontWeight: 900, color: riskRewardColor(plan.riskReward), fontFamily: 'monospace' }}>{plan.riskReward}x</span>
           <ScoreBar score={Math.min(plan.riskReward * 20, 100)} max={100} color={riskRewardColor(plan.riskReward)} height={5} />
           {plan.target2 && <span style={{ fontSize: 8, color: colors.text.faint }}>T2: {fmtLvl(plan.target2)}</span>}
+        </div>
+      )}
+
+      {plan?.entryPrice != null && plan?.stopLoss != null && plan?.target1 != null && (
+        <button
+          onClick={() => setShowRiskCalc(!showRiskCalc)}
+          style={{
+            marginBottom: 12,
+            padding: '8px 14px',
+            backgroundColor: showRiskCalc ? '#059669' : '#0d111a',
+            border: `1px solid ${showRiskCalc ? '#34D399' : '#30363d'}`,
+            borderRadius: 8,
+            color: '#34D399',
+            fontSize: 11,
+            fontWeight: 700,
+            cursor: 'pointer',
+            width: '100%',
+          }}
+        >
+          {showRiskCalc ? '✓' : '🧮'} حساب المخاطرة — من {fmtLvl(plan.entryPrice)} إلى {fmtLvl(plan.target1)}
+        </button>
+      )}
+
+      {showRiskCalc && plan && (
+        <div style={{ marginBottom: 12 }}>
+          <HunterRiskDesk
+            initialValues={{
+              entry: plan.entryPrice ?? plan.entryZone,
+              stop: plan.stopLoss ?? plan.invalidation,
+              target: plan.target1,
+            }}
+          />
         </div>
       )}
 

@@ -3,12 +3,13 @@
 import React, { useMemo, useState } from 'react';
 import { buildRiskPlan } from '@/lib/hunter-intelligence';
 
-export default function HunterRiskDesk() {
+export default function HunterRiskDesk({ initialValues = {} }) {
+  const { entry: initEntry, stop: initStop, target: initTarget } = initialValues;
   const [capital, setCapital] = useState('10000');
   const [riskPercent, setRiskPercent] = useState('1');
-  const [entry, setEntry] = useState('20');
-  const [stop, setStop] = useState('19');
-  const [target, setTarget] = useState('23');
+  const [entry, setEntry] = useState(initEntry != null ? String(initEntry) : '20');
+  const [stop, setStop] = useState(initStop != null ? String(initStop) : '19');
+  const [target, setTarget] = useState(initTarget != null ? String(initTarget) : '23');
 
   const plan = useMemo(
     () => buildRiskPlan({ capital, riskPercent, entry, stop, target }),
