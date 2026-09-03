@@ -227,7 +227,7 @@ const conflictSource = {
   tradePlan: { warnings: ['CONFLICTING_SIGNALS_DETECTED'] },
 };
 
-const conflictAlerts = buildAlertFromInputs([{ symbol: 'CONFLICT', sources: conflictSource, opportunityRanking: { opportunityScore: 70 } }]);
+const conflictAlerts = buildAlertFromInputs([{ symbol: 'CONFLICT', sources: { ...conflictSource, opportunityRanking: { opportunityScore: 70 } } }]);
 assert(Array.isArray(conflictAlerts[0]?.warnings), 'Warnings array exists');
 
 console.log('\n--- Risk Propagation Tests ---\n');
