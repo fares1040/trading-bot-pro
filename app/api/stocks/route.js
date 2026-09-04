@@ -1527,6 +1527,8 @@ export async function GET(
       'Stocks API Live Error:',
       error
     );
+    const { record } = await import('@/lib/failure-events');
+    record({ route: '/api/stocks', provider: 'yahoo', error, symbol: null, optional: false });
 
     return NextResponse.json(
       {

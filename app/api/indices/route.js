@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { record } from '@/lib/failure-events';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -27,6 +28,7 @@ async function fetchIndex({ symbol, name }) {
   });
 
   if (!response.ok) {
+    record({ route: '/api/indices', provider: 'yahoo', errorType: 'HTTP_FAILURE', message: `Yahoo ${symbol} ${response.status}`, status: response.status, symbol, optional: false });
     throw new Error(`Yahoo ${symbol} ${response.status}`);
   }
 
@@ -46,6 +48,7 @@ async function fetchIndex({ symbol, name }) {
     closes.at(-2);
 
   if (!Number.isFinite(price) || !Number.isFinite(previousClose) || previousClose <= 0) {
+    record({ route: '/api/indices', provider: 'yahoo', errorType: 'EMPTY_RESPONSE', message: `Yahoo ${symbol} returned incomplete quote data`, symbol, optional: false });
     throw new Error(`Yahoo ${symbol} returned incomplete quote data`);
   }
 
@@ -62,9 +65,16 @@ async function fetchIndex({ symbol, name }) {
 
 export async function GET() {
   const settled = await Promise.allSettled(INDEXES.map(fetchIndex));
-  const data = settled
-    .filter((item) => item.status === 'fulfilled')
-    .map((item) => item.value);
+  const fulfilled = settled.filter((item) => item.status === 'fulfilled');
+  const rejected = settled.filter((item) => item.status === 'rejected');
+
+  if (rejected.length === INDEXES.length) {
+    record({ route: '/api/indices', provider: 'yahoo', errorType: 'PROVIDER_UNAVAILABLE', message: 'All Yahoo Finance index fetches failed', optional: false });
+  } else if (rejected.length > 0) {
+    record({ route: '/api/indices', provider: 'yahoo', errorType: 'HTTP_FAILURE', message: `${rejected.length} of ${INDEXES.length} index fetches failed`, optional: false });
+  }
+
+  const data = fulfilled.map((item) => item.value);
 
   return NextResponse.json(
     {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { HIC_THRESHOLDS } from '@/lib/hunter-intelligence';
 import { getInstitutionalProviderStatus } from '@/lib/institutional-provider';
+import { healthStatus } from '@/lib/failure-events';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -35,9 +36,23 @@ export async function GET() {
     !institutional.configured && 'FINRA_API_CLIENT_ID / FINRA_API_CLIENT_SECRET',
   ].filter(Boolean);
 
+  const fs = healthStatus();
+  const failureCounts = fs.counts;
+
+  let productionStatus;
+  if (fs.status === 'unavailable' || failureCounts.critical > 0) {
+    productionStatus = 'unavailable';
+  } else if (failureCounts.high > 0 || failureCounts.medium > 0) {
+    productionStatus = 'degraded';
+  } else if (missingOptional.length === 0) {
+    productionStatus = 'ready';
+  } else {
+    productionStatus = 'operational-with-optional-services';
+  }
+
   return NextResponse.json({
     success: true,
-    status: missingOptional.length === 0 ? 'ready' : 'operational-with-optional-services',
+    status: productionStatus,
     timestamp: new Date().toISOString(),
     checks,
     phases: {
