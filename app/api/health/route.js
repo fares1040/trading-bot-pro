@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { HIC_THRESHOLDS } from '@/lib/hunter-intelligence';
 import { getInstitutionalProviderStatus } from '@/lib/institutional-provider';
 import { healthStatus } from '@/lib/failure-events';
+import { getProviderHealth } from '@/lib/circuit-breaker-manager';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -39,6 +40,9 @@ export async function GET() {
   const fs = healthStatus();
   const failureCounts = fs.counts;
 
+  // Get circuit breaker health for all providers
+  const circuitBreakerHealth = getProviderHealth();
+
   let productionStatus;
   if (fs.status === 'unavailable' || failureCounts.critical > 0) {
     productionStatus = 'unavailable';
@@ -55,6 +59,7 @@ export async function GET() {
     status: productionStatus,
     timestamp: new Date().toISOString(),
     checks,
+    circuitBreakers: circuitBreakerHealth,
     phases: {
       productionValidation: { status: 'active', checks, optionalMissing: missingOptional },
       hicCandidateGate: { status: 'active', thresholds: HIC_THRESHOLDS },
