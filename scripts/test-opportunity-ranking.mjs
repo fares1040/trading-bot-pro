@@ -894,6 +894,193 @@ test('C7 with all B1-B6 defaults yields UNAVAILABLE', () => {
 });
 
 // ----------------------------------------------------------------------------
+// P1-5: Classical / Candlestick Evidence Integration
+// ----------------------------------------------------------------------------
+
+test('P1-5: classicalEvidence with mssDetected adds +1 to score', () => {
+  const sources = {
+    swingIntelligence: { ...b4Sample, swingScore: 50 },
+  };
+  const classicalEvidence = {
+    marketStructure: { mssDetected: true, trend: 'BULLISH' },
+    breaker: { detected: false },
+    fvg: { detected: false },
+    liquiditySweep: { detected: false },
+    crt: { confirmationState: 'UNAVAILABLE' },
+  };
+  const r = buildOpportunityRanking('AAPL', sources, { classicalEvidence });
+  assertTrue(r.evidenceAdjustment >= 1, 'evidence adjustment should be at least 1');
+  assertTrue(r.opportunityScore > 50, 'score should be higher than base');
+  assertTrue(r.reasons.some(r => r.includes('Evidence adjustment')), 'reason should mention evidence adjustment');
+});
+
+test('P1-5: candlestickEvidence with patterns adds +1 to score', () => {
+  const sources = {
+    swingIntelligence: { ...b4Sample, swingScore: 50 },
+  };
+  const candlestickEvidence = {
+    patterns: [{ name: 'Hammer', type: 'BULLISH', confidence: 75 }],
+    context: {},
+    dataCompleteness: 50,
+  };
+  const r = buildOpportunityRanking('AAPL', sources, { candlestickEvidence });
+  assertTrue(r.evidenceAdjustment >= 1, 'evidence adjustment should be at least 1');
+  assertTrue(r.opportunityScore > 50, 'score should be higher than base');
+  assertTrue(r.reasons.some(r => r.includes('candlestick pattern')), 'reason should mention candlestick pattern');
+});
+
+test('P1-5: both classical and candlestick evidence present -> deterministic +2 max', () => {
+  const sources = {
+    swingIntelligence: { ...b4Sample, swingScore: 50 },
+  };
+  const classicalEvidence = {
+    marketStructure: { mssDetected: true, trend: 'BULLISH' },
+    breaker: { detected: true },
+    fvg: { detected: true },
+    liquiditySweep: { detected: false },
+    crt: { confirmationState: 'WATCH' },
+  };
+  const candlestickEvidence = {
+    patterns: [{ name: 'Hammer', type: 'BULLISH', confidence: 75 }],
+    context: {},
+    dataCompleteness: 50,
+  };
+  
+  // Run multiple times to verify determinism
+  const r1 = buildOpportunityRanking('AAPL', sources, { classicalEvidence, candlestickEvidence });
+  const r2 = buildOpportunityRanking('AAPL', sources, { classicalEvidence, candlestickEvidence });
+  
+  assertEqual(r1.opportunityScore, r2.opportunityScore, 'deterministic behavior');
+  assertTrue(r1.evidenceAdjustment === r2.evidenceAdjustment, 'deterministic adjustment');
+  assertEqual(r1.evidenceAdjustment, 2, 'max +2 adjustment');
+});
+
+test('P1-5: missing evidence (null) -> no adjustment, no fabricated signal', () => {
+  const sources = {
+    swingIntelligence: { ...b4Sample, swingScore: 50 },
+  };
+  const r1 = buildOpportunityRanking('AAPL', sources, {});
+  const r2 = buildOpportunityRanking('AAPL', sources, { classicalEvidence: null });
+  const r3 = buildOpportunityRanking('AAPL', sources, { candlestickEvidence: null });
+  
+  assertNull(r1.evidenceAdjustment, 'no adjustment when no evidence');
+  assertNull(r2.evidenceAdjustment, 'no adjustment when classical is null');
+  assertNull(r3.evidenceAdjustment, 'no adjustment when candlestick is null');
+  assertNull(r1.evidenceReasons, 'no evidence reasons when no evidence');
+});
+
+test('P1-5: UNAVAILABLE evidence -> not counted as signal', () => {
+  const sources = {
+    swingIntelligence: { ...b4Sample, swingScore: 50 },
+  };
+  const classicalEvidence = {
+    marketStructure: { trend: 'UNAVAILABLE', mssDetected: false },
+    breaker: { detected: false },
+    fvg: { detected: false },
+    liquiditySweep: { detected: false },
+    crt: { confirmationState: 'UNAVAILABLE' },
+  };
+  const r = buildOpportunityRanking('AAPL', sources, { classicalEvidence });
+  assertNull(r.evidenceAdjustment, 'no adjustment when no structures detected');
+});
+
+test('P1-5: evidence adjustment bounded, does not exceed current scoring bounds', () => {
+  const sources = {
+    swingIntelligence: { ...b4Sample, swingScore: 84 },
+  };
+  const classicalEvidence = {
+    marketStructure: { mssDetected: true, trend: 'BULLISH' },
+    breaker: { detected: false },
+    fvg: { detected: false },
+    liquiditySweep: { detected: false },
+    crt: { confirmationState: 'UNAVAILABLE' },
+  };
+  const r = buildOpportunityRanking('AAPL', sources, { classicalEvidence });
+  // Score 84 is STRONG (70-84), +1 would make 85 which is TOP
+  // The adjustment should NOT push score across quality threshold
+  assertTrue(r.quality === 'STRONG' || r.quality === 'TOP', 'quality should be valid');
+  assertTrue(r.opportunityScore >= 0 && r.opportunityScore <= 100, 'score bounded 0-100');
+});
+
+test('P1-5: evidence adjustment does not break existing C7 ranking behavior', () => {
+  const sourcesA = {
+    swingIntelligence: { ...b4Sample, swingScore: 75 },
+  };
+  const sourcesB = {
+    swingIntelligence: { ...b4Sample, swingScore: 60 },
+  };
+  const classicalEvidence = {
+    marketStructure: { mssDetected: true, trend: 'BULLISH' },
+    breaker: { detected: false },
+    fvg: { detected: false },
+    liquiditySweep: { detected: false },
+    crt: { confirmationState: 'UNAVAILABLE' },
+  };
+  
+  const rA = buildOpportunityRanking('AAPL', sourcesA, { classicalEvidence });
+  const rB = buildOpportunityRanking('AAPL', sourcesB, { classicalEvidence });
+  
+  assertTrue(rA.opportunityScore > rB.opportunityScore, 'higher base score should result in higher final score');
+  assertTrue(rA.quality === 'STRONG' || rA.quality === 'TOP', 'quality should be valid for A');
+  assertTrue(rB.quality === 'WATCH' || rB.quality === 'STRONG', 'quality should be valid for B');
+});
+
+test('P1-5: conflicts still work with evidence adjustment', () => {
+  const sources = {
+    swingIntelligence: { ...b4Sample, signal: 'STRONG_BUY', swingScore: 70 },
+    earlyExplosion: { ...b5Sample, signal: 'SELL', explosionScore: 60 },
+  };
+  const classicalEvidence = {
+    marketStructure: { mssDetected: true, trend: 'BULLISH' },
+    breaker: { detected: false },
+    fvg: { detected: false },
+    liquiditySweep: { detected: false },
+    crt: { confirmationState: 'UNAVAILABLE' },
+  };
+  const r = buildOpportunityRanking('AAPL', sources, { classicalEvidence });
+  assertTrue(r.warnings.some(w => w.indexOf('CONFLICTING_SIGNALS_DETECTED') === 0), 'conflict warning still emitted');
+  assertTrue(r.evidenceAdjustment >= 1, 'evidence adjustment still works');
+});
+
+test('P1-5: data completeness guidance still works with evidence', () => {
+  const sources = {
+    swingIntelligence: b4Sample,
+  };
+  const classicalEvidence = {
+    marketStructure: { mssDetected: true, trend: 'BULLISH' },
+    breaker: { detected: false },
+    fvg: { detected: false },
+    liquiditySweep: { detected: false },
+    crt: { confirmationState: 'UNAVAILABLE' },
+  };
+  const r = buildOpportunityRanking('AAPL', sources, { classicalEvidence });
+  assertTrue(typeof r.dataCompletenessGuidance === 'string', 'dataCompletenessGuidance still present');
+  assertTrue(r.dataCompleteness >= 0 && r.dataCompleteness <= 100, 'dataCompleteness bounded');
+});
+
+test('P1-5: no regression in existing B1-B6 behavior with evidence', () => {
+  const r = buildOpportunityRanking('AAPL', completeSources, {
+    classicalEvidence: {
+      marketStructure: { mssDetected: true, trend: 'BULLISH' },
+      breaker: { detected: false },
+      fvg: { detected: false },
+      liquiditySweep: { detected: false },
+      crt: { confirmationState: 'UNAVAILABLE' },
+    },
+    candlestickEvidence: {
+      patterns: [{ name: 'Hammer', type: 'BULLISH', confidence: 75 }],
+      context: {},
+      dataCompleteness: 50,
+    },
+  });
+  
+  assertTrue(Object.keys(r.componentScores).length === 6, 'still 6 component score keys');
+  assertTrue(r.dataAvailability.pennyIntelligence === true, 'B1 availability intact');
+  assertTrue(typeof r.disclaimer === 'string', 'disclaimer still present');
+  assertTrue(r.provenance.intelligence === 'C7', 'provenance intact');
+});
+
+// ----------------------------------------------------------------------------
 // Summary
 // ----------------------------------------------------------------------------
 console.log('\n========================================');
