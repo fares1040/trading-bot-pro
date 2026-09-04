@@ -330,6 +330,12 @@ export async function GET(request) {
       .filter(Boolean)
       .slice(0, 25);
 
+    // Pagination parameters
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '0', 10)));
+    // If limit is 0 or not provided, return all results (backward compatibility)
+    const limitAll = limit === 0;
+
     // Fetch market regime once (C10 feeds Horizon — minimal overhead, 4 parallel index fetches)
     let marketRegime = null;
     try {
@@ -373,28 +379,54 @@ export async function GET(request) {
       }, { status: 503 });
     }
 
-  const results = [];
-  const errors = [];
+    const results = [];
+    const errors = [];
 
-  for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
-    const batch = await Promise.allSettled(
-      symbols.slice(i, i + BATCH_SIZE).map((symbol) => analyzeSymbol(symbol, marketRegime))
-    );
-      for (const item of batch) {
-        if (item.status === 'fulfilled') {
-          results.push(item.value);
-        } else {
-          errors.push(item.reason?.message || 'unknown error');
+    for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
+      const batch = await Promise.allSettled(
+        symbols.slice(i, i + BATCH_SIZE).map((symbol) => analyzeSymbol(symbol, marketRegime))
+      );
+        for (const item of batch) {
+          if (item.status === 'fulfilled') {
+            results.push(item.value);
+          } else {
+            errors.push(item.reason?.message || 'unknown error');
+          }
+        }
+
+        // Brief delay between batches to avoid rate limiting
+        if (i + BATCH_SIZE < symbols.length) {
+          await sleep(SEC_RATE_LIMIT_DELAY);
         }
       }
 
-      // Brief delay between batches to avoid rate limiting
-      if (i + BATCH_SIZE < symbols.length) {
-        await sleep(SEC_RATE_LIMIT_DELAY);
-      }
-    }
-
     const { ranked, top, alternatives, ranking } = rankOpportunities(results);
+
+    // Apply pagination if limit is specified
+    const totalResults = ranked.length;
+    let paginatedRanked = ranked;
+    let pagination = {
+      page: 1,
+      limit: totalResults,
+      totalPages: 1,
+      totalResults,
+      hasNext: false,
+      hasPrevious: false
+    };
+
+    if (!limitAll && limit > 0) {
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      paginatedRanked = ranked.slice(startIndex, endIndex);
+      pagination = {
+        page,
+        limit,
+        totalResults,
+        totalPages: Math.ceil(totalResults / limit),
+        hasNext: endIndex < totalResults,
+        hasPrevious: page > 1
+      };
+    }
 
     const qualityBreakdown = buildQualityBreakdown(results);
     const qualityLevels = ['TOP', 'STRONG', 'WATCH', 'WEAK', 'UNAVAILABLE'];
@@ -402,12 +434,16 @@ export async function GET(request) {
     return NextResponse.json({
       success: true,
       timestamp: new Date().toISOString(),
-      count: ranked.length,
+      count: paginatedRanked.length,
       scanned: symbols.length,
-      data: ranked,
+      data: paginatedRanked,
       top: top,
       alternatives: alternatives,
-      ranking,
+      ranking: {
+        ...ranking,
+        total: totalResults // Keep the actual total for ranking metadata
+      },
+      pagination,
       filters: {
         quality: qualityLevels,
         source: ['pennyIntelligence', 'optionsIntelligence', 'institutionalRadar', 'swingIntelligence', 'earlyExplosion', 'catalystIntelligence'],

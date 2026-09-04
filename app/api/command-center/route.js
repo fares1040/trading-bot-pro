@@ -60,7 +60,13 @@ export async function GET(request) {
 
     const { searchParams } = new URL(request.url);
     const limit = Math.min(25, Math.max(1, parseInt(searchParams.get('limit') || String(DEFAULT_LIMIT), 10)));
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const includeRawData = searchParams.get('raw') === 'true';
+
+    // Apply pagination to opportunity data: effective limit per-section, with total awareness
+    const oppLimit = Math.min(limit, 25);
+    const oppPageLimit = Math.min(oppLimit, 25);
+    const oppPage = page;
 
     const sourceData = await fetchAllSources(request);
 
@@ -68,8 +74,18 @@ export async function GET(request) {
       sourceData.regimeData,
       sourceData.opportunityData,
       sourceData.tradePlanData,
-      sourceData.aiExplanationData
+      sourceData.aiExplanationData,
+      {
+        limit: oppLimit,
+        page: oppPage,
+      }
     );
+
+    const opportunityCount = sourceData.opportunityData?.count || 0;
+    const planCount = (sourceData.tradePlanData?.data || []).length;
+    const intelligenceCoverage = sourceData.opportunityData?.dataAvailability
+      ? Object.values(sourceData.opportunityData.dataAvailability).filter(Boolean).length
+      : 0;
 
     const response = {
       success: true,
@@ -77,11 +93,9 @@ export async function GET(request) {
       regime: sourceData.regimeData?.regime || REGIME_LABELS.UNAVAILABLE,
       regimeScore: sourceData.regimeData?.regimeScore || null,
       confidenceLevel: sourceData.regimeData?.confidenceLevel || 'UNKNOWN',
-      opportunityCount: sourceData.opportunityData?.count || 0,
-      planCount: (sourceData.tradePlanData?.data || []).length,
-      intelligenceCoverage: sourceData.opportunityData?.dataAvailability
-        ? Object.values(sourceData.opportunityData.dataAvailability).filter(Boolean).length
-        : 0,
+      opportunityCount: opportunityCount,
+      planCount: planCount,
+      intelligenceCoverage: intelligenceCoverage,
       sections: commandCenter.sections,
       summary: commandCenter.summary,
       limitations: commandCenter.limitations,
@@ -93,6 +107,13 @@ export async function GET(request) {
         tradePlan: sourceData.tradePlanData ? 'C8' : null,
         aiExplanation: sourceData.aiExplanationData ? 'C9' : null,
         intelligenceSources: ['B1', 'B2', 'B3', 'B4', 'B5', 'B6'],
+      },
+      pagination: {
+        page: oppPage,
+        limit: oppLimit,
+        totalResults: opportunityCount,
+        hasNext: oppPage * oppLimit < opportunityCount,
+        hasPrevious: oppPage > 1,
       },
     };
 

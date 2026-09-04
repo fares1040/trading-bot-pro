@@ -1339,6 +1339,10 @@ export async function GET(
         ?.trim()
         .toUpperCase();
 
+    // Pagination parameters
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '25', 10)));
+
     // -----------------------------------------
     // SINGLE SYMBOL
     // -----------------------------------------
@@ -1430,7 +1434,7 @@ export async function GET(
               item || ''
             )
         )
-        .slice(0, 25);
+        .slice(0, 50);
 
     const settled =
       await Promise.allSettled(
@@ -1494,7 +1498,12 @@ export async function GET(
               a.setupScore || 0
             )
         )
-        .slice(0, 25);
+        .slice(
+          (page - 1) * limit,
+          page * limit
+        );
+
+    const total = results.length + (page - 1) * limit;
 
     return NextResponse.json(
       {
@@ -1505,6 +1514,16 @@ export async function GET(
 
         count:
           results.length,
+
+        total:
+          total,
+
+        page,
+        limit,
+        hasNext:
+          page * limit < total,
+        hasPrevious:
+          page > 1,
 
         data:
           results,

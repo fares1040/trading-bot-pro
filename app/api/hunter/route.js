@@ -32,6 +32,9 @@ async function readJson(url) {
 export async function GET(request) {
   try {
     const origin = new URL(request.url).origin;
+    const { searchParams } = new URL(request.url);
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '12', 10)));
+
     const [radarResult, indexResult] = await Promise.allSettled([
       readJson(`${origin}/api/stocks`),
       readJson(`${origin}/api/indices`),
@@ -88,7 +91,7 @@ export async function GET(request) {
     )
       .filter((item) => item.hunterEligible)
       .sort((a, b) => Number(b.hunterScore || 0) - Number(a.hunterScore || 0))
-      .slice(0, 12);
+      .slice(0, limit);
 
     // -----------------------------------------------------------------------
     // OPTIONS INTELLIGENCE LAYER (NON-SCORING)
@@ -166,6 +169,13 @@ export async function GET(request) {
         optionsProvider: optionsProvider.provider,
         darkPool: false,
         institutionalFlow: institutional.available,
+      },
+      pagination: {
+        page: 1,
+        limit,
+        totalResults: opportunitiesWithOptions.length,
+        hasNext: false,
+        hasPrevious: false,
       },
     }, { headers: { 'Cache-Control': 'no-store, max-age=0' } });
   } catch (error) {

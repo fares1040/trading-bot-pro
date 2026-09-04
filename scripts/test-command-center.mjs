@@ -579,6 +579,22 @@ test('52. backward compatible - opportunity count', () => {
   assertEqual(result.summary.opportunityCount, 1);
 });
 
+test('53. pagination - default page 1 limit 5', () => {
+  const result = buildCommandCenter(mockRegime, mockOpportunity, mockTradePlan, mockExplanation);
+  assertEqual(result.pagination.page, 1);
+  assertEqual(result.pagination.limit, 5);
+});
+
+test('54. pagination - hasNext false on first page when no data exceeds limit', () => {
+  const result = buildCommandCenter(mockRegime, mockOpportunity, mockTradePlan, mockExplanation);
+  assertFalse(result.pagination.hasNext);
+});
+
+test('55. pagination - hasPrevious false on first page', () => {
+  const result = buildCommandCenter(mockRegime, mockOpportunity, mockTradePlan, mockExplanation);
+  assertFalse(result.pagination.hasPrevious);
+});
+
 // ============================================================================
 // Summary
 // ============================================================================

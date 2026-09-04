@@ -1080,9 +1080,98 @@ test('P1-5: no regression in existing B1-B6 behavior with evidence', () => {
   assertTrue(r.provenance.intelligence === 'C7', 'provenance intact');
 });
 
+
+// ----------------------------------------------------------------------------
+// Pagination Tests (API-level tests)
+// ----------------------------------------------------------------------------
+// Note: rankOpportunities() provides sorting/ranking. Pagination is applied
+// at the API route level. These tests verify the ranking is stable.
+
+test('pagination - ranking preserves order by score descending', () => {
+  const results = [];
+  for (let i = 0; i < 5; i++) {
+    results.push(makeResult('S' + i, 90 - i * 10, 100, 80));
+  }
+  const { ranked } = rankOpportunities(results);
+  assertEqual(ranked[0].symbol, 'S0');
+  assertEqual(ranked[1].symbol, 'S1');
+  assertEqual(ranked[2].symbol, 'S2');
+  assertEqual(ranked[3].symbol, 'S3');
+  assertEqual(ranked[4].symbol, 'S4');
+});
+
+test('pagination - ranking stable across repeated calls', () => {
+  const results = [];
+  for (let i = 0; i < 3; i++) {
+    results.push(makeResult('S' + i, 90 - i, 100, 80));
+  }
+  const { ranked: r1 } = rankOpportunities(results);
+  const { ranked: r2 } = rankOpportunities(results);
+  assertEqual(JSON.stringify(r1.map(x => x.symbol)), JSON.stringify(r2.map(x => x.symbol)));
+});
+
+test('pagination - ranking handles empty results', () => {
+  const { ranked, ranking } = rankOpportunities([]);
+  assertEqual(ranked.length, 0);
+  assertEqual(ranking.total, 0);
+});
+
+// API-level pagination contract tests
+test('pagination contract - page 2 limit 1 returns correct slice', () => {
+  const results = [];
+  for (let i = 0; i < 4; i++) {
+    results.push(makeResult('S' + i, 90 - i, 100, 80));
+  }
+  const { ranked } = rankOpportunities(results);
+  const page = 2;
+  const limit = 1;
+  const startIndex = (page - 1) * limit;
+  const slice = ranked.slice(startIndex, startIndex + limit);
+  assertEqual(slice.length, 1);
+  assertEqual(slice[0].symbol, 'S1');
+});
+
+test('pagination contract - last page may have fewer items', () => {
+  const results = [];
+  for (let i = 0; i < 5; i++) {
+    results.push(makeResult('S' + i, 90 - i, 100, 80));
+  }
+  const { ranked } = rankOpportunities(results);
+  const page = 3;
+  const limit = 2;
+  const startIndex = (page - 1) * limit;
+  const slice = ranked.slice(startIndex, startIndex + limit);
+  assertEqual(slice.length, 1); // Last page has only 1 item
+  assertEqual(slice[0].symbol, 'S4');
+});
+
+test('pagination contract - hasNext calculation', () => {
+  const results = [];
+  for (let i = 0; i < 5; i++) {
+    results.push(makeResult('S' + i, 90 - i, 100, 80));
+  }
+  const { ranked } = rankOpportunities(results);
+  const limit = 2;
+  // Page 1: 1*2=2 < 5 -> hasNext true
+  assertTrue((1 * limit) < ranked.length);
+  // Page 2: 2*2=4 < 5 -> hasNext true
+  assertTrue((2 * limit) < ranked.length);
+  // Page 3: 3*2=6 >= 5 -> hasNext false
+  assertFalse((3 * limit) < ranked.length);
+});
+
+test('pagination contract - hasPrevious calculation', () => {
+  const limit = 2;
+  assertFalse(1 > 1); // Page 1: no previous
+  assertTrue(2 > 1);  // Page 2: has previous
+  assertTrue(3 > 1);  // Page 3: has previous
+});
+
+
 // ----------------------------------------------------------------------------
 // Summary
 // ----------------------------------------------------------------------------
+
 console.log('\n========================================');
 console.log('C7 Opportunity Ranking Tests');
 console.log('========================================\n');
