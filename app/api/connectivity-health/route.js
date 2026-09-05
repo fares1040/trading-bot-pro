@@ -1,13 +1,20 @@
 // app/api/connectivity-health/route.js
 import { NextResponse } from 'next/server';
 import { list, summarize } from '@/lib/failure-events';
+import { buildConnectivityHealth, probeAllEndpoints, HEALTH_STATUS, ENDPOINT_PROVIDERS } from '@/lib/connectivity-health';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export async function GET() {
+const PROBE_ENDPOINTS = Object.keys(ENDPOINT_PROVIDERS);
+const PROBE_TIMEOUT_MS = 10000;
+
+export async function GET(request) {
   try {
-    // Get summary for the last 5 minutes (300000 ms) to determine current status
+    const url = new URL(request.url);
+    const origin = url.origin;
+    const probeParam = url.searchParams.get('probe') === 'true';
+
     const summaryResult = summarize({ windowMs: 300000 });
     let status;
     switch (summaryResult.status) {
@@ -24,20 +31,15 @@ export async function GET() {
         status = 'ERROR';
     }
 
-    // Fetch recent events to find last success and last failure
-    // We'll fetch a reasonable number of events (e.g., 100) to cover recent history
     const events = list({ limit: 100 });
 
     let lastSuccess = null;
     let lastFailure = null;
 
-    // The list function returns events in reverse chronological order (most recent first)
-    const recentEvents = [...events]; // already most recent first
+    const recentEvents = [...events];
 
     for (const event of recentEvents) {
-      // Check for success: severity INFO and errorType null (or message indicates success)
       const isSuccess = event.severity === 'INFO' && event.errorType === null;
-      // Check for failure: not a success (or we can check for errorType not null or severity not INFO)
       const isFailure = !isSuccess;
 
       if (isSuccess && !lastSuccess) {
@@ -47,9 +49,22 @@ export async function GET() {
         lastFailure = event.timestamp;
       }
 
-      // If we have both, we can break early
       if (lastSuccess && lastFailure) {
         break;
+      }
+    }
+
+    const circuitHealth = buildConnectivityHealth();
+
+    let probeResults = null;
+    if (probeParam) {
+      try {
+        probeResults = await probeAllEndpoints(
+          PROBE_ENDPOINTS.map((ep) => ({ endpoint: ep, origin })),
+          PROBE_TIMEOUT_MS
+        );
+      } catch {
+        probeResults = null;
       }
     }
 
@@ -59,9 +74,21 @@ export async function GET() {
       lastSuccess,
       lastFailure,
       timestamp: new Date().toISOString(),
+      endpoints: circuitHealth.endpoints,
+      summary: circuitHealth.summary,
+      totalEndpoints: circuitHealth.totalEndpoints,
+      healthy: circuitHealth.healthy,
+      degraded: circuitHealth.degraded,
+      unavailable: circuitHealth.unavailable,
+      probe: probeParam ? {
+        enabled: true,
+        results: probeResults?.endpoints || null,
+        aggregate: probeResults?.status || HEALTH_STATUS.UNCHECKED,
+      } : { enabled: false },
+      disclaimer: 'Connectivity health combines circuit-breaker state and recent failure events. Live probes are opt-in via ?probe=true. No status is fabricated.',
+      errors: [],
     }, { headers: { 'Cache-Control': 'no-store, max-age=0' } });
   } catch (error) {
-    // If anything goes wrong, return ERROR status
     return NextResponse.json({
       success: false,
       status: 'ERROR',
@@ -72,3 +99,5 @@ export async function GET() {
     }, { status: 500 });
   }
 }
+
+export { HEALTH_STATUS, ENDPOINT_PROVIDERS };

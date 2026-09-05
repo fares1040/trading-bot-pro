@@ -131,6 +131,117 @@ function DecisionPipelineStepper({ regime, opportunityCount, planCount }) {
   );
 }
 
+const HEALTH_STATUS_COLORS = {
+  CONNECTED: colors.semantic.success,
+  DEGRADED: colors.semantic.warning,
+  UNAVAILABLE: colors.semantic.danger,
+  UNCHECKED: colors.text.faint,
+  ERROR: colors.semantic.danger,
+  LOADING: colors.text.faint,
+};
+
+function ConnectivityHealthPanel({ connectivity }) {
+  if (!connectivity || connectivity.loading) {
+    return (
+      <div style={{ ...panel, padding: 12, marginBottom: 12, fontSize: 10, color: colors.text.faint }}>
+        ⏳ جاري فحص الاتصال الحي...
+      </div>
+    );
+  }
+
+  const endpoints = connectivity.endpoints || [];
+  const isHealthy = connectivity.status === 'CONNECTED' || connectivity.status === 'ERROR';
+  const hasIssues = connectivity.degraded || connectivity.unavailable;
+
+  if (endpoints.length === 0) {
+    return (
+      <div style={{ ...panel, padding: 12, marginBottom: 12, fontSize: 10, color: colors.text.faint }}>
+        📡 حالة الاتصال: {connectivity.status || 'UNCHECKED'}
+        {connectivity.lastFailure && (
+          <span style={{ color: colors.semantic.danger, marginRight: 8 }}>
+            ⚠ آخر فشل: {new Date(connectivity.lastFailure).toLocaleTimeString()}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ ...panel, padding: 14, marginBottom: 12 }}>
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        marginBottom: 8, flexWrap: 'wrap', gap: 8,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 10, color: colors.text.faint, fontWeight: 700 }}>
+            📡 LIVE CONNECTIVITY
+          </span>
+          <span style={{
+            fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 4,
+            backgroundColor: HEALTH_STATUS_COLORS[connectivity.status] + '1A',
+            color: HEALTH_STATUS_COLORS[connectivity.status] || colors.text.faint,
+            border: `1px solid ${HEALTH_STATUS_COLORS[connectivity.status] || colors.border}40`,
+          }}>
+            {connectivity.status}
+          </span>
+        </div>
+        <div style={{ fontSize: 9, color: colors.text.faint }}>
+          {endpoints.filter(e => e.status === 'CONNECTED').length}/{endpoints.length} متصل
+          {connectivity.summary?.DEGRADED > 0 && (
+            <span style={{ color: colors.semantic.warning, marginLeft: 8 }}>
+              ⚠ {connectivity.summary.DEGRADED} متدهور
+            </span>
+          )}
+          {connectivity.summary?.UNAVAILABLE > 0 && (
+            <span style={{ color: colors.semantic.danger, marginLeft: 8 }}>
+              ✗ {connectivity.summary.UNAVAILABLE} غير متاح
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 6, fontSize: 9 }}>
+        {endpoints.map((ep) => {
+          const color = HEALTH_STATUS_COLORS[ep.status] || colors.text.faint;
+          const bg = `${color}1A`;
+          return (
+            <div key={ep.endpoint} style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '4px 8px', backgroundColor: '#07090E',
+              border: `1px solid ${color}40`, borderRadius: radius.sm,
+            }}>
+              <div style={{
+                width: 6, height: 6, borderRadius: '50%',
+                backgroundColor: color,
+                flexShrink: 0,
+              }} />
+              <span style={{ color: colors.text.secondary, fontFamily: 'monospace', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {ep.endpoint}
+              </span>
+              <span style={{ color, fontWeight: 700, textTransform: 'uppercase', fontSize: 7 }}>
+                {ep.status}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {(connectivity.lastFailure || connectivity.lastSuccess) && (
+        <div style={{ fontSize: 8, color: colors.text.faint, marginTop: 6 }}>
+          {connectivity.lastSuccess && <span>✓ آخر نجاح: {new Date(connectivity.lastSuccess).toLocaleTimeString('ar-SA')} </span>}
+          {connectivity.lastFailure && <span style={{ color: colors.semantic.danger }}>✗ آخر فشل: {new Date(connectivity.lastFailure).toLocaleTimeString('ar-SA')}</span>}
+        </div>
+      )}
+
+      {!isHealthy && hasIssues && (
+        <div style={{ fontSize: 8, color: colors.semantic.warning, marginTop: 4 }}>
+          بعض الخدمات تعمل بشكل محدود. راجع مركز التنبيهات للتفاصيل.
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MarketHeader({ indices, regime, regimeScore, confidenceLevel, vix, marketStatus, lastUpdate, warning }) {
   const meta = REGIME_META[regime] || REGIME_META.UNAVAILABLE;
   return (
@@ -1555,7 +1666,17 @@ const [selectedSymbol, setSelectedSymbol] = useState(null);
    const [swingHorizonMap, setSwingHorizonMap] = useState({});
    const [horizonLoading, setHorizonLoading] = useState(false);
    const [horizonError, setHorizonError] = useState('');
-   const [connectivity, setConnectivity] = useState({ status: 'CONNECTED', lastSuccess: null, lastFailure: null, loading: true });
+  const [connectivity, setConnectivity] = useState({
+    status: 'LOADING',
+    lastSuccess: null,
+    lastFailure: null,
+    loading: true,
+    endpoints: [],
+    summary: { CONNECTED: 0, DEGRADED: 0, UNAVAILABLE: 0 },
+    totalEndpoints: 0,
+    degraded: false,
+    unavailable: false,
+  });
 
   const fetchAll = useCallback(async () => {
     const origin = window.location.origin;
@@ -1650,34 +1771,48 @@ const [selectedSymbol, setSelectedSymbol] = useState(null);
          const res = await fetch(`${window.location.origin}/api/connectivity-health`, {
            cache: 'no-store',
          });
-         if (res.ok) {
-           const json = await res.json();
-           setConnectivity({
-             status: json.status,
-             lastSuccess: json.lastSuccess,
-             lastFailure: json.lastFailure,
-             loading: false,
-           });
-         } else {
-           setConnectivity({
-             status: 'ERROR',
-             lastSuccess: null,
-             lastFailure: null,
-             loading: false,
-           });
-         }
-       } catch (err) {
-         setConnectivity({
-           status: 'ERROR',
-           lastSuccess: null,
-           lastFailure: null,
-           loading: false,
-         });
-       }
-     };
+          if (res.ok) {
+            const json = await res.json();
+            setConnectivity({
+              status: json.status,
+              lastSuccess: json.lastSuccess,
+              lastFailure: json.lastFailure,
+              loading: false,
+              endpoints: json.endpoints || [],
+              summary: json.summary || { CONNECTED: 0, DEGRADED: 0, UNAVAILABLE: 0 },
+              totalEndpoints: json.totalEndpoints || 0,
+              degraded: json.degraded || false,
+              unavailable: json.unavailable || false,
+            });} else {
+            setConnectivity({
+              status: 'ERROR',
+              lastSuccess: null,
+              lastFailure: null,
+              loading: false,
+              endpoints: [],
+              summary: { CONNECTED: 0, DEGRADED: 0, UNAVAILABLE: 0 },
+              totalEndpoints: 0,
+              degraded: false,
+              unavailable: true,
+            });
+        }
+        } catch (err) {
+          setConnectivity({
+            status: 'ERROR',
+            lastSuccess: null,
+            lastFailure: null,
+            loading: false,
+            endpoints: [],
+            summary: { CONNECTED: 0, DEGRADED: 0, UNAVAILABLE: 0 },
+            totalEndpoints: 0,
+            degraded: false,
+            unavailable: true,
+          });
+        }
+      };
 
-     fetchConnectivity(); // initial fetch
-     const interval = setInterval(fetchConnectivity, 30_000); // every 30 seconds
+      fetchConnectivity(); // initial fetch
+      const connInterval = setInterval(fetchConnectivity, 30_000); // every 30 seconds
      return () => clearInterval(interval);
    }, []);
 
@@ -1785,9 +1920,11 @@ const [selectedSymbol, setSelectedSymbol] = useState(null);
            </span>
          </div>
 
-        {error && <ErrorState message={error} onRetry={fetchAll} />}
+    {error && <ErrorState message={error} onRetry={fetchAll} />}
 
-        <MarketHeader
+    <ConnectivityHealthPanel connectivity={connectivity} />
+
+    <MarketHeader
           indices={indices}
           regime={regime}
           regimeScore={regimeScore}
