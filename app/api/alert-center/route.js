@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { buildAlertCenter, ALERT_TYPES, PRIORITY_ORDER, ALERT_STATUSES } from '@/lib/alert-center';
+import { buildAlertCenter, ALERT_TYPES, PRIORITY_ORDER, ALERT_STATUSES, buildTop3NotificationPayload } from '@/lib/alert-center';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -218,6 +218,7 @@ export async function GET(request) {
   const filters = parseFilters(searchParams);
   const sorting = parseSorting(searchParams);
   const limit = parseInt(searchParams.get('limit') || '100', 10) || 100;
+  const top3 = searchParams.get('top3') === 'true';
   
   try {
     const origin = url.origin;
@@ -253,7 +254,13 @@ export async function GET(request) {
       disclaimer: result.disclaimer,
       errors: [],
     };
-    
+
+    if (top3) {
+      response.top3notifications = buildTop3NotificationPayload(result.alerts, {
+        timestamp: result.timestamp,
+      });
+    }
+
     return NextResponse.json(response);
   } catch (error) {
     return NextResponse.json({

@@ -266,6 +266,169 @@ function SummaryCard({ summary }) {
   );
 }
 
+function Top3AlertNotifications({ top3data, onAlertClick }) {
+  const [notifPermission, setNotifPermission] = useState('default');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setNotifPermission(Notification.permission);
+    }
+  }, []);
+
+  const requestPermission = async () => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      const perm = await Notification.requestPermission();
+      setNotifPermission(perm);
+    }
+  };
+
+  const fireBrowserNotifications = () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return false;
+    if (notifPermission !== 'granted') {
+      requestPermission();
+      return false;
+    }
+    const top3 = top3data?.top3 || [];
+    top3.forEach((alert) => {
+      const title = `${alert.symbol} — Rank #${alert.rank}`;
+      const body = `${alert.message || 'New alert'}`;
+      try {
+        new Notification(title, { body, tag: alert.notificationId });
+      } catch {
+      }
+    });
+    return true;
+  };
+
+  const top3 = top3data?.top3 || [];
+
+  if (!top3.length) {
+    const reasons = top3data?.limitations || [];
+    return (
+      <div style={{ ...panel, padding: 14, marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <h4 style={{ color: '#38BDF8', fontSize: 12, fontWeight: 700, margin: 0 }}>🔔 Top-3 Alert Notifications</h4>
+          <span style={{ fontSize: 10, color: '#94A3B8' }}>0 active</span>
+        </div>
+        <div style={{ fontSize: 10, color: '#64748B', textAlign: 'center', padding: '12px 8px' }}>
+          {reasons.length > 0
+            ? reasons.join(' • ')
+            : 'No qualifying Top-3 opportunities available right now.'}
+        </div>
+        {top3data?.suppressedAvoid > 0 && (
+          <div style={{ fontSize: 9, color: '#F59E0B', textAlign: 'center', marginTop: 4 }}>
+            ⚠ {top3data.suppressedAvoid} AVOID candidate(s) suppressed
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ ...panel, padding: 14, marginBottom: 16 }}>
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8,
+        flexWrap: 'wrap', gap: 8,
+      }}>
+        <h4 style={{ color: '#38BDF8', fontSize: 12, fontWeight: 700, margin: 0 }}>
+          🔔 Top-3 Alert Notifications
+        </h4>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            onClick={fireBrowserNotifications}
+            disabled={notifPermission !== 'granted'}
+            style={{
+              fontSize: 9, fontWeight: 600, padding: '4px 8px', borderRadius: 6,
+              backgroundColor: notifPermission === 'granted' ? '#07090E' : '#0B0F17',
+              border: `1px solid ${notifPermission === 'granted' ? '#38BDF8' : '#1F2636'}`,
+              color: notifPermission === 'granted' ? '#38BDF8' : '#94A3B8',
+              cursor: notifPermission === 'granted' ? 'pointer' : 'not-allowed',
+            }}
+            title={notifPermission === 'default' || notifPermission === 'denied'
+              ? 'Browser notifications require "granted" permission'
+              : 'Send desktop notifications for Top-3 alerts'}
+          >
+            {notifPermission === 'granted'
+              ? 'Send Desktop Notifications'
+              : `Notifications: ${notifPermission}`}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gap: 6 }}>
+        {top3.map((alert) => (
+          <div
+            key={alert.notificationId || alert.id}
+            id={`top3-${alert.id}`}
+            style={{
+              padding: 10,
+              backgroundColor: '#07090E',
+              border: `1px solid ${severityColors[alert.severity] || '#1F2636'}40`,
+              borderLeft: `3px solid ${severityColors[alert.severity] || '#94A3B8'}`,
+              borderRadius: 6,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 800, color: '#F8FAFC' }}>
+                  {alert.symbol}
+                </span>
+                <SeverityBadge severity={alert.severity} />
+                <span style={{ fontSize: 9, color: '#38BDF8', fontWeight: 700, fontFamily: 'monospace' }}>
+                  #{alert.rank}
+                </span>
+              </div>
+              <span style={{ fontSize: 9, color: '#94A3B8' }}>
+                {alert.score != null ? `Score: ${Math.round(alert.score)}/100` : 'Score: —'}
+              </span>
+            </div>
+
+            <div style={{ fontSize: 10, color: '#CBD5E1', marginTop: 4 }}>
+              {alert.title || alert.message}
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 4, flexWrap: 'wrap', fontSize: 9, color: '#94A3B8' }}>
+              {alert.directionBias && alert.directionBias !== 'UNAVAILABLE' && (
+                <span>↔️ {alert.directionBias}</span>
+              )}
+              {alert.confidence != null && (
+                <span>🎯 ثقة: {Math.round(alert.confidence)}%</span>
+              )}
+              {alert.signal && alert.signal !== 'UNAVAILABLE' && (
+                <span>🔔 {alert.signal}</span>
+              )}
+            </div>
+
+            {alert.evidence && alert.evidence.length > 0 && (
+              <div style={{ fontSize: 9, color: '#64748B', marginTop: 4 }}>
+                الدليل: {alert.evidence.slice(0, 3).join(' • ')}
+              </div>
+            )}
+
+            {alert.risks && alert.risks.length > 0 && (
+              <div style={{ fontSize: 9, color: '#F59E0B', marginTop: 2 }}>
+                المخاطر: {alert.risks.slice(0, 2).map(r => r.label).join(', ')}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {top3data?.suppressedAvoid > 0 && (
+        <div style={{ fontSize: 9, color: '#F59E0B', textAlign: 'center', marginTop: 8 }}>
+          ⚠ {top3data.suppressedAvoid} AVOID candidate(s) suppressed from Top-3 list
+        </div>
+      )}
+
+      {top3data?.disclaimer && (
+        <div style={{ fontSize: 8, color: '#475569', marginTop: 8, textAlign: 'center', fontStyle: 'italic' }}>
+          {top3data.disclaimer}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AlertCenter({ alertsData, loading }) {
   const [filters, setFilters] = useState({ filter: FILTERS.ALL, sortBy: 'priority', sortDir: 'desc' });
   const [showFilters, setShowFilters] = useState(false);
@@ -393,6 +556,15 @@ export default function AlertCenter({ alertsData, loading }) {
       
       {summary && <SummaryCard summary={summary} />}
       
+      {alertsData?.top3notifications && (
+        <Top3AlertNotifications
+          top3data={alertsData.top3notifications}
+          onAlertClick={(alert) => {
+            const el = document.getElementById(`alert-${alert.id}`);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }}
+        />
+      )}
       <div style={{ display: 'grid', gap: 8 }}>
         {filteredAlerts.length === 0 && alerts.length > 0 ? (
           <div style={{ ...panel, padding: 20, textAlign: 'center' }}>
