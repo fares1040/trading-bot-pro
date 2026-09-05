@@ -254,7 +254,6 @@ export async function GET(request) {
       disclaimer: result.disclaimer,
       errors: [],
     };
-
     if (top3) {
       response.top3notifications = buildTop3NotificationPayload(result.alerts, {
         timestamp: result.timestamp,
