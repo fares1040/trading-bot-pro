@@ -1197,12 +1197,69 @@ function DataConfidenceBlock({ opportunity, plan }) {
 }
 
 function AlertCenterPanel({ alerts, highPriorityAlerts }) {
+  const [sending, setSending] = useState(false);
+  const [sendResult, setSendResult] = useState(null);
   const feed = highPriorityAlerts.length ? highPriorityAlerts : alerts.slice(0, 6);
+
+  const handleSendTopThree = async () => {
+    setSending(true);
+    setSendResult(null);
+    try {
+      const sorted = [...alerts].sort((a, b) => (b.priority || 0) - (a.priority || 0));
+      const top3 = sorted.slice(0, 3);
+      if (top3.length === 0) {
+        setSendResult('No alerts to send');
+        return;
+      }
+      const lines = top3.map(alert => {
+        const sym = alert.symbol || 'UNKNOWN';
+        const pri = alert.priority || 0;
+        const typ = alert.type?.replace('_', ' ') || 'ALERT';
+        return `${sym} (P${pri}) - ${typ}`;
+      });
+      const message = `🚨 TOP 3 ALERTS 🚨\n${lines.join('\n')}`;
+      const res = await fetch('/api/telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message }),
+      });
+      if (!res.ok) {
+        throw new Error(`Telegram error: ${res.status}`);
+      }
+      setSendResult('Sent successfully');
+    } catch (err) {
+      console.error(err);
+      setSendResult('Failed to send');
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <ZoneLabel label="ALERT CENTER" icon="🔔" />
+        <button
+          onClick={handleSendTopThree}
+          disabled={sending}
+          style={{
+            padding: '6px 10px',
+            backgroundColor: sending ? '#0B0F17' : colors.panel,
+            border: `1px solid ${sending ? colors.border : colors.accent.blue}`,
+            color: sending ? colors.text.faint : colors.accent.blue,
+            borderRadius: radius.md,
+            fontSize: 10,
+            cursor: sending ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {sending ? 'Sending...' : 'Send Top 3'}
+        </button>
       </div>
+      {sendResult && (
+        <div style={{ marginBottom: 8, fontSize: 9, textAlign: 'center', color: sendResult.includes('Sent') ? colors.semantic.success : colors.semantic.danger }}>
+          {sendResult}
+        </div>
+      )}
       {feed.length === 0 ? (
         <div style={{ color: colors.text.muted, fontSize: 11 }}>No alerts</div>
       ) : (
@@ -1490,14 +1547,15 @@ export default function CommandCenter() {
   const [notificationAlerts, setNotificationAlerts] = useState([]);
   const [notificationFilter, setNotificationFilter] = useState('all');
   const [notificationAlertsByStage, setNotificationAlertsByStage] = useState({});
-  const [selectedSymbol, setSelectedSymbol] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [marketStatus, setMarketStatus] = useState({ open: false });
-  const [indices, setIndices] = useState([]);
-  const [swingHorizonMap, setSwingHorizonMap] = useState({});
-  const [horizonLoading, setHorizonLoading] = useState(false);
-  const [horizonError, setHorizonError] = useState('');
+const [selectedSymbol, setSelectedSymbol] = useState(null);
+   const [loading, setLoading] = useState(true);
+   const [error, setError] = useState('');
+   const [marketStatus, setMarketStatus] = useState({ open: false });
+   const [indices, setIndices] = useState([]);
+   const [swingHorizonMap, setSwingHorizonMap] = useState({});
+   const [horizonLoading, setHorizonLoading] = useState(false);
+   const [horizonError, setHorizonError] = useState('');
+   const [connectivity, setConnectivity] = useState({ status: 'CONNECTED', lastSuccess: null, lastFailure: null, loading: true });
 
   const fetchAll = useCallback(async () => {
     const origin = window.location.origin;
@@ -1585,9 +1643,47 @@ export default function CommandCenter() {
     return () => { clearInterval(t); clearInterval(refresh); };
   }, [fetchAll]);
 
-  // On-demand, cached fetch of Swing Horizon (which embeds Structure Intelligence).
-  // Fetched once per selected symbol; reused on re-selection. No duplicate calls.
-  // Structure Intelligence (📐) is consumed from the Swing Horizon `.structure` field
+// Live Connectivity Health Check
+   useEffect(() => {
+     const fetchConnectivity = async () => {
+       try {
+         const res = await fetch(`${window.location.origin}/api/connectivity-health`, {
+           cache: 'no-store',
+         });
+         if (res.ok) {
+           const json = await res.json();
+           setConnectivity({
+             status: json.status,
+             lastSuccess: json.lastSuccess,
+             lastFailure: json.lastFailure,
+             loading: false,
+           });
+         } else {
+           setConnectivity({
+             status: 'ERROR',
+             lastSuccess: null,
+             lastFailure: null,
+             loading: false,
+           });
+         }
+       } catch (err) {
+         setConnectivity({
+           status: 'ERROR',
+           lastSuccess: null,
+           lastFailure: null,
+           loading: false,
+         });
+       }
+     };
+
+     fetchConnectivity(); // initial fetch
+     const interval = setInterval(fetchConnectivity, 30_000); // every 30 seconds
+     return () => clearInterval(interval);
+   }, []);
+
+   // On-demand, cached fetch of Swing Horizon (which embeds Structure Intelligence).
+   // Fetched once per selected symbol; reused on re-selection. No duplicate calls.
+   // Structure Intelligence (📐) is consumed from the Swing Horizon `.structure` field
   // rather than a separate request, avoiding duplicate structure calculations.
   useEffect(() => {
     if (!selectedSymbol) return;
@@ -1663,8 +1759,31 @@ export default function CommandCenter() {
           <span style={{ margin: '0 8px', color: colors.border }}>|</span>
           <Link href="/analytics" style={{ color: colors.accent.blue, textDecoration: 'none' }}>Analytics</Link>
           <span style={{ margin: '0 8px', color: colors.border }}>|</span>
-          <Link href="/alert-center" style={{ color: colors.accent.blue, textDecoration: 'none' }}>Alerts</Link>
-        </div>
+<Link href="/alert-center" style={{ color: colors.accent.blue, textDecoration: 'none' }}>Alerts</Link>
+           <span style={{ marginLeft: 12 }}>
+             <div
+               style={{
+                 width: 8,
+                 height: 8,
+                 borderRadius: 50,
+                 backgroundColor:
+                   connectivity.status === 'CONNECTED'
+                     ? colors.semantic.success
+                     : connectivity.status === 'DEGRADED'
+                     ? colors.semantic.warning
+                     : connectivity.status === 'UNAVAILABLE'
+                     ? colors.semantic.danger
+                     : colors.text.faint,
+                 display: 'inline-block',
+               }}
+               title={`
+                 Status: ${connectivity.loading ? 'Loading...' : connectivity.status}
+                 ${connectivity.lastSuccess ? `\\nLast Success: ${new Date(connectivity.lastSuccess).toISOString()}` : ''}
+                 ${connectivity.lastFailure ? `\\nLast Failure: ${new Date(connectivity.lastFailure).toISOString()}` : ''}
+               `.trim()}
+             />
+           </span>
+         </div>
 
         {error && <ErrorState message={error} onRetry={fetchAll} />}
 
