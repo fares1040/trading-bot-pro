@@ -1184,3 +1184,55 @@ if (failCount > 0) {
 } else {
   console.log('\nAll tests PASSED');
 }
+
+// P2-2: expectedTimeframe field
+test('P2-2: expectedTimeframe aggregation — B4 TOP/STRONG => 1-3 Months', () => {
+  const b4 = defaultSwingIntelligenceManager('AAPL');
+  b4.quality = 'TOP';
+  b4.expectedTimeframe = '1–3 Months';
+  const r = buildOpportunityRanking('AAPL', { swingIntelligence: b4 });
+  assertEqual(r.expectedTimeframe, '1–3 Months');
+});
+
+test('P2-2: expectedTimeframe aggregation — B5 EXTREME => SHORT_TERM', () => {
+  const b5 = defaultEarlyExplosionIntelligenceManager('AAPL');
+  b5.quality = 'EXTREME';
+  b5.expectedTimeframe = 'SHORT_TERM';
+  const r = buildOpportunityRanking('AAPL', { earlyExplosion: b5 });
+  assertEqual(r.expectedTimeframe, 'SHORT_TERM');
+});
+
+test('P2-2: expectedTimeframe aggregation — B2 OPTIONS => OPTIONS', () => {
+  const b2 = defaultOptionsIntelligence('AAPL');
+  b2.expectedTimeframe = 'OPTIONS';
+  const r = buildOpportunityRanking('AAPL', { optionsIntelligence: b2 });
+  assertEqual(r.expectedTimeframe, 'OPTIONS');
+});
+
+test('P2-2: expectedTimeframe aggregation — B4 priority over B5', () => {
+  const b4 = defaultSwingIntelligenceManager('AAPL');
+  b4.quality = 'TOP';
+  b4.expectedTimeframe = '1–3 Months';
+  const b5 = defaultEarlyExplosionIntelligenceManager('AAPL');
+  b5.quality = 'EXTREME';
+  b5.expectedTimeframe = 'SHORT_TERM';
+  const r = buildOpportunityRanking('AAPL', { swingIntelligence: b4, earlyExplosion: b5 });
+  assertEqual(r.expectedTimeframe, '1–3 Months');
+});
+
+test('P2-2: expectedTimeframe — all UNKNOWN returns UNKNOWN', () => {
+  const r = buildOpportunityRanking('AAPL', {
+    pennyIntelligence: buildPennyIntelligence({}, {}),
+    optionsIntelligence: defaultOptionsIntelligence('AAPL'),
+    institutionalRadar: defaultInstitutionalRadar('AAPL'),
+    swingIntelligence: defaultSwingIntelligenceManager('AAPL'),
+    earlyExplosion: defaultEarlyExplosionIntelligenceManager('AAPL'),
+    catalystIntelligence: defaultCatalystIntelligenceManager('AAPL'),
+  });
+  assertEqual(r.expectedTimeframe, 'UNKNOWN');
+});
+
+test('P2-2: expectedTimeframe — default result is UNKNOWN', () => {
+  const d = defaultOpportunityRanking('AAPL');
+  assertEqual(d.expectedTimeframe, 'UNKNOWN');
+});

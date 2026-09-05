@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 
-export default function PaperTradingDesk({ defaultSymbol = 'NVDA' }) {
+export default function PaperTradingDesk({ defaultSymbol = 'NVDA', tradePlan }) {
   const [symbol, setSymbol] = useState(defaultSymbol);
   const [entry, setEntry] = useState('');
   const [stop, setStop] = useState('');
@@ -12,13 +12,32 @@ export default function PaperTradingDesk({ defaultSymbol = 'NVDA' }) {
   const [currentPrices, setCurrentPrices] = useState({});
   const [trades, setTrades] = useState([]);
   const [message, setMessage] = useState('');
+  const [direction, setDirection] = useState('NEUTRAL');
 
-  useEffect(() => {
+useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('hunter_paper_trades_v1') || '[]');
       if (Array.isArray(saved)) setTrades(saved);
     } catch {}
   }, []);
+
+  useEffect(() => {
+    if (!tradePlan?.available) return;
+    const p = tradePlan;
+    setSymbol(p.symbol || defaultSymbol);
+    // Direction from C8 plan (LONG/SHORT/NEUTRAL/UNAVAILABLE) — never coerced
+    if (p.direction) setDirection(p.direction);
+    // Entry from plan levels (C8 never fabricates, so available or null)
+    if (p.entryPrice != null) setEntry(p.entryPrice.toFixed(2));
+    if (p.stopLoss != null) setStop(p.stopLoss.toFixed(2));
+    if (p.target1 != null) setTarget(p.target1.toFixed(2));
+    // Quantity from C8 position sizing (only when capital + stop present)
+    if (p.positionSizing?.available && p.positionSizing?.shares != null) {
+      setQty(String(Math.floor(p.positionSizing.shares)));
+    } else {
+      setQty('');
+    }
+  }, [tradePlan, defaultSymbol]);
 
   useEffect(() => {
     localStorage.setItem('hunter_paper_trades_v1', JSON.stringify(trades));
@@ -36,10 +55,21 @@ export default function PaperTradingDesk({ defaultSymbol = 'NVDA' }) {
       if (!Number.isFinite(price)) throw new Error('السعر الحالي غير متاح');
       setCurrent(price);
       setCurrentPrices((prev) => ({ ...prev, [clean]: price }));
-      if (!entry) setEntry(price.toFixed(2));
     } catch (error) {
       setMessage(error?.message || 'تعذر تحديث السعر');
     }
+  };
+
+  const openFromPlan = () => {
+    if (!tradePlan?.available) {
+      setMessage('لا توجد خطة تداول متاحة.');
+      return;
+    }
+    if (tradePlan.entryPrice == null || tradePlan.stopLoss == null || tradePlan.target1 == null) {
+      setMessage('المستويات غير مكتملة في خطة التداول.');
+      return;
+    }
+    openTrade();
   };
 
   const openTrade = () => {
@@ -55,6 +85,7 @@ export default function PaperTradingDesk({ defaultSymbol = 'NVDA' }) {
       stop: s,
       target: t,
       qty: Math.floor(q),
+      direction,
       openedAt: new Date().toISOString(),
       status: 'OPEN',
     };
@@ -72,12 +103,24 @@ export default function PaperTradingDesk({ defaultSymbol = 'NVDA' }) {
     );
   };
 
+  const cancelTrade = (id) => {
+    setTrades((prev) =>
+      prev.map((trade) =>
+        trade.id === id
+          ? { ...trade, status: 'CANCELLED', closedAt: new Date().toISOString(), closePrice: currentPrices[trade.symbol] ?? trade.entry }
+          : trade
+      )
+    );
+  };
+
   const openTrades = trades.filter((trade) => trade.status === 'OPEN');
   const totalPnl = useMemo(
     () =>
       trades.reduce((sum, trade) => {
         const price = trade.status === 'OPEN' ? (currentPrices[trade.symbol] ?? trade.entry) : Number(trade.closePrice ?? trade.entry);
-        return sum + (price - trade.entry) * trade.qty;
+        const isShort = trade.direction === 'SHORT';
+        const pnl = (price - trade.entry) * trade.qty * (isShort ? -1 : 1);
+        return sum + pnl;
       }, 0),
     [trades, current]
   );
@@ -99,6 +142,7 @@ export default function PaperTradingDesk({ defaultSymbol = 'NVDA' }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 10, marginTop: 18 }}>
         {[
           ['السهم', symbol, setSymbol],
+          ['الاتجاه', direction, setDirection],
           ['الدخول', entry, setEntry],
           ['الوقف', stop, setStop],
           ['الهدف', target, setTarget],
@@ -114,24 +158,36 @@ export default function PaperTradingDesk({ defaultSymbol = 'NVDA' }) {
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
         <button onClick={loadPrice} style={styles.secondary}>تحديث السعر {current ? `$${current.toFixed(2)}` : ''}</button>
         <button onClick={openTrade} style={styles.primary}>فتح محاكاة</button>
+        {tradePlan?.available && (
+          <button onClick={openFromPlan} style={{ ...styles.primary, background: '#8B5CF6', color: '#FFF' }}>
+            فتح من الخطة
+          </button>
+        )}
       </div>
 
       {message && <div style={{ marginTop: 10, color: '#FBBF24', fontSize: 11 }}>{message}</div>}
 
       <div style={{ marginTop: 18, display: 'grid', gap: 8 }}>
         {!openTrades.length && <div style={{ color: '#64748B', fontSize: 11 }}>لا توجد صفقات مفتوحة.</div>}
-        {trades.slice(0, 8).map((trade) => {
-          const price = trade.status === 'OPEN' ? (currentPrices[trade.symbol] ?? trade.entry) : Number(trade.closePrice ?? trade.entry);
-          const pnl = (price - trade.entry) * trade.qty;
-          return (
-            <div key={trade.id} style={styles.trade}>
-              <div><b style={{ color: '#F8FAFC' }}>{trade.symbol}</b> · {trade.qty} سهم</div>
-              <div style={{ color: pnl >= 0 ? '#34D399' : '#F87171' }}>{pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}</div>
-              <div style={{ color: '#94A3B8' }}>{trade.status === 'OPEN' ? 'مفتوحة' : 'مغلقة'}</div>
-              {trade.status === 'OPEN' && <button onClick={() => closeTrade(trade.id)} style={styles.secondary}>إغلاق</button>}
-            </div>
-          );
-        })}
+{trades.slice(0, 8).map((trade) => {
+    const price = trade.status === 'OPEN' ? (currentPrices[trade.symbol] ?? trade.entry) : Number(trade.closePrice ?? trade.entry);
+    const pnl = (price - trade.entry) * trade.qty * (trade.direction === 'SHORT' ? -1 : 1);
+    return (
+      <div key={trade.id} style={styles.trade}>
+        <div><b style={{ color: '#F8FAFC' }}>{trade.symbol}</b> · {trade.qty} سهم</div>
+        <div style={{ color: pnl >= 0 ? '#34D399' : '#F87171' }}>{pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}</div>
+        <div style={{ color: '#94A3B8' }}>
+          {trade.status === 'OPEN' ? 'مفتوحة' : trade.status === 'CLOSED' ? 'مغلقة' : 'ملغاة'}
+        </div>
+        {trade.status === 'OPEN' && (
+          <>
+            <button onClick={() => closeTrade(trade.id)} style={styles.secondary}>إغلاق</button>
+            <button onClick={() => cancelTrade(trade.id)} style={{ marginLeft: 5, ...styles.secondary }}>إلغاء</button>
+          </>
+        )}
+      </div>
+    );
+  })}
       </div>
     </div>
   );

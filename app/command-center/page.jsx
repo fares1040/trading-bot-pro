@@ -241,6 +241,12 @@ function HuntCard({ item, plan, explanation, isSelected, onClick }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           {direction && <Tag value={direction} colorMap={D_COLOR} size="sm" />}
           <Tag value={item.quality} colorMap={Q_COLOR} size="sm" />
+          {(() => {
+            const tf = item.expectedTimeframe || plan?.expectedTimeframe;
+            return tf && tf !== 'UNKNOWN' ? (
+              <Tag value={tf} colorMap={{ [tf]: '#38BDF8' }} size="sm" />
+            ) : null;
+          })()}
         </div>
       </div>
 
@@ -1283,11 +1289,15 @@ function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanati
               ${Number(opp.price).toLocaleString('en-US', { maximumFractionDigits: 2 })}
             </div>
           )}
-          <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            {plan?.direction && <Tag value={plan.direction} colorMap={D_COLOR} />}
-            <Tag value={opp?.quality || 'UNAVAILABLE'} colorMap={Q_COLOR} />
-            {plan?.planSignal && <Tag value={plan.planSignal} colorMap={S_COLOR} />}
-          </div>
+<div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+             {plan?.direction && <Tag value={plan.direction} colorMap={D_COLOR} />}
+             <Tag value={opp?.quality || 'UNAVAILABLE'} colorMap={Q_COLOR} />
+             {plan?.planSignal && <Tag value={plan.planSignal} colorMap={S_COLOR} />}
+             {(() => {
+               const tf = opp?.expectedTimeframe || plan?.expectedTimeframe;
+               return tf && tf !== 'UNKNOWN' ? <Tag value={tf} colorMap={{ [tf]: '#38BDF8' }} /> : null;
+             })()}
+           </div>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ textAlign: 'center' }}>
