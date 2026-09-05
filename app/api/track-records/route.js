@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import trackRecordService from '../lib/track-record-service.js';
+import trackRecordService from '@/lib/track-record-service.js';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -24,15 +24,14 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
-    
-    // Validate required fields
-    if (!body.symbol || !body.type || !body.score) {
+
+    if (!body.symbol || !body.type || body.score === undefined || body.score === null) {
       return NextResponse.json({
         success: false,
         error: 'Missing required fields: symbol, type, score'
-      }, 400);
+      }, { status: 400 });
     }
-    
+
     const record = trackRecordService.recordOpportunity({
       symbol: body.symbol,
       type: body.type,
@@ -42,10 +41,10 @@ export async function POST(request) {
       targetPrice: body.targetPrice,
       direction: body.direction,
       expectedTimeframe: body.expectedTimeframe,
-      outcome: body.outcome || 'OPEN', // Default to OPEN if not specified
+      outcome: body.outcome || 'OPEN',
       timestamp: new Date().toISOString()
     });
-    
+
     return NextResponse.json({
       success: true,
       record,
@@ -56,6 +55,6 @@ export async function POST(request) {
       success: false,
       error: 'Failed to record opportunity',
       message: error.message
-    }, 500);
+    }, { status: 500 });
   }
 }

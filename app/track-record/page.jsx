@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import trackRecordService from '../../../lib/track-record-service.js';
+import trackRecordService from '@/lib/track-record-service.js';
 
 const TrackRecordPage = () => {
   const [records, setRecords] = useState([]);
@@ -9,7 +9,6 @@ const TrackRecordPage = () => {
   const [filterOutcome, setFilterOutcome] = useState('ALL');
   const [filterCategory, setFilterCategory] = useState('ALL');
 
-  // Load all records
   useEffect(() => {
     loadTrackRecords();
   }, []);
@@ -18,14 +17,12 @@ const TrackRecordPage = () => {
     try {
       const data = await trackRecordService.getAllRecords();
       setRecords(data.records);
-      
-      // Extract unique outcomes
-      const uniqueOutcomes = [...new Set(records.map(r => r.outcome))];
+
+      const uniqueOutcomes = [...new Set(data.records.map(r => r.outcome))];
       setOutcomes(uniqueOutcomes);
-      
-      // Extract categories
+
       const uniqueCategories = [...new Set(
-        records.map(r => r.type)
+        data.records.map(r => r.type)
       )].filter(c => c !== 'UNKNOWN');
       setCategories(uniqueCategories);
     } catch (error) {
@@ -44,13 +41,12 @@ const TrackRecordPage = () => {
   return (
     <div className="container">
       <h1>Track Record</h1>
-      
-      {/* Filters */}
+
       <div className="track-header">
         <div className="filter-group">
           <label>Outcome:</label>
-          <select 
-            value={filterOutcome} 
+          <select
+            value={filterOutcome}
             onChange={(e) => setFilterOutcome(e.target.value)}
           >
             <option value="ALL">All Outcomes</option>
@@ -61,11 +57,11 @@ const TrackRecordPage = () => {
             ))}
           </select>
         </div>
-        
+
         <div className="filter-group">
           <label>Category:</label>
-          <select 
-            value={filterCategory} 
+          <select
+            value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
           >
             <option value="ALL">All Categories</option>
@@ -78,35 +74,15 @@ const TrackRecordPage = () => {
         </div>
       </div>
 
-      {/* Metrics */}
       <div className="metrics-row">
-        <div className="metric-card">
-          <span>Total Trades</span>
-          <span>{metricData.totalTrades}</span>
-        </div>
-        <div className="metric-card">
-          <span>Wins</span>
-          <span>{metricData.wins}</span>
-        </div>
-        <div className="metric-card">
-          <span>Losses</span>
-          <span>{metricData.losses}</span>
-        </div>
-        <div className="metric-card">
-          <span>Win Rate</span>
-          <span>{metricData.winRate}%</span>
-        </div>
-        <div className="metric-card">
-          <span>Profit Factor</span>
-          <span>{metricData.profitFactor}</span>
-        </div>
-        <div className="metric-card">
-          <span>Average Return</span>
-          <span>{metricData.avgReturn}%</span>
-        </div>
+        <div className="metric-card"><span>Total Trades</span><span>{metricData.totalTrades}</span></div>
+        <div className="metric-card"><span>Wins</span><span>{metricData.wins}</span></div>
+        <div className="metric-card"><span>Losses</span><span>{metricData.losses}</span></div>
+        <div className="metric-card"><span>Win Rate</span><span>{metricData.winRate}%</span></div>
+        <div className="metric-card"><span>Profit Factor</span><span>{metricData.profitFactor}</span></div>
+        <div className="metric-card"><span>Average Return</span><span>{metricData.avgReturn}%</span></div>
       </div>
 
-      {/* Records Table */}
       <div className="records-table">
         <table>
           <thead>
@@ -123,7 +99,7 @@ const TrackRecordPage = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredRecords.map((record, index) => (
+            {filteredRecords.map(record => (
               <tr key={record.id}>
                 <td>{record.symbol}</td>
                 <td>{record.type}</td>
@@ -138,7 +114,7 @@ const TrackRecordPage = () => {
             ))}
             {filteredRecords.length === 0 && (
               <tr>
-                <td colSpan="9" style={{ textAlign: "center" }}>No records found.</td>
+                <td colSpan="9" style={{ textAlign: 'center' }}>No records found.</td>
               </tr>
             )}
           </tbody>
