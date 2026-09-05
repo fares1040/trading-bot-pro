@@ -181,20 +181,23 @@ export default function TradingToolsHub() {
         throw new Error(data?.error || 'تعذر تشغيل الاختبار التاريخي');
       }
 
-      setBacktestResults({
-        ticker: data.ticker,
-        strategyName: data.strategyName,
-        totalTrades: data.totalTrades,
-        winRate: data.winRate,
-        profitFactor:
-          data.profitFactor == null ? 'غير متاح' : data.profitFactor,
-        recommendation:
-          data.totalTrades > 0
-            ? data.winRate >= 60
-              ? 'نتيجة تاريخية إيجابية ضمن شروط الاختبار'
-              : 'النتيجة التاريخية ضعيفة وتحتاج فلترة إضافية'
-            : 'لم تظهر صفقات مطابقة للشروط في الفترة المتاحة',
-      });
+setBacktestResults({
+         ticker: data.ticker,
+         strategyName: data.strategyName,
+         totalTrades: data.totalTrades,
+         wins: data.wins,
+         losses: data.losses,
+         winRate: data.winRate,
+         profitFactor:
+           data.profitFactor == null ? 'غير متاح' : data.profitFactor,
+         holdingDays: data.holdingDays,
+         recommendation:
+           data.totalTrades > 0
+             ? data.winRate >= 60
+               ? 'نتيجة تاريخية إيجابية ضمن شروط الاختبار'
+               : 'النتيجة التاريخية ضعيفة وتحتاج فلترة إضافية'
+             : 'لم تظهر صفقات مطابقة للشروط في الفترة المتاحة',
+       });
     } catch (e) {
       setBacktestResults({
         error: e?.message || 'تعذر تشغيل الاختبار التاريخي',
@@ -629,21 +632,57 @@ export default function TradingToolsHub() {
           </button>
         </div>
 
-        {backtestResults && (
-          <div style={{ background: '#111827', padding: '12px', borderRadius: '10px', border: '1px solid #374151', fontSize: '12px', marginTop: '10px' }}>
-            <div style={{ marginBottom: '8px', color: '#38bdf8', fontWeight: 'bold' }}>
-              الاستراتيجية: {backtestResults.strategyName} ({backtestResults.ticker})
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '10px' }}>
-              <div>الصفقات: <strong style={{ color: '#fff' }}>{backtestResults.totalTrades}</strong></div>
-              <div>النجاح: <strong style={{ color: '#4ade80' }}>%{backtestResults.winRate}</strong></div>
-              <div>الربحية: <strong style={{ color: '#a78bfa' }}>{backtestResults.profitFactor}</strong></div>
-            </div>
-            <div style={{ textAlign: 'center', background: '#064e3b', color: '#34d399', padding: '8px', borderRadius: '6px', fontWeight: 'bold', fontSize: '11px', border: '1px solid #059669' }}>
-              {backtestResults.recommendation}
+{backtestResults && (
+  <>
+    {backtestResults.error ? (
+      <div style={{ background: '#7f1d1d', color: '#f87171', padding: '12px', borderRadius: '8px', marginTop: '10px' }}>
+        ❌ {backtestResults.error}
+      </div>
+    ) : (
+      <div style={{ background: '#111827', padding: '16px', borderRadius: '10px', border: '1px solid #374151', marginTop: '10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+          <h4 style={{ margin: 0, color: '#38bdf8', fontSize: '16px' }}>
+            الاستراتيجية: {backtestResults.strategyName} ({backtestResults.ticker})
+          </h4>
+          <div style={{ fontSize: '12px', color: '#9ca3af' }}>
+            periodic holding: {backtestResults.holdingDays} days
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '16px' }}>
+          <div>
+            <div style={{ fontSize: '12px', color: '#9ca3af' }}>الصفقات</div>
+            <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#fff' }}>{backtestResults.totalTrades}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '12px', color: '#9ca3af' }}>النجاح</div>
+            <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#4ade80' }}>%{backtestResults.winRate}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '12px', color: '#9ca3af' }}>الربحية</div>
+            <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#a78bfa' }}>{backtestResults.profitFactor}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '12px', color: '#9ca3af' }}>الفرق بين الصفقات الرابحة والخاسرة</div>
+            <div style={{ fontSize: '20px', fontWeight: 'bold', color: '%{(backtestResults.wins > backtestResults.losses) ? '#4ade80' : '#f87171'}' }}>
+              {backtestResults.wins - backtestResults.losses} صفقات
             </div>
           </div>
-        )}
+        </div>
+        <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #374151' }}>
+          <div style={{ fontSize: '12px', color: '#9ca3af' }}>التوزيع: Wins vs Losses</div>
+          <div style={{ height: '20px', background: '#2d3748', borderRadius: '10px', overflow: 'hidden', marginTop: '6px' }}>
+            <div style={{ width: `${backtestResults.wins + backtestResults.losses === 0 ? 0 : (backtestResults.wins/(backtestResults.wins+backtestResults.losses))*100}%`, backgroundColor: '#4ade80', height: '100%' }}></div>
+            <div style={{ width: `${backtestResults.wins + backtestResults.losses === 0 ? 0 : (backtestResults.losses/(backtestResults.wins+backtestResults.losses))*100}%`, backgroundColor: '#f87171', height: '100%' }}></div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#9ca3af', marginTop: '4px' }}>
+            <span>رابحة: {backtestResults.wins}</span>
+            <span>خاسرة: {backtestResults.losses}</span>
+          </div>
+        </div>
+      </div>
+    )}
+  </>
+)
       </div>
 
     </div>
