@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import trackRecordService from '../lib/track-record-service.js';
+import trackRecordService from '@/lib/track-record-service.js';
 
 const TrackRecordPage = () => {
   const [records, setRecords] = useState([]);
