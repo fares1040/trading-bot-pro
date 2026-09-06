@@ -83,6 +83,7 @@ export async function GET() {
         note: institutional.configured
           ? 'FINRA ATS/OTC weekly summary data. Delayed/aggregated institutional activity proxy.'
           : 'FINRA credentials not configured. No institutional data is fabricated.',
+        serverlessNote: 'On serverless platforms, verification state is per-instance and resets on cold start. Call /api/finra-verify to verify in a new instance.',
       },
       hunterScore: { status: 'active', formula: 'Setup 55% + Conviction 35% + Market Regime 10%' },
       alerts: { status: 'active', dedupe: checks.alertsDedupeConfigured },
