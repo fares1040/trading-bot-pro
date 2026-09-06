@@ -1,13 +1,21 @@
 import { NextResponse } from 'next/server';
+import {
+  yahooHeaders,
+  SYMBOL_RE,
+  fetchChart,
+  fetchTrending,
+  sma as calcSma,
+  rsi as calcRsi,
+  bollinger as calcBollinger,
+  average,
+} from '@/lib/market-engine';
+import { shouldAllowProviderCall, recordProviderFailure, recordProviderSuccess } from '@/lib/circuit-breaker-manager';
+import { record } from '@/lib/failure-events';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-const YAHOO_HEADERS = {
-  'User-Agent':
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-  Accept: 'application/json',
-};
+const YAHOO_HEADERS = yahooHeaders;
 
 const MIN_PRICE = 0.5;
 const MAX_PRICE = 100;
@@ -21,18 +29,9 @@ function num(value, fallback = null) {
   return Number.isFinite(n) ? n : fallback;
 }
 
-function average(values) {
-  const valid = values.filter(Number.isFinite);
-  if (!valid.length) return null;
-
-  return (
-    valid.reduce((sum, value) => sum + value, 0) /
-    valid.length
-  );
-}
-
 function clamp(value, min = 0, max = 100) {
   const n = Number(value);
+
   if (!Number.isFinite(n)) return min;
 
   return Math.max(min, Math.min(max, n));
@@ -47,17 +46,9 @@ function round(value, decimals = 2) {
 }
 
 function isValidSymbol(symbol) {
-  return /^[A-Z][A-Z0-9.^=-]{0,11}$/.test(
+  return SYMBOL_RE.test(
     String(symbol || '')
   );
-}
-
-function calculateSMA(values, period) {
-  if (!Array.isArray(values) || values.length < period) {
-    return null;
-  }
-
-  return average(values.slice(-period));
 }
 
 function calculateEMA(values, period) {
@@ -78,49 +69,6 @@ function calculateEMA(values, period) {
   }
 
   return ema;
-}
-
-function calculateRSI(closes, period = 14) {
-  if (!Array.isArray(closes) || closes.length <= period) {
-    return null;
-  }
-
-  let gains = 0;
-  let losses = 0;
-
-  for (let i = 1; i <= period; i += 1) {
-    const delta = closes[i] - closes[i - 1];
-
-    if (delta >= 0) {
-      gains += delta;
-    } else {
-      losses += Math.abs(delta);
-    }
-  }
-
-  let avgGain = gains / period;
-  let avgLoss = losses / period;
-
-  for (let i = period + 1; i < closes.length; i += 1) {
-    const delta = closes[i] - closes[i - 1];
-
-    const gain = delta > 0 ? delta : 0;
-    const loss = delta < 0 ? Math.abs(delta) : 0;
-
-    avgGain =
-      ((avgGain * (period - 1)) + gain) /
-      period;
-
-    avgLoss =
-      ((avgLoss * (period - 1)) + loss) /
-      period;
-  }
-
-  if (avgLoss === 0) {
-    return 100;
-  }
-
-  return 100 - 100 / (1 + avgGain / avgLoss);
 }
 
 function calculateMomentum(closes, period = 5) {
@@ -243,65 +191,6 @@ function calculateRsiScore(rsi) {
   if (rsi < 30) return 55;
 
   return 65;
-}
-
-function calculateBollinger(closes, period = 20) {
-  if (!Array.isArray(closes) || closes.length < period) {
-    return {
-      middle: null,
-      upper: null,
-      lower: null,
-      bandwidth: null,
-      squeeze: false,
-      score: 0,
-    };
-  }
-
-  const slice = closes.slice(-period);
-  const middle = average(slice);
-
-  if (!middle || middle <= 0) {
-    return {
-      middle: null,
-      upper: null,
-      lower: null,
-      bandwidth: null,
-      squeeze: false,
-      score: 0,
-    };
-  }
-
-  const variance =
-    average(
-      slice.map(
-        (value) =>
-          (value - middle) ** 2
-      )
-    ) || 0;
-
-  const stdDev = Math.sqrt(variance);
-
-  const upper = middle + 2 * stdDev;
-  const lower = middle - 2 * stdDev;
-
-  const bandwidth =
-    ((upper - lower) / middle) * 100;
-
-  let score = 20;
-
-  if (bandwidth < 5) score = 100;
-  else if (bandwidth < 7) score = 90;
-  else if (bandwidth < 9) score = 75;
-  else if (bandwidth < 12) score = 50;
-
-  return {
-    middle,
-    upper,
-    lower,
-    bandwidth,
-    squeeze: bandwidth < 9,
-    score,
-  };
 }
 
 function calculateCluster(
@@ -700,10 +589,10 @@ function analyzeQuote(meta, quote) {
       : null;
 
   const sma20 =
-    calculateSMA(closes, 20);
+    calcSma(closes, 20);
 
   const sma50 =
-    calculateSMA(closes, 50);
+    calcSma(closes, 50);
 
   const ema12 =
     calculateEMA(closes, 12);
@@ -712,7 +601,7 @@ function analyzeQuote(meta, quote) {
     calculateEMA(closes, 26);
 
   const rsi =
-    calculateRSI(closes, 14);
+    calcRsi(closes, 14);
 
   const momentum =
     calculateMomentum(closes, 5);
@@ -741,7 +630,7 @@ function analyzeQuote(meta, quote) {
     calculateRsiScore(rsi);
 
   const bollinger =
-    calculateBollinger(
+    calcBollinger(
       closes,
       20
     );
@@ -1069,6 +958,13 @@ async function fetchFinnhubCandles(
     );
   }
 
+  const cbStatus = shouldAllowProviderCall('finnhub');
+  if (!cbStatus.allowed) {
+    const err = new Error(`Finnhub circuit breaker ${cbStatus.state}`);
+    recordProviderFailure('finnhub', err, 'market-data', symbol, false);
+    throw err;
+  }
+
   const {
     from,
     to,
@@ -1094,9 +990,12 @@ async function fetchFinnhubCandles(
     );
 
   if (!response.ok) {
-    throw new Error(
+    const err = new Error(
       `Finnhub Candle ${response.status}`
     );
+    recordProviderFailure('finnhub', err, 'market-data', symbol, false);
+    record({ route: 'market-data', provider: 'finnhub', errorType: 'HTTP_FAILURE', message: `Finnhub ${response.status}`, status: response.status, symbol, optional: false });
+    throw err;
   }
 
   const json =
@@ -1107,9 +1006,12 @@ async function fetchFinnhubCandles(
     !Array.isArray(json?.c) ||
     json.c.length < MIN_HISTORY
   ) {
-    throw new Error(
+    const err = new Error(
       `Finnhub returned incomplete candle data for ${symbol}`
     );
+    recordProviderFailure('finnhub', err, 'market-data', symbol, false);
+    record({ route: 'market-data', provider: 'finnhub', errorType: 'EMPTY_RESPONSE', message: `Finnhub incomplete data for ${symbol}`, symbol, optional: false });
+    throw err;
   }
 
   const closes =
@@ -1155,6 +1057,8 @@ async function fetchFinnhubCandles(
 
   const volume =
     volumes.at(-1) || 0;
+
+  recordProviderSuccess('finnhub', 'market-data', symbol);
 
   return {
     symbol,
@@ -1225,6 +1129,13 @@ async function fetchYahooChart(
     );
   }
 
+  const cbStatus = shouldAllowProviderCall('yahoo');
+  if (!cbStatus.allowed) {
+    const err = new Error(`Yahoo circuit breaker ${cbStatus.state}`);
+    recordProviderFailure('yahoo', err, 'market-data', clean, false);
+    throw err;
+  }
+
   const url =
     'https://query1.finance.yahoo.com/v8/finance/chart/' +
     `${encodeURIComponent(clean)}` +
@@ -1242,9 +1153,12 @@ async function fetchYahooChart(
     );
 
   if (!response.ok) {
-    throw new Error(
+    const err = new Error(
       `Yahoo Finance ${response.status} for ${clean}`
     );
+    recordProviderFailure('yahoo', err, 'market-data', clean, false);
+    record({ route: 'market-data', provider: 'yahoo', errorType: 'HTTP_FAILURE', message: `Yahoo ${response.status} for ${clean}`, status: response.status, symbol: clean, optional: false });
+    throw err;
   }
 
   const json =
@@ -1255,10 +1169,15 @@ async function fetchYahooChart(
       ?.result?.[0];
 
   if (!result?.meta) {
-    throw new Error(
+    const err = new Error(
       `No market data for ${clean}`
     );
+    recordProviderFailure('yahoo', err, 'market-data', clean, false);
+    record({ route: 'market-data', provider: 'yahoo', errorType: 'EMPTY_RESPONSE', message: `No market data for ${clean}`, symbol: clean, optional: false });
+    throw err;
   }
+
+  recordProviderSuccess('yahoo', 'market-data', clean);
 
   return {
     symbol:
@@ -1369,6 +1288,13 @@ async function fetchYahooTrending(
       50
     );
 
+  const cbStatus = shouldAllowProviderCall('yahoo');
+  if (!cbStatus.allowed) {
+    const err = new Error(`Yahoo circuit breaker ${cbStatus.state}`);
+    recordProviderFailure('yahoo', err, 'market-data.trending', null, false);
+    throw err;
+  }
+
   const url =
     `https://query1.finance.yahoo.com/v1/finance/trending/US?count=${safeCount}`;
 
@@ -1382,9 +1308,12 @@ async function fetchYahooTrending(
     );
 
   if (!response.ok) {
-    throw new Error(
+    const err = new Error(
       `Yahoo Trending ${response.status}`
     );
+    recordProviderFailure('yahoo', err, 'market-data.trending', null, false);
+    record({ route: 'market-data', provider: 'yahoo', errorType: 'HTTP_FAILURE', message: `Yahoo Trending ${response.status}`, status: response.status, optional: false });
+    throw err;
   }
 
   const json =

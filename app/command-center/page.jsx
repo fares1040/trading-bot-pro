@@ -1680,14 +1680,16 @@ const [selectedSymbol, setSelectedSymbol] = useState(null);
 
   const fetchAll = useCallback(async () => {
     const origin = window.location.origin;
+    const readToken = process.env.NEXT_PUBLIC_DASHBOARD_READ_TOKEN;
+    const headers = readToken ? { Authorization: `Bearer ${readToken}` } : {};
     try {
       const [ccRes, oppRes, planRes, aiRes, alertRes, optionsRadarRes] = await Promise.allSettled([
-        fetch(`${origin}/api/command-center`, { cache: 'no-store' }),
-        fetch(`${origin}/api/opportunity-ranking`, { cache: 'no-store' }),
-        fetch(`${origin}/api/trade-plan`, { cache: 'no-store' }),
-        fetch(`${origin}/api/ai-explanation`, { cache: 'no-store' }),
-        fetch(`${origin}/api/alert-center`, { cache: 'no-store' }),
-        fetch(`${origin}/api/options-radar`, { cache: 'no-store' }),
+        fetch(`${origin}/api/command-center`, { cache: 'no-store', headers }),
+        fetch(`${origin}/api/opportunity-ranking`, { cache: 'no-store', headers }),
+        fetch(`${origin}/api/trade-plan`, { cache: 'no-store', headers }),
+        fetch(`${origin}/api/ai-explanation`, { cache: 'no-store', headers }),
+        fetch(`${origin}/api/alert-center`, { cache: 'no-store', headers }),
+        fetch(`${origin}/api/options-radar`, { cache: 'no-store', headers }),
       ]);
 
       if (ccRes.status === 'fulfilled' && ccRes.value.ok) {

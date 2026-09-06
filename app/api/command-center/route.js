@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
-import {
-  buildCommandCenter,
-  defaultCommandCenter,
-} from '@/lib/command-center';
+import { buildCommandCenter, defaultCommandCenter } from '@/lib/command-center';
+import { checkDashboardAccess } from '@/lib/access-control';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -50,12 +48,9 @@ async function fetchAllSources(request) {
 
 export async function GET(request) {
   try {
-    const expectedSecret = process.env.CRON_SECRET || process.env.VERCEL_CRON_SECRET;
-    if (expectedSecret) {
-      const auth = request.headers.get('authorization');
-      if (auth !== `Bearer ${expectedSecret}`) {
-        return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-      }
+    const { allowed, reason } = checkDashboardAccess(request);
+    if (!allowed) {
+      return NextResponse.json({ success: false, error: reason || 'Unauthorized' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);

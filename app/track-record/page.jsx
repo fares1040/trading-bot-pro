@@ -1,6 +1,96 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import trackRecordService from '@/lib/track-record-service.js';
+import { colors, panelStyle } from '@/components/ui/DesignTokens';
+
+const pageStyle = {
+  backgroundColor: colors.bg,
+  color: colors.text.primary,
+  fontFamily: 'sans-serif',
+  direction: 'rtl',
+  minHeight: '100vh',
+  padding: '20px 30px',
+};
+
+const headerStyle = {
+  ...panelStyle,
+  padding: '16px 24px',
+  marginBottom: '20px',
+};
+
+const filterGroupStyle = {
+  display: 'flex',
+  gap: '12px',
+  marginBottom: '16px',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+};
+
+const labelStyle = {
+  fontSize: '11px',
+  fontWeight: 700,
+  color: colors.text.muted,
+  marginBottom: '4px',
+  display: 'block',
+};
+
+const selectStyle = {
+  padding: '6px 10px',
+  borderRadius: '6px',
+  border: `1px solid ${colors.border}`,
+  backgroundColor: colors.panel,
+  color: colors.text.primary,
+  fontSize: '12px',
+  outline: 'none',
+};
+
+const metricsRowStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+  gap: '12px',
+  marginBottom: '20px',
+};
+
+const metricCardStyle = {
+  ...panelStyle,
+  padding: '14px 16px',
+  textAlign: 'center',
+};
+
+const tableContainerStyle = {
+  ...panelStyle,
+  padding: '16px',
+  overflowX: 'auto',
+};
+
+const tableStyle = {
+  width: '100%',
+  borderCollapse: 'collapse',
+  fontSize: '12px',
+};
+
+const thStyle = {
+  color: colors.text.muted,
+  fontSize: '10px',
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: 0.5,
+  padding: '8px 10px',
+  textAlign: 'right',
+  borderBottom: `1px solid ${colors.border}`,
+};
+
+const tdStyle = {
+  padding: '8px 10px',
+  borderBottom: `1px solid ${colors.border}`,
+  color: colors.text.secondary,
+};
+
+const emptyRowStyle = {
+  ...tdStyle,
+  textAlign: 'center',
+  color: colors.text.muted,
+};
 
 const TrackRecordPage = () => {
   const [records, setRecords] = useState([]);
@@ -15,18 +105,19 @@ const TrackRecordPage = () => {
 
   const loadTrackRecords = async () => {
     try {
-      const data = await trackRecordService.getAllRecords();
-      setRecords(data.records);
+      const data = trackRecordService.getAllRecords();
+      setRecords(data || []);
 
-      const uniqueOutcomes = [...new Set(data.records.map(r => r.outcome))];
+      const uniqueOutcomes = [...new Set((data || []).map(r => r.outcome))];
       setOutcomes(uniqueOutcomes);
 
       const uniqueCategories = [...new Set(
-        data.records.map(r => r.type)
+        (data || []).map(r => r.type)
       )].filter(c => c !== 'UNKNOWN');
       setCategories(uniqueCategories);
     } catch (error) {
       console.error('Failed to load track records:', error);
+      setRecords([]);
     }
   };
 
@@ -39,15 +130,33 @@ const TrackRecordPage = () => {
   const metricData = trackRecordService.calculateMetrics();
 
   return (
-    <div className="container">
-      <h1>Track Record</h1>
+    <div style={pageStyle}>
+      <div style={headerStyle}>
+        <h1 style={{
+          color: colors.accent.gold,
+          fontSize: '20px',
+          fontWeight: 900,
+          margin: 0,
+          marginBottom: '8px',
+        }}>
+          📋 Track Record
+        </h1>
+        <p style={{
+          color: colors.text.muted,
+          fontSize: '11px',
+          margin: 0,
+        }}>
+          سجل صفقاتك التاريخية مع إحصائيات الأداء.
+        </p>
+      </div>
 
-      <div className="track-header">
-        <div className="filter-group">
-          <label>Outcome:</label>
+      <div style={filterGroupStyle}>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <label style={labelStyle}>Outcome</label>
           <select
             value={filterOutcome}
             onChange={(e) => setFilterOutcome(e.target.value)}
+            style={selectStyle}
           >
             <option value="ALL">All Outcomes</option>
             {outcomes.map(outcome => (
@@ -58,11 +167,12 @@ const TrackRecordPage = () => {
           </select>
         </div>
 
-        <div className="filter-group">
-          <label>Category:</label>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <label style={labelStyle}>Category</label>
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
+            style={selectStyle}
           >
             <option value="ALL">All Categories</option>
             {categories.map(cat => (
@@ -74,47 +184,67 @@ const TrackRecordPage = () => {
         </div>
       </div>
 
-      <div className="metrics-row">
-        <div className="metric-card"><span>Total Trades</span><span>{metricData.totalTrades}</span></div>
-        <div className="metric-card"><span>Wins</span><span>{metricData.wins}</span></div>
-        <div className="metric-card"><span>Losses</span><span>{metricData.losses}</span></div>
-        <div className="metric-card"><span>Win Rate</span><span>{metricData.winRate}%</span></div>
-        <div className="metric-card"><span>Profit Factor</span><span>{metricData.profitFactor}</span></div>
-        <div className="metric-card"><span>Average Return</span><span>{metricData.avgReturn}%</span></div>
+      <div style={metricsRowStyle}>
+        <div style={metricCardStyle}>
+          <div style={{ fontSize: '10px', color: colors.text.muted, marginBottom: '4px' }}>Total Trades</div>
+          <div style={{ fontSize: '20px', fontWeight: 900, color: colors.text.primary }}>{metricData.totalTrades}</div>
+        </div>
+        <div style={metricCardStyle}>
+          <div style={{ fontSize: '10px', color: colors.text.muted, marginBottom: '4px' }}>Wins</div>
+          <div style={{ fontSize: '20px', fontWeight: 900, color: colors.semantic.success }}>{metricData.wins}</div>
+        </div>
+        <div style={metricCardStyle}>
+          <div style={{ fontSize: '10px', color: colors.text.muted, marginBottom: '4px' }}>Losses</div>
+          <div style={{ fontSize: '20px', fontWeight: 900, color: colors.semantic.danger }}>{metricData.losses}</div>
+        </div>
+        <div style={metricCardStyle}>
+          <div style={{ fontSize: '10px', color: colors.text.muted, marginBottom: '4px' }}>Win Rate</div>
+          <div style={{ fontSize: '20px', fontWeight: 900, color: colors.accent.blue }}>{metricData.winRate}%</div>
+        </div>
+        <div style={metricCardStyle}>
+          <div style={{ fontSize: '10px', color: colors.text.muted, marginBottom: '4px' }}>Profit Factor</div>
+          <div style={{ fontSize: '20px', fontWeight: 900, color: colors.accent.violet }}>{metricData.profitFactor}</div>
+        </div>
+        <div style={metricCardStyle}>
+          <div style={{ fontSize: '10px', color: colors.text.muted, marginBottom: '4px' }}>Average Return</div>
+          <div style={{ fontSize: '20px', fontWeight: 900, color: colors.accent.pink }}>{metricData.avgReturn}%</div>
+        </div>
       </div>
 
-      <div className="records-table">
-        <table>
+      <div style={tableContainerStyle}>
+        <table style={tableStyle}>
           <thead>
             <tr>
-              <th>Symbol</th>
-              <th>Type</th>
-              <th>Score</th>
-              <th>Entry</th>
-              <th>Stop</th>
-              <th>Target</th>
-              <th>Direction</th>
-              <th>Outcome</th>
-              <th>Timestamp</th>
+              <th style={{ ...thStyle, textAlign: 'right' }}>Timestamp</th>
+              <th style={thStyle}>Outcome</th>
+              <th style={thStyle}>Direction</th>
+              <th style={thStyle}>Target</th>
+              <th style={thStyle}>Stop</th>
+              <th style={thStyle}>Entry</th>
+              <th style={thStyle}>Score</th>
+              <th style={thStyle}>Type</th>
+              <th style={{ ...thStyle, textAlign: 'left' }}>Symbol</th>
             </tr>
           </thead>
           <tbody>
             {filteredRecords.map(record => (
               <tr key={record.id}>
-                <td>{record.symbol}</td>
-                <td>{record.type}</td>
-                <td>{record.score}</td>
-                <td>{record.entryPrice}</td>
-                <td>{record.stopPrice}</td>
-                <td>{record.targetPrice}</td>
-                <td>{record.direction}</td>
-                <td>{record.outcome}</td>
-                <td>{new Date(record.timestamp).toLocaleString()}</td>
+                <td style={{ ...tdStyle, fontFamily: 'monospace' }}>{new Date(record.timestamp).toLocaleString()}</td>
+                <td style={tdStyle}>{record.outcome}</td>
+                <td style={tdStyle}>{record.direction}</td>
+                <td style={tdStyle}>{record.targetPrice}</td>
+                <td style={tdStyle}>{record.stopPrice}</td>
+                <td style={tdStyle}>{record.entryPrice}</td>
+                <td style={tdStyle}>{record.score}</td>
+                <td style={tdStyle}>{record.type}</td>
+                <td style={{ ...tdStyle, textAlign: 'left', fontWeight: 700 }}>{record.symbol}</td>
               </tr>
             ))}
             {filteredRecords.length === 0 && (
               <tr>
-                <td colSpan="9" style={{ textAlign: 'center' }}>No records found.</td>
+                <td colSpan="9" style={emptyRowStyle}>
+                  لا توجد سجلات متاحة.
+                </td>
               </tr>
             )}
           </tbody>

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { fetchChart, fetchTrending, analyzeQuote } from '@/lib/market-engine';
 import { fetchOptionsChain } from '@/lib/options-provider.js';
 import { buildSecIntelligence } from '@/lib/sec-filings';
+import { checkDashboardAccess } from '@/lib/access-control';
 import {
   buildPennyIntelligence,
   defaultPennyIntelligence,
@@ -314,12 +315,9 @@ function buildSourceBreakdown(results) {
 
 export async function GET(request) {
   try {
-    const expectedSecret = process.env.CRON_SECRET || process.env.VERCEL_CRON_SECRET;
-    if (expectedSecret) {
-      const auth = request.headers.get('authorization');
-      if (auth !== `Bearer ${expectedSecret}`) {
-        return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-      }
+    const { allowed, reason } = checkDashboardAccess(request);
+    if (!allowed) {
+      return NextResponse.json({ success: false, error: reason || 'Unauthorized' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);

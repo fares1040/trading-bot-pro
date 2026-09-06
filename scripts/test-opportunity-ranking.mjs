@@ -42,7 +42,7 @@ import {
   n,
 } from '../lib/opportunity-ranking.js';
 
-import { buildPennyIntelligence } from '../lib/penny-intelligence-manager.js';
+import { buildPennyIntelligence, defaultPennyIntelligence } from '../lib/penny-intelligence-manager.js';
 import { buildOptionsIntelligenceResult, defaultOptionsIntelligence } from '../lib/options-intelligence-manager.js';
 import { buildInstitutionalRadarResult, defaultInstitutionalRadar } from '../lib/institutional-radar-manager.js';
 import { normalizeSwingIntelligence as buildSwingIntelligenceManager, defaultSwingIntelligenceManager } from '../lib/swing-intelligence-manager.js';
@@ -791,7 +791,7 @@ test('B1 regression: pennyScore fallback path works', () => {
 
 test('B1 regression: pennyScore null when neither available', () => {
   const sources = {
-    pennyIntelligence: { ...b1Sample, setupScore: null, pennyScore: null, hunterScore: null },
+    pennyIntelligence: { ...b1Sample, setupScore: null, pennyScore: null, hunterScore: null, unified: { ...b1Sample.unified, score: null } },
   };
   const r = buildOpportunityRanking('AAPL', sources);
   assertNull(r.componentScores.pennyIntelligenceScore, 'penny null when nothing available');
@@ -881,7 +881,7 @@ test('B1-B6 defaults all return UNAVAILABLE quality', () => {
 
 test('C7 with all B1-B6 defaults yields UNAVAILABLE', () => {
   const sources = {
-    pennyIntelligence: buildPennyIntelligence({}, {}),
+    pennyIntelligence: defaultPennyIntelligence('AAPL'),
     optionsIntelligence: defaultOptionsIntelligence('AAPL'),
     institutionalRadar: defaultInstitutionalRadar('AAPL'),
     swingIntelligence: defaultSwingIntelligenceManager('AAPL'),
