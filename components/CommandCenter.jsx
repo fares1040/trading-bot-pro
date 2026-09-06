@@ -1,5 +1,19 @@
 'use client';
 
+/**
+ * Trading Bot Pro — Legacy Command Center Component (D11)
+ *
+ * DEPRECATED: This component is superseded by:
+ *   - components/CommandCenterView.jsx (shared Command Center view)
+ *   - app/page.jsx (canonical home)
+ *   - app/command-center/page.jsx (compatibility wrapper)
+ *
+ * Do NOT use in new code. Keep for backward compatibility until
+ * all references are confirmed removed and verified in production.
+ *
+ * Intended for deletion in a future cleanup phase.
+ */
+
 import React, { useState, useMemo, useEffect } from 'react';
 
 const panel = {

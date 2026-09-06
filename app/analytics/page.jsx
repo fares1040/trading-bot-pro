@@ -491,6 +491,21 @@ export default function AnalyticsPage() {
 
         {error && <div className="warning">⚠️ {error}</div>}
 
+        <div style={{
+          padding: '14px 16px',
+          backgroundColor: '#1A1500',
+          border: '1px solid #FBBF2440',
+          borderRadius: 12,
+          marginBottom: 14,
+          fontSize: 11,
+          color: '#FBBF24',
+          lineHeight: 1.6,
+        }}>
+          <strong>⚠️ Analytics page is being reorganized.</strong><br />
+          The Command Center is now the primary home. Radar, Swing, Options, and Intelligence views will move to dedicated routes.
+          For now, this page remains functional. Canonical live data is on the <Link href="/" style={{ color: '#38BDF8', textDecoration: 'underline' }}>Command Center</Link>.
+        </div>
+
         <div className="metrics">
           <Metric label="TECHNICAL RADAR" value={stats.total} sub="فرص فنية مؤهلة" />
           <Metric label="PENNY WATCH" value={stats.penny} sub="سهم ≤ $5" />
