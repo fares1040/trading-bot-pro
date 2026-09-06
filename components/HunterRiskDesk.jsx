@@ -2,6 +2,9 @@
 
 import React, { useMemo, useState } from 'react';
 import { buildRiskPlan } from '@/lib/hunter-intelligence';
+import { colors, radius } from '@/components/ui/DesignTokens';
+
+const panel = { backgroundColor: '#090A0F', border: '1px solid #1F2636', borderRadius: radius.lg };
 
 export default function HunterRiskDesk({ initialValues = {} }) {
   const { entry: initEntry, stop: initStop, target: initTarget } = initialValues;
@@ -17,28 +20,30 @@ export default function HunterRiskDesk({ initialValues = {} }) {
   );
 
   const field = (label, value, setter) => (
-    <label className="text-xs text-slate-400">
-      <span className="block mb-1">{label}</span>
+    <label style={{ display: 'block', marginBottom: 6 }}>
+      <span style={{ color: colors.text.muted, fontSize: 11, display: 'block', marginBottom: 4 }}>{label}</span>
       <input
         value={value}
         onChange={(e) => setter(e.target.value)}
         inputMode="decimal"
-        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none focus:border-emerald-500"
+        style={{ width: '100%', borderRadius: radius.md, border: '1px solid #1F2636', backgroundColor: '#0B0F17', padding: '10px 12px', color: colors.text.primary, outline: 'none', fontSize: 12 }}
+        onFocus={(e) => e.currentTarget.style.borderColor = colors.semantic.success}
+        onBlur={(e) => e.currentTarget.style.borderColor = '#1F2636'}
       />
     </label>
   );
 
   return (
-    <section className="rounded-2xl border border-emerald-500/20 bg-[#090A0F] p-5 text-slate-100">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+    <section style={{ ...panel, padding: 20, color: colors.text.primary }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
         <div>
-          <div className="text-[10px] font-black tracking-widest text-emerald-400">CAPITAL DEFENSE ENGINE</div>
-          <h3 className="text-lg font-black mt-1">🛡️ قبل أي صفقة: كم أخاطر فعلياً؟</h3>
+          <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: 1.5, color: colors.semantic.success }}>CAPITAL DEFENSE ENGINE</div>
+          <h3 style={{ fontSize: 17, fontWeight: 900, marginTop: 4 }}>🛡️ قبل أي صفقة: كم أخاطر فعلياً؟</h3>
         </div>
-        <span className="text-[10px] text-slate-500">أداة حساب — لا تنفذ أوامر تداول.</span>
+        <span style={{ fontSize: 10, color: colors.text.faint }}>أداة حساب — لا تنفذ أوامر تداول.</span>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
         {field('رأس المال $', capital, setCapital)}
         {field('المخاطرة %', riskPercent, setRiskPercent)}
         {field('الدخول $', entry, setEntry)}
@@ -47,7 +52,7 @@ export default function HunterRiskDesk({ initialValues = {} }) {
       </div>
 
       {plan.valid ? (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-4">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12, marginTop: 16 }}>
           {[
             ['مبلغ المخاطرة', `$${plan.riskAmount}`],
             ['عدد الأسهم', plan.shares],
@@ -55,14 +60,14 @@ export default function HunterRiskDesk({ initialValues = {} }) {
             ['R/R', plan.riskReward],
             ['ملاحظة', plan.note],
           ].map(([label, value]) => (
-            <div key={label} className="rounded-lg border border-slate-800 bg-slate-950/80 p-3">
-              <div className="text-[10px] text-slate-500">{label}</div>
-              <div className="text-sm font-black text-white mt-1">{value}</div>
+            <div key={label} style={{ borderRadius: radius.md, border: '1px solid #1F2636', backgroundColor: '#0B0F1780', padding: 14 }}>
+              <div style={{ fontSize: 10, color: colors.text.faint }}>{label}</div>
+              <div style={{ fontSize: 14, fontWeight: 900, color: colors.text.primary, marginTop: 6 }}>{value}</div>
             </div>
           ))}
         </div>
       ) : (
-        <div className="mt-4 rounded-lg border border-amber-500/20 bg-amber-950/10 p-3 text-xs text-amber-300">
+        <div style={{ marginTop: 16, borderRadius: radius.md, border: '1px solid #FBBF2440', backgroundColor: '#FBBF2410', padding: 14, fontSize: 11, color: '#FBBF24' }}>
           {plan.error}
         </div>
       )}

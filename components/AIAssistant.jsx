@@ -2,6 +2,9 @@
 'use client';
 
 import React, { useState } from 'react';
+import { colors, radius } from '@/components/ui/DesignTokens';
+
+const panel = { backgroundColor: '#090A0F', border: '1px solid #1F2636', borderRadius: radius.lg };
 
 export default function SmartManagementHub() {
   const [portfolioSize, setPortfolioSize] = useState(10000);
@@ -20,7 +23,7 @@ export default function SmartManagementHub() {
   const [chatQuery, setChatQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [chatHistory, setChatHistory] = useState([
-    { sender: 'ai', text: 'أهلاً بك يا بطل! أنا مساعد سنايبر الذكي. اسألني عن أي سهم أو صفقة (مثلاً: تحليل سهم SERV الآن مع السعر الفعلي).' }
+    { sender: 'ai', text: 'أهلاً بك يا بطل! أنا مساعد Hunter الذكي. اسألني عن أي سهم أو صفقة (مثلاً: تحليل سهم SERV الآن مع السعر الفعلي).' }
   ]);
 
   const handleSendMessage = async (e) => {
@@ -50,104 +53,110 @@ export default function SmartManagementHub() {
     }
   };
 
+  const inputStyle = { width: '100%', backgroundColor: '#0B0F17', border: '1px solid #1F2636', borderRadius: radius.sm, padding: '8px 10px', color: colors.text.primary, fontFamily: 'monospace', fontSize: 12, outline: 'none' };
+  const labelStyle = { color: colors.text.muted, display: 'block', marginBottom: 4, fontSize: 11 };
+
   return (
-    <div className="min-h-screen space-y-6 p-6 bg-[#090A0F] text-slate-100 rounded-2xl border border-slate-800">
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', gap: 16, padding: 16, backgroundColor: '#090A0F', color: colors.text.primary, borderRadius: radius.lg, border: '1px solid #1F2636' }}>
       
       {/* لوحة استراتيجية الذكاء الاصطناعي اليومية */}
-      <div className="p-4 rounded-xl border border-indigo-500/30 bg-indigo-950/20">
-        <h4 className="text-sm font-black text-indigo-400 flex items-center gap-2 mb-2">
-          🤖 توجيهات مستشار سنايبر الـ AI لليوم
+      <div style={{ padding: 14, borderRadius: radius.md, border: '1px solid #6366F140', backgroundColor: '#312E8120' }}>
+        <h4 style={{ fontSize: 13, fontWeight: 900, color: '#818CF8', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          🤖 توجيهات مست顾问 Hunter AI لليوم
         </h4>
-        <div className="text-xs text-slate-300 space-y-1">
-          <div className="flex items-center gap-2 text-emerald-400 font-semibold">
+        <div style={{ fontSize: 11, color: colors.text.secondary, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: colors.semantic.success, fontWeight: 700 }}>
             <span>✔ قطاعات مستهدفة وعالية السيولة:</span> AI Stocks / Semiconductor / Small Caps 🚀
           </div>
-          <div className="flex items-center gap-2 text-rose-400 font-semibold">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: colors.semantic.danger, fontWeight: 700 }}>
             <span>❌ قطاعات مستبعدة لضعف الرواج:</span> Biotech (تم الإخراج التلقائي لتفادي جمود رأس المال)
           </div>
         </div>
       </div>
 
       <div>
-        <h3 className="text-lg font-black text-purple-400 flex items-center gap-2">
+        <h3 style={{ fontSize: 16, fontWeight: 900, color: '#A78BFA', display: 'flex', alignItems: 'center', gap: 8 }}>
           🧠 أدوات القيادة الذكية وإدارة حجم الصفقات
         </h3>
-        <p className="text-xs text-slate-400 mt-1">تنسيق فوري للمخاطر وتخطيط الدفعات الآمنة لحماية صفقات السنتات والأوبشنز.</p>
+        <p style={{ fontSize: 11, color: colors.text.muted, marginTop: 4 }}>تنسيق فوري للمخاطر وتخطيط الدفعات الآمنة لحماية صفقات السنتات والأوبشنز.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
         {/* حاسبة المخاطر اللحظية */}
-        <div className="p-5 rounded-xl border border-slate-800 bg-slate-900/50 backdrop-blur-md">
-          <h4 className="text-sm font-semibold text-emerald-400 mb-3">📊 حاسبة حجم الصفقة (Position Sizing)</h4>
-          <div className="space-y-2 text-xs">
+        <div style={{ ...panel, padding: 20 }}>
+          <h4 style={{ fontSize: 13, fontWeight: 700, color: colors.semantic.success, marginBottom: 12 }}>📊 حاسبة حجم الصفقة (Position Sizing)</h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 11 }}>
             <div>
-              <label className="text-slate-400 block mb-1">حجم المحفظة الإجمالي ($):</label>
-              <input type="number" value={portfolioSize} onChange={(e) => setPortfolioSize(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white font-mono" />
+              <label style={labelStyle}>حجم المحفظة الإجمالي ($):</label>
+              <input type="number" value={portfolioSize} onChange={(e) => setPortfolioSize(Number(e.target.value))} style={inputStyle} />
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div>
-                <label className="text-slate-400 block mb-1">سعر الدخول ($):</label>
-                <input type="number" value={entryPrice} onChange={(e) => setEntryPrice(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white font-mono" />
+                <label style={labelStyle}>سعر الدخول ($):</label>
+                <input type="number" value={entryPrice} onChange={(e) => setEntryPrice(Number(e.target.value))} style={inputStyle} />
               </div>
               <div>
-                <label className="text-slate-400 block mb-1">وقف الخسارة ($):</label>
-                <input type="number" value={stopLossPrice} onChange={(e) => setStopLossPrice(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white font-mono" />
+                <label style={labelStyle}>وقف الخسارة ($):</label>
+                <input type="number" value={stopLossPrice} onChange={(e) => setStopLossPrice(Number(e.target.value))} style={inputStyle} />
               </div>
             </div>
-            <div className="p-3 rounded bg-slate-950 border border-slate-800 mt-3 font-mono text-cyan-300 text-[11px]">
-              <div className="flex justify-between"><span>المبلغ المعرض للمخاطر (2%):</span> <strong className="text-white">${riskAmount}</strong></div>
-              <div className="flex justify-between"><span>عدد الأسهم المقترح:</span> <strong className="text-emerald-400">{suggestedShares} سهم</strong></div>
+            <div style={{ padding: 12, borderRadius: radius.sm, backgroundColor: '#0B0F17', border: '1px solid #1F2636', marginTop: 8, fontFamily: 'monospace', fontSize: 11, color: colors.accent.cyan }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>المبلغ المعرض للمخاطر (2%):</span> <strong style={{ color: colors.text.primary }}>${riskAmount}</strong></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>عدد الأسهم المقترح:</span> <strong style={{ color: colors.semantic.success }}>{suggestedShares} سهم</strong></div>
             </div>
           </div>
         </div>
 
         {/* حاسبة DCA */}
-        <div className="p-5 rounded-xl border border-slate-800 bg-slate-900/50 backdrop-blur-md flex flex-col justify-between">
+        <div style={{ ...panel, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
-            <h4 className="text-sm font-semibold text-cyan-400 mb-3">🛡️ حاسبة التجميع وتوزيع السيولة (DCA Planner)</h4>
-            <div className="space-y-2 text-xs">
+            <h4 style={{ fontSize: 13, fontWeight: 700, color: colors.accent.cyan, marginBottom: 12 }}>🛡️ حاسبة التجميع وتوزيع السيولة (DCA Planner)</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 11 }}>
               <div>
-                <label className="text-slate-400 block mb-1">المبلغ المخصص للاستثمار ($):</label>
-                <input type="number" value={dcaTotalAmount} onChange={(e) => setDcaTotalAmount(Number(e.target.value))} className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white font-mono" />
+                <label style={labelStyle}>المبلغ المخصص للاستثمار ($):</label>
+                <input type="number" value={dcaTotalAmount} onChange={(e) => setDcaTotalAmount(Number(e.target.value))} style={inputStyle} />
               </div>
-              <div className="p-3 rounded bg-slate-950 border border-slate-800 text-slate-300 text-[11px]">
-                <div className="flex justify-between"><span>مبلغ الدفعة الواحد (من 3 دفعات):</span> <strong className="text-emerald-400">${amountPerTranche}</strong></div>
+              <div style={{ padding: 12, borderRadius: radius.sm, backgroundColor: '#0B0F17', border: '1px solid #1F2636', fontSize: 11, color: colors.text.secondary }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>مبلغ الدفعة الواحد (من 3 دفعات):</span> <strong style={{ color: colors.semantic.success }}>${amountPerTranche}</strong></div>
               </div>
             </div>
           </div>
-          <div className="mt-3 p-2 rounded bg-purple-950/40 border border-purple-500/20 text-[10px] text-purple-300">
+          <div style={{ marginTop: 12, padding: 10, borderRadius: radius.sm, backgroundColor: '#4C1D9520', border: '1px solid #8B5CF630', fontSize: 10, color: '#C4B5FD' }}>
             🔔 رادار مسح الارتدادات يبحث لك عن قيعان 52 أسبوع للتجميع الفوري الآمن.
           </div>
         </div>
       </div>
 
       {/* شات البوت الذكي العائم */}
-      <div className="fixed bottom-6 left-6 z-50">
+      <div style={{ position: 'fixed', bottom: 24, left: 24, zIndex: 50 }}>
         {!isOpenAI ? (
-          <button onClick={() => setIsOpenAI(true)} className="px-5 py-3 bg-gradient-to-r from-emerald-600 to-indigo-600 text-white rounded-full shadow-2xl hover:scale-105 transition-all text-xs font-bold border border-indigo-400/30">
-            🤖 اسأل مستشار سنايبر AI
+          <button onClick={() => setIsOpenAI(true)} style={{ padding: '12px 20px', background: 'linear-gradient(135deg, #059669, #4F46E5)', color: colors.text.primary, borderRadius: 9999, boxShadow: '0 10px 25px rgba(0,0,0,0.4)', border: '1px solid #6366F140', fontSize: 11, fontWeight: 800, cursor: 'pointer', transition: 'transform 0.15s' }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            🤖 اسأل مست顾问 Hunter AI
           </button>
         ) : (
-          <div className="w-80 h-96 bg-slate-950 border border-indigo-500/50 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-            <div className="bg-slate-900 p-3 border-b border-slate-800 flex justify-between items-center">
-              <span className="text-xs font-bold text-indigo-400">🤖 لوحة محادثة سنايبر AI</span>
-              <button onClick={() => setIsOpenAI(false)} className="text-slate-400 hover:text-white text-xs">✕</button>
+          <div style={{ width: 320, height: 384, backgroundColor: '#0B0F17', border: '1px solid #6366F150', borderRadius: radius.lg, boxShadow: '0 20px 40px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ backgroundColor: '#0F1420', padding: '10px 14px', borderBottom: '1px solid #1F2636', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: '#818CF8' }}>🤖 لوحة محادثة Hunter AI</span>
+              <button onClick={() => setIsOpenAI(false)} style={{ color: colors.text.muted, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}>✕</button>
             </div>
-            <div className="flex-1 p-3 overflow-y-auto space-y-2 text-xs">
+            <div style={{ flex: 1, padding: 12, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, fontSize: 11 }}>
               {chatHistory.map((msg, i) => (
-                <div key={i} className={`p-2 rounded-lg max-w-[85%] ${msg.sender === 'user' ? 'bg-indigo-900/40 text-indigo-200 ml-auto' : 'bg-slate-900 text-slate-200'}`}>
+                <div key={i} style={{ padding: '8px 12px', borderRadius: radius.md, maxWidth: '85%', backgroundColor: msg.sender === 'user' ? '#312E8140' : '#0B0F17', color: msg.sender === 'user' ? '#C7D2FE' : colors.text.secondary, alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start' }}>
                   {msg.text}
                 </div>
               ))}
               {isLoading && (
-                <div className="p-2 rounded-lg max-w-[85%] bg-slate-900 text-indigo-400 animate-pulse">
+                <div style={{ padding: '8px 12px', borderRadius: radius.md, maxWidth: '85%', backgroundColor: '#0B0F17', color: '#818CF8' }}>
                   جاري تحليل الأسعار والسيولة الحية...
                 </div>
               )}
             </div>
-            <form onSubmit={handleSendMessage} className="p-2 border-t border-slate-800 flex gap-1 bg-slate-900">
-              <input type="text" placeholder="اكتب اسم السهم لمعرفة سبب الصيد الفني..." value={chatQuery} onChange={(e) => setChatQuery(e.target.value)} disabled={isLoading} className="flex-1 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-white" />
-              <button type="submit" disabled={isLoading} className="px-3 py-1 bg-indigo-600 text-white rounded text-xs font-bold disabled:opacity-50">إرسال</button>
+            <form onSubmit={handleSendMessage} style={{ padding: '8px 10px', borderTop: '1px solid #1F2636', display: 'flex', gap: 8, backgroundColor: '#0F1420' }}>
+              <input type="text" placeholder="اكتب اسم السهم لمعرفة سبب الصيد الفني..." value={chatQuery} onChange={(e) => setChatQuery(e.target.value)} disabled={isLoading} style={{ flex: 1, backgroundColor: '#0B0F17', border: '1px solid #1F2636', borderRadius: radius.sm, padding: '6px 10px', color: colors.text.primary, fontSize: 11, outline: 'none' }} />
+              <button type="submit" disabled={isLoading} style={{ padding: '6px 14px', backgroundColor: '#4F46E5', color: colors.text.primary, borderRadius: radius.sm, fontSize: 11, fontWeight: 800, border: 'none', cursor: 'pointer', opacity: isLoading ? 0.5 : 1 }}>إرسال</button>
             </form>
           </div>
         )}

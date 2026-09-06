@@ -1,6 +1,9 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { colors, radius } from '@/components/ui/DesignTokens';
+
+const panel = { backgroundColor: '#090A0F', border: '1px solid #1F2636', borderRadius: radius.lg };
 
 export default function AutoPilotJournalAndReports() {
   const [trades, setTrades] = useState([]);
@@ -88,19 +91,22 @@ export default function AutoPilotJournalAndReports() {
     };
   }, [trades]);
 
+  const inputStyle = { width: '100%', marginTop: 4, borderRadius: radius.sm, backgroundColor: '#0B0F17', border: '1px solid #1F2636', padding: '8px 10px', color: colors.text.primary, fontSize: 12, outline: 'none' };
+  const labelStyle = { display: 'block', fontSize: 10, color: colors.text.muted, marginBottom: 4 };
+
   return (
-    <div className="space-y-8 p-6 bg-[#090A0F] text-slate-100 rounded-2xl border border-slate-800">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', gap: 16, padding: 16, backgroundColor: '#090A0F', color: colors.text.primary, borderRadius: radius.lg, border: '1px solid #1F2636' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
-          <h3 className="text-xl font-black text-emerald-400">📓 HUNTER Trade Journal</h3>
-          <p className="text-xs text-slate-400 mt-1">سجل حقيقي عند توفر Supabase، مع fallback محلي بدون بيانات وهمية.</p>
+          <h3 style={{ fontSize: 18, fontWeight: 900, color: colors.semantic.success }}>📓 HUNTER Trade Journal</h3>
+          <p style={{ fontSize: 11, color: colors.text.muted, marginTop: 4 }}>سجل حقيقي عند توفر Supabase، مع fallback محلي بدون بيانات وهمية.</p>
         </div>
-        <button onClick={() => setShowFlexCard(true)} className="px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold border border-slate-700">
+        <button onClick={() => setShowFlexCard(true)} style={{ padding: '8px 16px', backgroundColor: '#1E293B', color: colors.text.primary, borderRadius: radius.md, fontSize: 11, fontWeight: 800, border: '1px solid #334155', cursor: 'pointer' }}>
           📸 بطاقة الصفقة
         </button>
       </div>
 
-      <form onSubmit={addTrade} className="grid grid-cols-2 md:grid-cols-6 gap-3">
+      <form onSubmit={addTrade} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
         {[
           ['السهم', ticker, setTicker],
           ['الدخول', entry, setEntry],
@@ -108,51 +114,61 @@ export default function AutoPilotJournalAndReports() {
           ['الوقف', stop, setStop],
           ['الثقة', confidence, setConfidence],
         ].map(([label, value, setter]) => (
-          <label key={label} className="text-[10px] text-slate-500">
+          <label key={label} style={labelStyle}>
             {label}
-            <input value={value} onChange={(e) => setter(e.target.value)} className="w-full mt-1 rounded-lg bg-slate-950 border border-slate-700 p-2 text-white" />
+            <input value={value} onChange={(e) => setter(e.target.value)} style={inputStyle} />
           </label>
         ))}
-        <label className="text-[10px] text-slate-500">
+        <label style={labelStyle}>
           النوع
-          <select value={type} onChange={(e) => setType(e.target.value)} className="w-full mt-1 rounded-lg bg-slate-950 border border-slate-700 p-2 text-white">
+          <select value={type} onChange={(e) => setType(e.target.value)} style={inputStyle}>
             <option>Swing</option><option>Breakout</option><option>Momentum</option><option>Reversal</option>
           </select>
         </label>
-        <button className="md:col-span-6 rounded-lg bg-emerald-600 text-white py-2 font-black text-xs">+ حفظ الصفقة</button>
+        <button type="submit" style={{ gridColumn: '1 / -1', borderRadius: radius.md, backgroundColor: colors.semantic.success, color: '#fff', padding: '10px 16px', fontWeight: 900, fontSize: 12, border: 'none', cursor: 'pointer' }}>+ حفظ الصفقة</button>
       </form>
 
-      {message && <div className="text-xs text-amber-300">{message}</div>}
+      {message && <div style={{ fontSize: 11, color: '#FBBF24' }}>{message}</div>}
 
-      <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-xl border border-slate-800 bg-slate-950 p-4"><div className="text-[10px] text-slate-500">الصفقات</div><strong>{stats.count}</strong></div>
-        <div className="rounded-xl border border-slate-800 bg-slate-950 p-4"><div className="text-[10px] text-slate-500">Win Rate</div><strong>{stats.winRate == null ? '—' : `${stats.winRate}%`}</strong></div>
-        <div className="rounded-xl border border-slate-800 bg-slate-950 p-4"><div className="text-[10px] text-slate-500">P/L المسجل</div><strong className={stats.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>{stats.pnl >= 0 ? '+' : ''}${stats.pnl}</strong></div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12 }}>
+        <div style={{ ...panel, padding: 16 }}><div style={{ fontSize: 10, color: colors.text.faint }}>الصفقات</div><strong style={{ fontSize: 20 }}>{stats.count}</strong></div>
+        <div style={{ ...panel, padding: 16 }}><div style={{ fontSize: 10, color: colors.text.faint }}>Win Rate</div><strong style={{ fontSize: 20 }}>{stats.winRate == null ? '—' : `${stats.winRate}%`}</strong></div>
+        <div style={{ ...panel, padding: 16 }}><div style={{ fontSize: 10, color: colors.text.faint }}>P/L المسجل</div><strong style={{ fontSize: 20, color: stats.pnl >= 0 ? colors.semantic.success : colors.semantic.danger }}>{stats.pnl >= 0 ? '+' : ''}${stats.pnl}</strong></div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead><tr className="border-b border-slate-800 text-slate-500"><th className="p-2 text-right">السهم</th><th className="p-2 text-right">الدخول</th><th className="p-2 text-right">الهدف</th><th className="p-2 text-right">الوقف</th><th className="p-2 text-right">التاريخ</th></tr></thead>
-          <tbody>{trades.slice(0, 20).map((trade) => (
-            <tr key={trade.id || trade.created_at} className="border-b border-slate-900">
-              <td className="p-2 font-black text-white">{trade.ticker}</td>
-              <td className="p-2">${trade.price ?? '—'}</td>
-              <td className="p-2">${trade.target_price ?? '—'}</td>
-              <td className="p-2">${trade.stop_loss ?? '—'}</td>
-              <td className="p-2 text-slate-500">{trade.created_at ? new Date(trade.created_at).toLocaleDateString('ar-SA') : '—'}</td>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: `1px solid ${colors.border}`, color: colors.text.faint }}>
+              <th style={{ padding: '8px', textAlign: 'right' }}>السهم</th>
+              <th style={{ padding: '8px', textAlign: 'right' }}>الدخول</th>
+              <th style={{ padding: '8px', textAlign: 'right' }}>الهدف</th>
+              <th style={{ padding: '8px', textAlign: 'right' }}>الوقف</th>
+              <th style={{ padding: '8px', textAlign: 'right' }}>التاريخ</th>
             </tr>
-          ))}</tbody>
+          </thead>
+          <tbody>
+            {trades.slice(0, 20).map((trade) => (
+              <tr key={trade.id || trade.created_at} style={{ borderBottom: `1px solid ${colors.border}` }}>
+                <td style={{ padding: '8px', fontWeight: 900, color: colors.text.primary }}>{trade.ticker}</td>
+                <td style={{ padding: '8px' }}>${trade.price ?? '—'}</td>
+                <td style={{ padding: '8px' }}>${trade.target_price ?? '—'}</td>
+                <td style={{ padding: '8px' }}>${trade.stop_loss ?? '—'}</td>
+                <td style={{ padding: '8px', color: colors.text.faint }}>{trade.created_at ? new Date(trade.created_at).toLocaleDateString('ar-SA') : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
         </table>
       </div>
 
       {showFlexCard && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-slate-950 border border-purple-500/40 p-6 text-center">
-            <button onClick={() => setShowFlexCard(false)} className="float-left text-slate-400">✕</button>
-            <div className="text-[10px] text-purple-300">HUNTER AI · VERIFIED JOURNAL</div>
-            <h3 className="text-xl font-black mt-3">بطاقة إنجاز</h3>
-            <p className="text-xs text-slate-400 mt-2">البطاقة تعرض بيانات السجل فقط ولا تنشئ أرباحاً أو نتائج غير موجودة.</p>
-            <div className="mt-5 p-4 rounded-xl bg-black border border-slate-800 text-sm">عدد الصفقات: {stats.count}</div>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: '#000000E0', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ width: '100%', maxWidth: 320, borderRadius: radius.lg, backgroundColor: '#0B0F17', border: '1px solid #8B5CF640', padding: 24, textAlign: 'center' }}>
+            <button onClick={() => setShowFlexCard(false)} style={{ float: 'left', color: colors.text.muted, background: 'none', border: 'none', cursor: 'pointer', fontSize: 14 }}>✕</button>
+            <div style={{ fontSize: 10, color: '#C4B5FD' }}>HUNTER AI · VERIFIED JOURNAL</div>
+            <h3 style={{ fontSize: 18, fontWeight: 900, marginTop: 12 }}>بطاقة إنجاز</h3>
+            <p style={{ fontSize: 11, color: colors.text.muted, marginTop: 8 }}>البطاقة تعرض بيانات السجل فقط ولا تنشئ أرباحاً أو نتائج غير موجودة.</p>
+            <div style={{ marginTop: 20, padding: 16, borderRadius: radius.md, backgroundColor: '#000', border: '1px solid #1F2636', fontSize: 14 }}>عدد الصفقات: {stats.count}</div>
           </div>
         </div>
       )}
