@@ -84,13 +84,43 @@ describe('institutional-provider', () => {
   });
 
   describe('serverless/cold-start behavior', () => {
-    it('resetFinraVerification simulates cold start by reverting to unverified', () => {
+    it('resetFinraVerification simulates cold start by reverting to unverified and clearing lastVerifiedAt', () => {
+      const statusBefore = getInstitutionalProviderStatus();
+      if (!statusBefore.configured) {
+        return;
+      }
       recordFinraVerificationSuccess();
       assert.strictEqual(isFinraVerified(), true);
+      const statusAfterVerify = getInstitutionalProviderStatus();
+      assert.ok(statusAfterVerify.lastVerifiedAt !== null, 'lastVerifiedAt should be set after verification');
+      assert.ok(typeof statusAfterVerify.lastVerifiedAt === 'number', 'lastVerifiedAt should be a number');
+
       resetFinraVerification();
       assert.strictEqual(isFinraVerified(), false);
+      const statusAfterReset = getInstitutionalProviderStatus();
+      assert.strictEqual(statusAfterReset.available, false);
+      assert.strictEqual(statusAfterReset.lastVerifiedAt, null, 'lastVerifiedAt must be null after cold start');
+    });
+
+    it('getInstitutionalProviderStatus returns lastVerifiedAt null when never verified', () => {
       const status = getInstitutionalProviderStatus();
-      assert.strictEqual(status.available, false);
+      if (status.configured) {
+        assert.strictEqual(status.lastVerifiedAt, null, 'lastVerifiedAt must be null before any verification');
+      }
+    });
+
+    it('recordFinraVerificationSuccess sets lastVerifiedAt to a recent timestamp', () => {
+      const statusBefore = getInstitutionalProviderStatus();
+      if (!statusBefore.configured) {
+        return;
+      }
+      const before = Date.now();
+      recordFinraVerificationSuccess();
+      const after = Date.now();
+      const status = getInstitutionalProviderStatus();
+      assert.ok(status.lastVerifiedAt !== null, 'lastVerifiedAt should be set');
+      assert.ok(status.lastVerifiedAt >= before, 'lastVerifiedAt should be >= time of verification');
+      assert.ok(status.lastVerifiedAt <= after, 'lastVerifiedAt should be <= time of verification');
     });
   });
 

@@ -72,6 +72,7 @@ export async function GET() {
           ? (institutional.available ? 'connected' : 'configured-awaiting-verification')
           : 'provider-not-configured',
         reason: institutional.reason,
+        lastVerifiedAt: institutional.lastVerifiedAt || null,
         capabilities: institutional.capabilities || {
           atsActivity: false,
           otcActivity: false,
@@ -83,7 +84,7 @@ export async function GET() {
         note: institutional.configured
           ? 'FINRA ATS/OTC weekly summary data. Delayed/aggregated institutional activity proxy.'
           : 'FINRA credentials not configured. No institutional data is fabricated.',
-        serverlessNote: 'On serverless platforms, verification state is per-instance and resets on cold start. Call /api/finra-verify to verify in a new instance.',
+        serverlessNote: 'On serverless platforms, verification state is per-instance and resets on cold start. A non-null lastVerifiedAt means verification succeeded earlier in this instance lifetime; null means this instance has never verified. Call /api/finra-verify to verify in a new instance.',
       },
       hunterScore: { status: 'active', formula: 'Setup 55% + Conviction 35% + Market Regime 10%' },
       alerts: { status: 'active', dedupe: checks.alertsDedupeConfigured },
