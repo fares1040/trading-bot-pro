@@ -1,4 +1,40 @@
 
+/* =========================================================
+   TRADING BOT PRO — V3 LEGACY ANALYZE ENDPOINT
+   =========================================================
+   Status: ACTIVE but LEGACY
+   Purpose: Single-stock technical analysis, AI explanations,
+            radar scans (gaps/darkpool/cents/reversal), and
+            backtesting via POST modes.
+
+   This route is actively consumed by:
+     - components/TradingToolsHub.jsx (5 modes: general, backtest,
+       darkpool_under_100, gaps, reversal)
+     - components/AIAssistant.jsx (AI chat via 'general' mode)
+     - app/api/telegram/route.js (/analyze command)
+     - app/api/bot/route.js (delegates to this engine)
+
+   NOT safely replaceable by C7 Opportunity Ranking
+   (app/api/opportunity-ranking) because:
+     - No backtesting support (sma_cross, macd_hist, bollinger_squeeze)
+     - No radar modes (cents, darkpool_under_100, gaps, reversal)
+     - No Gemini AI explanations or general chat
+
+   Canonical replacements for individual sub-features:
+     - Multi-symbol opportunity scoring → app/api/opportunity-ranking
+     - AI explanations → app/api/ai-explanation
+     - Single-symbol market data → lib/market-engine.js (fetchChart)
+     - Market regime → app/api/market-regime
+
+   NOTE: This endpoint duplicates technical indicator calculations
+   (SMA, RSI, Bollinger, EMA, MACD) that exist in lib/market-engine.js.
+   Consolidating these is a future Phase 26 item — do NOT change
+   scoring values or thresholds here as existing consumers depend
+   on the current V3 contract.
+
+   DO NOT remove without updating all 4 consumer locations above.
+   ========================================================= */
+
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 
