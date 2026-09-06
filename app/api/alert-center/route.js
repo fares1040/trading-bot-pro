@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { buildAlertCenter, ALERT_TYPES, PRIORITY_ORDER, ALERT_STATUSES, buildTop3NotificationPayload } from '@/lib/alert-center';
+import { checkDashboardAccess } from '@/lib/access-control';
+import { record, ERROR_TYPES, PROVIDERS } from '@/lib/failure-events';
+import { shouldAllowProviderCall, recordProviderFailure, recordProviderSuccess } from '@/lib/circuit-breaker-manager';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -44,32 +47,82 @@ function parseSorting(searchParams) {
 
 async function fetchIntelligenceData(origin) {
   const controllers = [
-    { key: 'swingIntelligence', url: '/api/swing-intelligence' },
-    { key: 'earlyExplosion', url: '/api/early-explosion' },
-    { key: 'catalystIntelligence', url: '/api/catalyst-intelligence' },
-    { key: 'optionsIntelligence', url: '/api/options-intelligence' },
-    { key: 'institutionalRadar', url: '/api/institutional-intelligence' },
-    { key: 'pennyIntelligence', url: '/api/penny-radar' },
-    { key: 'opportunityRanking', url: '/api/opportunity-ranking' },
-    { key: 'tradePlan', url: '/api/trade-plan' },
-    { key: 'marketRegime', url: '/api/market-regime' },
+    { key: 'swingIntelligence', url: '/api/swing-intelligence', source: 'swing' },
+    { key: 'earlyExplosion', url: '/api/early-explosion', source: 'early-explosion' },
+    { key: 'catalystIntelligence', url: '/api/catalyst-intelligence', source: 'catalyst' },
+    { key: 'optionsIntelligence', url: '/api/options-intelligence', source: 'options' },
+    { key: 'institutionalRadar', url: '/api/institutional-intelligence', source: 'institutional' },
+    { key: 'pennyIntelligence', url: '/api/penny-radar', source: 'penny' },
+    { key: 'opportunityRanking', url: '/api/opportunity-ranking', source: 'opportunity-ranking' },
+    { key: 'tradePlan', url: '/api/trade-plan', source: 'trade-plan' },
+    { key: 'marketRegime', url: '/api/market-regime', source: 'market-regime' },
   ];
   
   const results = {};
   
   await Promise.allSettled(
     controllers.map(async (ctrl) => {
+      const cbStatus = shouldAllowProviderCall('internal');
+      if (!cbStatus.allowed) {
+        const circuitErr = new Error(`Circuit breaker is ${cbStatus.state} for source: ${ctrl.source}`);
+        recordProviderFailure('internal', circuitErr, '/api/alert-center', null, false);
+        return;
+      }
+
+      let response;
       try {
-        const response = await fetch(`${origin}${ctrl.url}`, {
+        response = await fetch(`${origin}${ctrl.url}`, {
           cache: 'no-store',
           signal: AbortSignal.timeout(10000),
         });
-        const json = await response.json().catch(() => null);
-        if (response.ok && json?.success) {
-          results[ctrl.key] = json.data || json.opportunities || json.symbol || json;
+      } catch (err) {
+        recordProviderFailure('internal', err, '/api/alert-center', null, false);
+        return;
+      }
+
+      const json = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const httpErr = new Error(`HTTP ${response.status} from ${ctrl.source}`);
+        recordProviderFailure('internal', httpErr, '/api/alert-center', null, false);
+        record({
+          route: '/api/alert-center',
+          provider: PROVIDERS.INTERNAL,
+          errorType: ERROR_TYPES.HTTP_FAILURE,
+          message: `Source ${ctrl.source} returned HTTP ${response.status}`,
+          status: response.status,
+          symbol: null,
+          optional: false,
+        });
+        return;
+      }
+
+      if (!json?.success) {
+        if (json === null) {
+          record({
+            route: '/api/alert-center',
+            provider: PROVIDERS.INTERNAL,
+            errorType: ERROR_TYPES.MALFORMED_RESPONSE,
+            message: `Source ${ctrl.source} returned non-JSON or malformed response`,
+            symbol: null,
+            optional: false,
+          });
+        } else {
+          record({
+            route: '/api/alert-center',
+            provider: PROVIDERS.INTERNAL,
+            errorType: ERROR_TYPES.EMPTY_RESPONSE,
+            message: `Source ${ctrl.source} returned success:false`,
+            symbol: null,
+            optional: false,
+          });
         }
-      } catch {
-        // Silently fail - missing data will remain null
+        return;
+      }
+
+      if (json?.success) {
+        results[ctrl.key] = json.data || json.opportunities || json.symbol || json;
+        recordProviderSuccess('internal', '/api/alert-center', null);
       }
     })
   );
@@ -207,9 +260,9 @@ function aggregateInputsFromSources(sources) {
 }
 
 export async function GET(request) {
-  const secret = process.env.CRON_SECRET || process.env.VERCEL_CRON_SECRET;
-  if (secret && request.headers.get('authorization') !== `Bearer ${secret}`) {
-    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  const { allowed, reason } = checkDashboardAccess(request);
+  if (!allowed) {
+    return NextResponse.json({ success: false, error: reason || 'Unauthorized' }, { status: 401 });
   }
   
   const url = new URL(request.url);
