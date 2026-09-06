@@ -33,11 +33,11 @@ export default function AvoidCard({ item, plan, explanation, onClick }) {
         <Tag value="AVOID" colorMap={CLASS_COLOR} size="sm" />
       </div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <span style={{ fontSize: 14, fontWeight: 900, color: scoreColor(oppScore), fontFamily: 'monospace' }}>
+        <span dir="ltr" style={{ fontSize: 14, fontWeight: 900, color: scoreColor(oppScore), fontFamily: 'monospace' }}>
           {oppScore ?? '—'}
         </span>
         {plan?.riskReward != null && (
-          <span style={{ fontSize: 10, color: '#F87171', fontWeight: 700 }}>R/R {plan.riskReward}</span>
+          <span dir="ltr" style={{ fontSize: 10, color: '#F87171', fontWeight: 700 }}>R/R {plan.riskReward}</span>
         )}
       </div>
       <div style={{ fontSize: 9, color: colors.text.secondary, lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

@@ -67,7 +67,7 @@ export default function OpportunityCard({
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontFamily: 'monospace', fontWeight: 900, fontSize: 15, color: colors.text.primary }}>
+            <span dir="ltr" style={{ fontFamily: 'monospace', fontWeight: 900, fontSize: 15, color: colors.text.primary }}>
               {item.symbol || '—'}
             </span>
             <span style={{ fontSize: 13 }} title={classification.label}>{classification.emoji}</span>
@@ -95,19 +95,19 @@ export default function OpportunityCard({
             {(plan.entryZone || plan.entryPrice) && (
               <div style={{ textAlign: 'center', padding: '4px 2px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
                 <div style={{ fontSize: 6, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700 }}>Entry</div>
-                <div style={{ fontSize: 11, fontWeight: 800, color: colors.text.primary, fontFamily: 'monospace' }}>{formatPrice(plan.entryZone ?? plan.entryPrice)}</div>
+                <div dir="ltr" style={{ fontSize: 11, fontWeight: 800, color: colors.text.primary, fontFamily: 'monospace' }}>{formatPrice(plan.entryZone ?? plan.entryPrice)}</div>
               </div>
             )}
             {(plan.stopLoss || plan.invalidation) && (
               <div style={{ textAlign: 'center', padding: '4px 2px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
                 <div style={{ fontSize: 6, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700 }}>Stop</div>
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#EF4444', fontFamily: 'monospace' }}>{formatPrice(plan.stopLoss ?? plan.invalidation)}</div>
+                <div dir="ltr" style={{ fontSize: 11, fontWeight: 800, color: '#EF4444', fontFamily: 'monospace' }}>{formatPrice(plan.stopLoss ?? plan.invalidation)}</div>
               </div>
             )}
             {plan.target1 && (
               <div style={{ textAlign: 'center', padding: '4px 2px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
                 <div style={{ fontSize: 6, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700 }}>Target</div>
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#34D399', fontFamily: 'monospace' }}>{formatPrice(plan.target1)}</div>
+                <div dir="ltr" style={{ fontSize: 11, fontWeight: 800, color: '#34D399', fontFamily: 'monospace' }}>{formatPrice(plan.target1)}</div>
               </div>
             )}
           </div>

@@ -7,11 +7,6 @@ import { colors, radius } from './DesignTokens';
 
 const NAV_ITEMS = [
   { href: '/', label: 'القيادة', labelEn: 'Command Center', mobile: true },
-  { href: '/analytics', label: 'الفرص', labelEn: 'Opportunities', mobile: true },
-  { href: '/analytics', label: 'الرادار', labelEn: 'Radar', mobile: false },
-  { href: '/analytics', label: 'السوينغ', labelEn: 'Swing', mobile: false },
-  { href: '/analytics', label: 'الخيارات', labelEn: 'Options', mobile: false },
-  { href: '/analytics', label: 'الذكاء', labelEn: 'Intelligence', mobile: false },
   { href: '/alert-center', label: 'التنبيهات', labelEn: 'Alerts', mobile: true },
   { href: '/track-record', label: 'السجل', labelEn: 'Track Record', mobile: false },
 ];
@@ -93,7 +88,7 @@ export default function AppNav() {
                   key={item.href + item.label}
                   href={item.href}
                   style={{
-                    padding: '6px 10px',
+                    padding: '10px 12px',
                     borderRadius: radius.sm,
                     fontSize: 11,
                     fontWeight: 600,
@@ -103,6 +98,8 @@ export default function AppNav() {
                     textDecoration: 'none',
                     whiteSpace: 'nowrap',
                     transition: 'all 0.15s',
+                    minHeight: 44,
+                    boxSizing: 'border-box',
                   }}
                 >
                   {item.label}
@@ -119,10 +116,13 @@ export default function AppNav() {
               border: `1px solid ${colors.border}`,
               borderRadius: radius.sm,
               color: colors.text.secondary,
-              padding: '6px 10px',
+              padding: '10px 12px',
               cursor: 'pointer',
               fontSize: 18,
               lineHeight: 1,
+              minWidth: 44,
+              minHeight: 44,
+              boxSizing: 'border-box',
             }}
             className="nav-mobile-toggle"
           >
@@ -149,13 +149,15 @@ export default function AppNav() {
                   href={item.href}
                   onClick={() => setMobileOpen(false)}
                   style={{
-                    padding: '10px 12px',
+                    padding: '12px 14px',
                     borderRadius: radius.sm,
                     fontSize: 13,
                     fontWeight: 600,
                     color: active ? colors.accent.gold : colors.text.secondary,
                     backgroundColor: active ? colors.accent.gold + '18' : 'transparent',
                     textDecoration: 'none',
+                    minHeight: 44,
+                    boxSizing: 'border-box',
                   }}
                 >
                   {item.label} <span style={{ fontSize: 10, color: colors.text.faint }}>{item.labelEn}</span>

@@ -347,7 +347,7 @@ function TopHunts({ opportunities, plansBySymbol, explanationsBySymbol, selected
             <ZoneLabel label="TOP OPPORTUNITIES" icon="🔥" />
             <span style={{ fontSize: 9, color: colors.text.faint }}>{hunts.length} opportunities</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10, overflowX: 'auto' }}>
             {hunts.map((item) => (
               <OpportunityCard
                 key={item.symbol}
