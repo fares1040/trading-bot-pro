@@ -1,6 +1,8 @@
 // app/api/stocks/route.js
 import { NextResponse } from 'next/server';
 import { calculateATR } from '@/lib/penny-intelligence';
+import { shouldAllowProviderCall, recordProviderFailure, recordProviderSuccess } from '@/lib/circuit-breaker-manager';
+import { record, ERROR_TYPES, PROVIDERS } from '@/lib/failure-events';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -1265,34 +1267,83 @@ async function fetchChart(
     );
   }
 
+  const cbStatus = shouldAllowProviderCall('yahoo');
+  if (!cbStatus.allowed) {
+    const err = new Error(`Yahoo circuit breaker is ${cbStatus.state}`);
+    recordProviderFailure('yahoo', err, '/api/stocks.chart', clean, false);
+    throw err;
+  }
+
   const url =
     `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
       clean
     )}?interval=1d&range=${range}&events=div%2Csplits`;
 
-  const response =
-    await fetch(url, {
+  let response;
+  try {
+    response = await fetch(url, {
       headers: YAHOO_HEADERS,
       cache: 'no-store',
     });
+  } catch (err) {
+    recordProviderFailure('yahoo', err, '/api/stocks.chart', clean, false);
+    throw err;
+  }
 
   if (!response.ok) {
-    throw new Error(
+    const err = new Error(
       `Yahoo Finance ${response.status} for ${clean}`
     );
+    recordProviderFailure('yahoo', err, '/api/stocks.chart', clean, false);
+    record({
+      route: '/api/stocks.chart',
+      provider: PROVIDERS.YAHOO,
+      errorType: ERROR_TYPES.HTTP_FAILURE,
+      message: `Yahoo Finance ${response.status} for ${clean}`,
+      status: response.status,
+      symbol: clean,
+      optional: false,
+    });
+    throw err;
   }
 
-  const data =
-    await response.json();
+  let data;
+  try {
+    data = await response.json();
+  } catch (err) {
+    const malformed = new Error(`Malformed Yahoo JSON response for ${clean}`);
+    record({
+      route: '/api/stocks.chart',
+      provider: PROVIDERS.YAHOO,
+      errorType: ERROR_TYPES.MALFORMED_RESPONSE,
+      message: `Malformed JSON response for ${clean}: ${err.message}`,
+      symbol: clean,
+      optional: false,
+    });
+    throw malformed;
+  }
 
   const result =
-    data?.chart?.result?.[0];
+    data?.chart
+      ?.result?.[0];
 
   if (!result?.meta) {
-    throw new Error(
+    const err = new Error(
       `No market data for ${clean}`
     );
+    recordProviderFailure('yahoo', err, '/api/stocks.chart', clean, false);
+    record({
+      route: '/api/stocks.chart',
+      provider: PROVIDERS.YAHOO,
+      errorType: ERROR_TYPES.EMPTY_RESPONSE,
+      message: `No market data in Yahoo response for ${clean}`,
+      symbol: clean,
+      optional: false,
+    });
+    throw err;
   }
+
+  recordProviderSuccess('yahoo', '/api/stocks.chart', clean);
 
   return {
     symbol:
@@ -1394,8 +1445,16 @@ export async function GET(
     // DISCOVERY
     // -----------------------------------------
 
-    const trendingResponse =
-      await fetch(
+    const cbStatus = shouldAllowProviderCall('yahoo');
+    if (!cbStatus.allowed) {
+      const err = new Error(`Yahoo circuit breaker is ${cbStatus.state}`);
+      recordProviderFailure('yahoo', err, '/api/stocks.trending', null, false);
+      throw err;
+    }
+
+    let trendingResponse;
+    try {
+      trendingResponse = await fetch(
         'https://query1.finance.yahoo.com/v1/finance/trending/US?count=25',
         {
           headers:
@@ -1405,17 +1464,45 @@ export async function GET(
             'no-store',
         }
       );
+    } catch (err) {
+      recordProviderFailure('yahoo', err, '/api/stocks.trending', null, false);
+      throw err;
+    }
 
     if (
       !trendingResponse.ok
     ) {
-      throw new Error(
+      const err = new Error(
         `Yahoo trending ${trendingResponse.status}`
       );
+      recordProviderFailure('yahoo', err, '/api/stocks.trending', null, false);
+      record({
+        route: '/api/stocks.trending',
+        provider: PROVIDERS.YAHOO,
+        errorType: ERROR_TYPES.HTTP_FAILURE,
+        message: `Yahoo trending ${trendingResponse.status}`,
+        status: trendingResponse.status,
+        symbol: null,
+        optional: false,
+      });
+      throw err;
     }
 
-    const trendingData =
-      await trendingResponse.json();
+    let trendingData;
+    try {
+      trendingData = await trendingResponse.json();
+    } catch (err) {
+      const malformed = new Error(`Malformed Yahoo trending JSON response`);
+      record({
+        route: '/api/stocks.trending',
+        provider: PROVIDERS.YAHOO,
+        errorType: ERROR_TYPES.MALFORMED_RESPONSE,
+        message: `Malformed JSON in Yahoo trending response: ${err.message}`,
+        symbol: null,
+        optional: false,
+      });
+      throw malformed;
+    }
 
     const symbols =
       (
