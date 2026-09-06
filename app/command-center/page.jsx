@@ -1147,7 +1147,7 @@ function SwingHorizonBlock({ swingHorizonData, loading, symbol }) {
     trend, momentum, supplyDemand, catalyst,
     marketRegime, regimeAlignment, riskReward, setup,
     keySignals, invalidation, risks, thesis, confidence,
-    dataQuality, dataStatus, provenance,
+    dataQuality, dataStatus, provenance, disclaimer,
   } = swingHorizonData;
 
   const scoreHex = scoreColor(swingScore);
@@ -1959,8 +1959,8 @@ const [selectedSymbol, setSelectedSymbol] = useState(null);
 
       fetchConnectivity(); // initial fetch
       const connInterval = setInterval(fetchConnectivity, 30_000); // every 30 seconds
-     return () => clearInterval(interval);
-   }, []);
+       return () => clearInterval(connInterval);
+    }, []);
 
    // On-demand, cached fetch of Swing Horizon (which embeds Structure Intelligence).
    // Fetched once per selected symbol; reused on re-selection. No duplicate calls.
