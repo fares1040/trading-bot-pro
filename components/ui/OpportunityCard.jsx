@@ -76,12 +76,12 @@ export default function OpportunityCard({
         </div>
 
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ textAlign: 'center' }}>
+          <div dir="ltr" style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 18, fontWeight: 900, color: scoreColor(oppScore), fontFamily: 'monospace' }}>{oppScore ?? '—'}</div>
             <div style={{ fontSize: 6, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700 }}>C7</div>
           </div>
           {planScore != null && (
-            <div style={{ textAlign: 'center' }}>
+            <div dir="ltr" style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 18, fontWeight: 900, color: scoreColor(planScore), fontFamily: 'monospace' }}>{planScore}</div>
               <div style={{ fontSize: 6, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700 }}>C8</div>
             </div>
@@ -114,7 +114,7 @@ export default function OpportunityCard({
         )}
 
         {riskReward != null && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+          <div dir="ltr" style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
             <span style={{ fontSize: 8, color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase' }}>R/R</span>
             <span style={{ fontSize: 13, fontWeight: 900, color: riskRewardColor(riskReward), fontFamily: 'monospace' }}>{riskReward}x</span>
           </div>
@@ -153,7 +153,7 @@ export default function OpportunityCard({
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontFamily: 'monospace', fontWeight: 900, fontSize: 18, color: colors.text.primary }}>{item.symbol || '—'}</span>
+          <span dir="ltr" style={{ fontFamily: 'monospace', fontWeight: 900, fontSize: 18, color: colors.text.primary }}>{item.symbol || '—'}</span>
           <SmallTag value={assetType} color="#38BDF8" />
           <span style={{ fontSize: 16 }} title={classification.label}>{classification.emoji}</span>
         </div>
@@ -161,12 +161,12 @@ export default function OpportunityCard({
       </div>
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ textAlign: 'center' }}>
+        <div dir="ltr" style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 22, fontWeight: 900, color: scoreColor(oppScore), fontFamily: 'monospace' }}>{oppScore ?? '—'}</div>
           <div style={{ fontSize: 7, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700 }}>C7</div>
         </div>
         {planScore != null && (
-          <div style={{ textAlign: 'center' }}>
+          <div dir="ltr" style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 22, fontWeight: 900, color: scoreColor(planScore), fontFamily: 'monospace' }}>{planScore}</div>
             <div style={{ fontSize: 7, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700 }}>C8</div>
           </div>
@@ -180,34 +180,35 @@ export default function OpportunityCard({
           {(plan.entryZone || plan.entryPrice) && (
             <div style={{ textAlign: 'center', padding: '8px 6px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
               <div style={{ fontSize: 7, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>Entry</div>
-              <div style={{ fontSize: 14, fontWeight: 900, color: colors.text.primary, fontFamily: 'monospace' }}>{formatPrice(plan.entryZone ?? plan.entryPrice)}</div>
+              <div dir="ltr" style={{ fontSize: 14, fontWeight: 900, color: colors.text.primary, fontFamily: 'monospace' }}>{formatPrice(plan.entryZone ?? plan.entryPrice)}</div>
             </div>
           )}
           {(plan.stopLoss || plan.invalidation) && (
             <div style={{ textAlign: 'center', padding: '8px 6px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
               <div style={{ fontSize: 7, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>Stop</div>
-              <div style={{ fontSize: 14, fontWeight: 900, color: '#EF4444', fontFamily: 'monospace' }}>{formatPrice(plan.stopLoss ?? plan.invalidation)}</div>
+              <div dir="ltr" style={{ fontSize: 14, fontWeight: 900, color: '#EF4444', fontFamily: 'monospace' }}>{formatPrice(plan.stopLoss ?? plan.invalidation)}</div>
             </div>
           )}
           {plan.target1 && (
             <div style={{ textAlign: 'center', padding: '8px 6px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
               <div style={{ fontSize: 7, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>Target 1</div>
-              <div style={{ fontSize: 14, fontWeight: 900, color: '#34D399', fontFamily: 'monospace' }}>{formatPrice(plan.target1)}</div>
+              <div dir="ltr" style={{ fontSize: 14, fontWeight: 900, color: '#34D399', fontFamily: 'monospace' }}>{formatPrice(plan.target1)}</div>
             </div>
           )}
         </div>
       )}
 
       {riskReward != null && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div dir="ltr" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 9, color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase' }}>R/R</span>
           <span style={{ fontSize: 16, fontWeight: 900, color: riskRewardColor(riskReward), fontFamily: 'monospace' }}>{riskReward}x</span>
         </div>
       )}
 
       {whyNow && (
-        <div style={{ fontSize: 10, color: colors.accent.amber, lineHeight: 1.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {whyNow.explanation || String(whyNow)}
+        <div style={{ width: '100%', minWidth: 0, marginTop: 2, paddingTop: 6, borderTop: `1px solid ${colors.border}`, fontSize: 10, color: colors.accent.amber, lineHeight: 1.5, overflowWrap: 'anywhere' }}>
+          <span style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.3, fontSize: 8, marginRight: 4 }}>Why Now</span>
+          <span>{whyNow.explanation || String(whyNow)}</span>
         </div>
       )}
 

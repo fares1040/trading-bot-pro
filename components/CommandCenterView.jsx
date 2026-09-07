@@ -76,8 +76,8 @@ function DecisionPipelineStepper({ regime, opportunityCount, planCount }) {
   };
 
   return (
-    <div style={{ ...panel, padding: '10px 16px', marginBottom: 12 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+    <div style={{ ...panel, padding: '10px 16px', marginBottom: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
         <div style={{ fontSize: 8, color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>
           DECISION PIPELINE
         </div>
@@ -145,7 +145,7 @@ const HEALTH_STATUS_COLORS = {
 function ConnectivityHealthPanel({ connectivity }) {
   if (!connectivity || connectivity.loading) {
     return (
-      <div style={{ ...panel, padding: 12, marginBottom: 12, fontSize: 10, color: colors.text.faint }}>
+      <div style={{ ...panel, padding: 10, marginBottom: 8, fontSize: 10, color: colors.text.faint }}>
         ⏳ جاري فحص الاتصال الحي...
       </div>
     );
@@ -157,10 +157,10 @@ function ConnectivityHealthPanel({ connectivity }) {
 
   if (endpoints.length === 0) {
     return (
-      <div style={{ ...panel, padding: 12, marginBottom: 12, fontSize: 10, color: colors.text.faint }}>
+      <div style={{ ...panel, padding: 10, marginBottom: 8, fontSize: 10, color: colors.text.faint }}>
         📡 حالة الاتصال: {connectivity.status || 'UNCHECKED'}
         {connectivity.lastFailure && (
-          <span style={{ color: colors.semantic.danger, marginRight: 8 }}>
+          <span style={{ color: colors.semantic.danger, marginRight: 6 }}>
             ⚠ آخر فشل: {new Date(connectivity.lastFailure).toLocaleTimeString()}
           </span>
         )}
@@ -169,10 +169,10 @@ function ConnectivityHealthPanel({ connectivity }) {
   }
 
   return (
-    <div style={{ ...panel, padding: 14, marginBottom: 12 }}>
+    <div style={{ ...panel, padding: '10px 12px', marginBottom: 8 }}>
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        marginBottom: 8, flexWrap: 'wrap', gap: 8,
+        marginBottom: 6, flexWrap: 'wrap', gap: 6,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 10, color: colors.text.faint, fontWeight: 700 }}>
@@ -246,50 +246,51 @@ function ConnectivityHealthPanel({ connectivity }) {
 
 function MarketHeader({ indices, regime, regimeScore, confidenceLevel, vix, marketStatus, lastUpdate, warning }) {
   const meta = REGIME_META[regime] || REGIME_META.UNAVAILABLE;
+  const isUnknown = regime === 'UNAVAILABLE' || regime == null;
   return (
-    <div style={{ ...panel, padding: '16px 20px', marginBottom: 12 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+    <div style={{ ...panel, padding: '10px 14px', marginBottom: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{
-            width: 8, height: 8, borderRadius: '50%',
+            width: 7, height: 7, borderRadius: '50%',
             backgroundColor: marketStatus?.open ? '#34D399' : '#EF4444',
-            boxShadow: `0 0 6px ${marketStatus?.open ? '#34D39960' : '#EF444460'}`,
+            boxShadow: `0 0 5px ${marketStatus?.open ? '#34D39950' : '#EF444450'}`,
           }} />
           <div>
-            <div style={{ fontSize: 9, color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8 }}>
-              HUNTER AI <span style={{ color: colors.accent.blue, marginLeft: 6 }}>LIVE</span>
+            <div style={{ fontSize: 8, color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+              HUNTER AI <span style={{ color: colors.accent.blue, marginLeft: 4 }}>LIVE</span>
             </div>
-            <div style={{ fontSize: 10, color: colors.text.secondary, marginTop: 2 }}>
+            <div style={{ fontSize: 9, color: colors.text.secondary, marginTop: 1 }}>
               {marketStatus?.open ? 'US Market Open' : 'US Market Closed'}
             </div>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          {indices.slice(0, 4).map((idx) => (
-            <div key={idx.symbol} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ color: colors.text.faint, fontSize: 9, fontWeight: 700 }}>{idx.symbol}</span>
-              <span style={{ color: colors.text.primary, fontSize: 11, fontFamily: 'monospace', fontWeight: 700 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {(indices || []).slice(0, 4).map((idx) => (
+            <div key={idx.symbol} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ color: colors.text.faint, fontSize: 8, fontWeight: 700 }}>{idx.symbol}</span>
+              <span style={{ color: colors.text.primary, fontSize: 10, fontFamily: 'monospace', fontWeight: 700 }}>
                 {Number(idx.value).toLocaleString('en-US', { maximumFractionDigits: 2 })}
               </span>
-              <span style={{ color: idx.isUp ? '#34D399' : '#EF4444', fontSize: 10, fontWeight: 700 }}>
+              <span style={{ color: idx.isUp ? '#34D399' : '#EF4444', fontSize: 9, fontWeight: 700 }}>
                 {idx.isUp ? '▲' : '▼'} {Math.abs(Number(idx.change || 0)).toFixed(2)}%
               </span>
             </div>
           ))}
         </div>
       </div>
-      <div style={{ marginTop: 14, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{
-          padding: '10px 14px', backgroundColor: meta.color + '12',
-          border: `1px solid ${meta.color}35`, borderRadius: radius.md,
-          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '6px 10px', backgroundColor: meta.color + '12',
+          border: `1px solid ${meta.color}35`, borderRadius: radius.sm,
+          display: 'flex', alignItems: 'center', gap: 8,
         }}>
-          <div style={{ fontSize: 20, fontWeight: 900, color: meta.color, fontFamily: 'monospace', letterSpacing: 0.8 }}>{meta.label}</div>
-          <div style={{ width: 1, height: 22, backgroundColor: colors.border }} />
+          <div style={{ fontSize: 16, fontWeight: 900, color: meta.color, fontFamily: 'monospace', letterSpacing: 0.6 }}>{meta.label}</div>
+          <div style={{ width: 1, height: 18, backgroundColor: colors.border }} />
           <div>
-            <div style={{ fontSize: 8, color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>{meta.desc}</div>
+            <div style={{ fontSize: 7, color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>{meta.desc}</div>
             {regimeScore != null && (
-              <div style={{ fontSize: 11, fontWeight: 800, color: meta.color, fontFamily: 'monospace', marginTop: 1 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: meta.color, fontFamily: 'monospace', marginTop: 1 }}>
                 Score {regimeScore}
               </div>
             )}
@@ -297,14 +298,14 @@ function MarketHeader({ indices, regime, regimeScore, confidenceLevel, vix, mark
         </div>
         {confidenceLevel && <Tag value={confidenceLevel} colorMap={{ HIGH: '#34D399', MODERATE: '#22C55E', LOW: '#F87171', VERY_LOW: '#EF4444', UNKNOWN: '#475569' }} />}
         {vix != null && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', backgroundColor: '#07090E', border: `1px solid ${colors.border}`, borderRadius: radius.sm }}>
-            <span style={{ color: colors.text.faint, fontSize: 8, fontWeight: 700 }}>VIX</span>
-            <span style={{ color: vix > 20 ? '#EF4444' : vix > 15 ? '#FBBF24' : '#34D399', fontSize: 11, fontFamily: 'monospace', fontWeight: 700 }}>{vix}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 8px', backgroundColor: '#07090E', border: `1px solid ${colors.border}`, borderRadius: radius.sm }}>
+            <span style={{ color: colors.text.faint, fontSize: 7, fontWeight: 700 }}>VIX</span>
+            <span style={{ color: vix > 20 ? '#EF4444' : vix > 15 ? '#FBBF24' : '#34D399', fontSize: 10, fontFamily: 'monospace', fontWeight: 700 }}>{vix}</span>
           </div>
         )}
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          {warning && (<span style={{ color: '#FBBF24', fontSize: 9, fontWeight: 600 }}>⚠ {warning}</span>)}
-          <span style={{ color: colors.text.faint, fontSize: 8, fontFamily: 'monospace' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+          {warning && (<span style={{ color: '#FBBF24', fontSize: 8, fontWeight: 600 }}>⚠ {warning}</span>)}
+          <span style={{ color: colors.text.faint, fontSize: 7, fontFamily: 'monospace' }}>
             {lastUpdate ? new Date(lastUpdate).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }) : '—'}
           </span>
         </div>
@@ -340,10 +341,10 @@ function TopHunts({ opportunities, plansBySymbol, explanationsBySymbol, selected
   const avoids = sorted.filter(o => classifyOpportunity(o.quality, plansBySymbol?.[o.symbol]?.planSignal).label === 'AVOID').slice(0, 6);
 
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div style={{ marginBottom: 8 }}>
       {hunts.length > 0 && (
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <ZoneLabel label="TOP OPPORTUNITIES" icon="🔥" />
             <span style={{ fontSize: 9, color: colors.text.faint }}>{hunts.length} opportunities</span>
           </div>
@@ -364,8 +365,8 @@ function TopHunts({ opportunities, plansBySymbol, explanationsBySymbol, selected
       )}
 
       {avoids.length > 0 && (
-        <div style={{ ...panel, padding: 14, marginBottom: 12, border: '1px solid #EF444430' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <div style={{ ...panel, padding: '10px 12px', marginBottom: 8, border: '1px solid #EF444430' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <ZoneLabel label="AVOID / NO-GO" icon="❌" color="#EF4444" />
             <span style={{ fontSize: 9, color: colors.text.faint }}>{avoids.length} opportunities</span>
           </div>
@@ -427,18 +428,18 @@ const RISK_COLORS = {
 function OptionsCentsRadar({ optionsRadarData }) {
   if (!optionsRadarData) {
     return (
-      <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
+      <div style={{ ...panel, padding: '10px 14px', marginBottom: 8 }}>
         <ZoneLabel label="OPTIONS CENTS" icon="⚡" color={colors.accent.amber} />
-        <EmptyState message="Options Cents UNAVAILABLE" sub="Provider unavailable or market closed" />
+        <div style={{ color: colors.text.muted, fontSize: 10 }}>Options Cents UNAVAILABLE · Provider unavailable or market closed</div>
       </div>
     );
   }
 
   if (!optionsRadarData.success) {
     return (
-      <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
+      <div style={{ ...panel, padding: '10px 14px', marginBottom: 8 }}>
         <ZoneLabel label="OPTIONS CENTS" icon="⚡" color={colors.accent.amber} />
-        <ErrorState message={optionsRadarData.error || 'Options radar unavailable'} />
+        <div style={{ color: colors.semantic.danger, fontSize: 10 }}>{optionsRadarData.error || 'Options radar unavailable'}</div>
       </div>
     );
   }
@@ -447,9 +448,9 @@ function OptionsCentsRadar({ optionsRadarData }) {
 
   if (contracts.length === 0) {
     return (
-      <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
+      <div style={{ ...panel, padding: '10px 14px', marginBottom: 8 }}>
         <ZoneLabel label="OPTIONS CENTS" icon="⚡" color={colors.accent.amber} />
-        <EmptyState message="No sub-$1 premium contracts found" sub="Options data unavailable from current provider" />
+        <div style={{ color: colors.text.muted, fontSize: 10 }}>No sub-$1 premium contracts · Provider data unavailable</div>
       </div>
     );
   }
@@ -469,8 +470,8 @@ function OptionsCentsRadar({ optionsRadarData }) {
   };
 
   return (
-    <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+    <div style={{ ...panel, padding: '10px 14px', marginBottom: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <ZoneLabel label="OPTIONS CENTS" icon="⚡" color={colors.accent.amber} />
           <span style={{ fontSize: 9, color: colors.text.faint, fontWeight: 700 }}>
@@ -567,11 +568,11 @@ function OptionsCentsPanel({ optionsRadarData, symbol }) {
   if (!hasStrategies && !hasContractRanking && !hasFlow) return null;
 
   return (
-    <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
+    <div style={{ ...panel, padding: 14, marginBottom: 8 }}>
       <ZoneLabel label="OPTIONS CENTS DETAIL" icon="⚡" color={colors.accent.amber} />
 
       {strategy && strategy.bestStrategy && strategy.bestStrategy.strategyEconomics && (
-        <div style={{ marginTop: 12, marginBottom: 12 }}>
+        <div style={{ marginTop: 10, marginBottom: 10 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <span style={{ fontSize: 9, color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase' }}>Recommended Strategy</span>
             <Tag value={strategy.bestStrategy.strategyType || 'UNAVAILABLE'} colorMap={{
@@ -731,9 +732,12 @@ function RadarHub({ opportunities, plansBySymbol, explanationsBySymbol, selected
   }, [opportunities, activeTab, plansBySymbol]);
 
   return (
-    <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-        <ZoneLabel label="RADAR HUB" icon="📡" color={colors.accent.violet} />
+    <div style={{ ...panel, padding: 14, marginBottom: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+        <div>
+          <ZoneLabel label="RADAR HUB" icon="📡" color={colors.accent.violet} />
+          <div style={{ fontSize: 8, color: colors.text.faint, marginTop: 2 }}>Discovery & Filtering · All signals</div>
+        </div>
         <span style={{ fontSize: 9, color: colors.text.faint }}>{filtered.length} {activeTab === 'ALL' ? 'total' : 'matched'}</span>
       </div>
       <div style={{ marginBottom: 12 }}>
@@ -1347,19 +1351,19 @@ function AlertCenterPanel({ alerts, highPriorityAlerts }) {
   };
 
   return (
-    <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+    <div style={{ ...panel, padding: '10px 14px', marginBottom: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <ZoneLabel label="ALERT CENTER" icon="🔔" />
         <button
           onClick={handleSendTopThree}
           disabled={sending}
           style={{
-            padding: '6px 10px',
+            padding: '5px 9px',
             backgroundColor: sending ? '#0B0F17' : colors.panel,
             border: `1px solid ${sending ? colors.border : colors.accent.blue}`,
             color: sending ? colors.text.faint : colors.accent.blue,
             borderRadius: radius.md,
-            fontSize: 10,
+            fontSize: 9,
             cursor: sending ? 'not-allowed' : 'pointer',
           }}
         >
@@ -1367,17 +1371,17 @@ function AlertCenterPanel({ alerts, highPriorityAlerts }) {
         </button>
       </div>
       {sendResult && (
-        <div style={{ marginBottom: 8, fontSize: 9, textAlign: 'center', color: sendResult.includes('Sent') ? colors.semantic.success : colors.semantic.danger }}>
+        <div style={{ marginBottom: 6, fontSize: 9, textAlign: 'center', color: sendResult.includes('Sent') ? colors.semantic.success : colors.semantic.danger }}>
           {sendResult}
         </div>
       )}
       {feed.length === 0 ? (
-        <div style={{ color: colors.text.muted, fontSize: 11 }}>No alerts</div>
+        <div style={{ color: colors.text.muted, fontSize: 10, padding: '6px 0' }}>No alerts · Active alerts will appear here</div>
       ) : (
-        <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+        <div style={{ maxHeight: 200, overflowY: 'auto' }}>
           {feed.slice(0, 8).map((alert) => (
             <div key={alert.id} style={{
-              padding: '8px 10px', marginBottom: 4, backgroundColor: '#07090E',
+              padding: '6px 8px', marginBottom: 3, backgroundColor: '#07090E',
               borderRadius: radius.sm,
               borderLeft: `2px solid ${alert.priority >= 80 ? '#EF4444' : alert.priority >= 60 ? '#F59E0B' : colors.border}`,
             }}>
@@ -1421,10 +1425,10 @@ function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanati
 
   if (!symbol) {
     return (
-      <div style={{ ...panel, padding: 32, textAlign: 'center', marginBottom: 12 }}>
-        <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>🎯</div>
-        <div style={{ color: colors.text.muted, fontSize: 12 }}>Select an opportunity</div>
-        <div style={{ color: colors.text.faint, fontSize: 10, marginTop: 4 }}>Click a ticker from Top Hunts or Radar Hub</div>
+      <div style={{ ...panel, padding: '14px 16px', textAlign: 'center', marginBottom: 8 }}>
+        <div style={{ fontSize: 16, marginBottom: 6, opacity: 0.4 }}>🎯</div>
+        <div style={{ color: colors.text.muted, fontSize: 11, fontWeight: 700 }}>Select an opportunity</div>
+        <div style={{ color: colors.text.faint, fontSize: 9, marginTop: 3, lineHeight: 1.4 }}>Choose a ticker from Top Opportunities to inspect Trade Plan, Evidence & Risk.</div>
       </div>
     );
   }
@@ -1458,8 +1462,8 @@ function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanati
   }
 
   return (
-    <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
+    <div style={{ ...panel, padding: 14, marginBottom: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
             <div style={{ fontSize: 24, fontWeight: 900, color: colors.text.primary, fontFamily: 'monospace' }}>{symbol}</div>
@@ -1514,14 +1518,14 @@ function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanati
       )}
 
       {explanation?.headline && (
-        <div style={{ fontSize: 11, color: colors.accent.gold, marginBottom: 10, padding: '8px 10px', backgroundColor: '#1A1500', borderRadius: radius.sm }}>
+        <div style={{ fontSize: 11, color: colors.accent.gold, marginBottom: 8, padding: '6px 10px', backgroundColor: '#1A1500', borderRadius: radius.sm }}>
           {explanation.headline}
         </div>
       )}
 
       {whyNowSection(explanation, opp)}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 10 }}>
         {(plan?.entryZone || plan?.entryPrice) ? (
           <div style={{ padding: '8px 10px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}`, textAlign: 'center' }}>
             <div style={{ fontSize: 7, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>Entry</div>
@@ -1543,7 +1547,7 @@ function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanati
       </div>
 
       {plan?.riskReward != null && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '6px 10px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, padding: '6px 10px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
           <span style={{ fontSize: 9, color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase' }}>Risk / Reward</span>
           <span style={{ fontSize: 16, fontWeight: 900, color: riskRewardColor(plan.riskReward), fontFamily: 'monospace' }}>{plan.riskReward}x</span>
           <ScoreBar score={Math.min(plan.riskReward * 20, 100)} max={100} color={riskRewardColor(plan.riskReward)} height={5} />
@@ -1555,13 +1559,13 @@ function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanati
         <button
           onClick={() => setShowRiskCalc(!showRiskCalc)}
           style={{
-            marginBottom: 12,
-            padding: '8px 14px',
+            marginBottom: 10,
+            padding: '7px 12px',
             backgroundColor: showRiskCalc ? '#059669' : '#0d111a',
             border: `1px solid ${showRiskCalc ? '#34D399' : '#30363d'}`,
             borderRadius: 8,
             color: '#34D399',
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: 700,
             cursor: 'pointer',
             width: '100%',
@@ -1602,7 +1606,7 @@ function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanati
       <DataConfidenceBlock opportunity={opp} plan={plan} />
 
       {(plan?.warnings || opp?.warnings || explanation?.warnings) && (
-        <div style={{ marginBottom: 10, padding: '8px 10px', backgroundColor: '#1A1500', border: '1px solid #FBBF2440', borderRadius: radius.sm }}>
+        <div style={{ marginBottom: 8, padding: '6px 10px', backgroundColor: '#1A1500', border: '1px solid #FBBF2440', borderRadius: radius.sm }}>
           <ZoneLabel label="WARNINGS" icon="⚠" color="#FBBF24" />
           {([...(plan?.warnings || []), ...(opp?.warnings || []), ...(explanation?.warnings || [])]).map((w, i) => (
             <div key={i} style={{ fontSize: 10, color: '#FBBF24', lineHeight: 1.4, marginBottom: 2 }}>
@@ -1613,7 +1617,7 @@ function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanati
       )}
 
       {opp?.risks?.length > 0 && (
-        <div style={{ marginTop: 8 }}>
+        <div style={{ marginTop: 6 }}>
           <ZoneLabel label="RISKS" icon="⚠" color="#EF4444" />
           {opp.risks.slice(0, 3).map((r, i) => (
             <div key={i} style={{ fontSize: 10, color: '#EF4444', marginBottom: 2, paddingLeft: 10 }}>
@@ -1631,10 +1635,10 @@ function whyNowSection(explanation, opp) {
   const fallback = opp?.reasons || [];
   if (!whyNow.length && !fallback.length) return null;
   return (
-    <div style={{ marginBottom: 16 }}>
+    <div style={{ width: '100%', minWidth: 0, marginTop: 2, paddingTop: 6, borderTop: `1px solid ${colors.border}`, marginBottom: 16 }}>
       <ZoneLabel label="WHY NOW" icon="⏱" color={colors.accent.amber} />
       {whyNow.slice(0, 3).map((f, i) => (
-        <div key={i} style={{ fontSize: 10, color: colors.text.secondary, lineHeight: 1.6, marginBottom: 4, paddingLeft: 10 }}>
+        <div key={i} style={{ fontSize: 10, color: colors.text.secondary, lineHeight: 1.6, marginBottom: 4, paddingLeft: 10, overflowWrap: 'anywhere' }}>
           <span style={{ color: colors.accent.amber }}>•</span> {f.factor}: {f.explanation}
           {f.evidence?.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 2, marginRight: 12 }}>
@@ -1647,7 +1651,7 @@ function whyNowSection(explanation, opp) {
       ))}
       {whyNow.length === 0 && fallback.length > 0 && (
         fallback.slice(0, 3).map((r, i) => (
-          <div key={i} style={{ fontSize: 10, color: colors.text.secondary, lineHeight: 1.6, marginBottom: 4, paddingLeft: 10 }}>
+          <div key={i} style={{ fontSize: 10, color: colors.text.secondary, lineHeight: 1.6, marginBottom: 4, paddingLeft: 10, overflowWrap: 'anywhere' }}>
             <span style={{ color: colors.accent.amber }}>•</span> {r}
           </div>
         ))
@@ -1920,7 +1924,7 @@ const [selectedSymbol, setSelectedSymbol] = useState(null);
       color: colors.text.primary,
       fontFamily: 'system-ui, -apple-system, sans-serif',
     }}>
-      <div style={{ maxWidth: 1600, margin: '0 auto', padding: '16px 20px' }}>
+      <div style={{ maxWidth: 1600, margin: '0 auto', padding: '14px 16px' }}>
 
         {error && <ErrorState message={error} onRetry={fetchAll} />}
 
@@ -1995,7 +1999,7 @@ const [selectedSymbol, setSelectedSymbol] = useState(null);
         .detail-columns {
           display: grid;
           grid-template-columns: 1fr 240px;
-          gap: 12;
+          gap: 10;
           align-items: start;
         }
         @media (max-width: 768px) {
