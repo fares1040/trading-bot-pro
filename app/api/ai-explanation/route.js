@@ -35,13 +35,13 @@ import {
   buildTradePlan,
   defaultTradePlan,
 } from '@/lib/trade-plan-engine.js';
-import {
-  buildAIExplanation,
+import { buildAIExplanation,
   defaultExplanation,
   rankExplanations,
   buildExplanationQualityBreakdown,
   buildExplanationDataAvailability,
 } from '@/lib/ai-explanation.js';
+import { shouldAllowProviderCall, recordProviderFailure } from '@/lib/circuit-breaker-manager.js';
 import {
   buildOpportunityHorizon,
   defaultOpportunityHorizon,
@@ -100,6 +100,7 @@ async function analyzeSymbol(symbol, marketRegime = null) {
     } catch (e) {
       marketData = null;
       stockData = null;
+      recordProviderFailure('yahoo', e, 'ai-explanation', symbol, false);
     }
 
     try {
@@ -247,6 +248,29 @@ export async function GET(request) {
 
     const results = [];
     const errors = [];
+
+    const yahooStatus = shouldAllowProviderCall('yahoo');
+    if (!yahooStatus.allowed) {
+      return NextResponse.json({
+        success: false,
+        error: 'Yahoo Finance circuit is OPEN',
+        circuitBlocked: true,
+        timestamp: new Date().toISOString(),
+        scanned: 0,
+        data: [],
+        top: [],
+        alternatives: [],
+        ranking: { method: 'explanation_score', total: 0 },
+        filters: {
+          direction: ['LONG', 'SHORT', 'NEUTRAL', 'UNAVAILABLE'],
+        },
+        dataAvailability: buildExplanationDataAvailability([]),
+        qualityBreakdown: buildExplanationQualityBreakdown([]),
+        limitations: 'Yahoo Finance circuit is OPEN — batch analysis blocked.',
+        disclaimer: 'تحليل شرح الذكاء مبني على مصادر ذكاء موجودة فقط — لا يمثل توصية شراء أو بيع. C9 AI Explanation is derived only from existing outputs. No fabricated levels or confidence.',
+        errors: [],
+      }, { status: 503 });
+    }
 
     for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
       const batch = await Promise.allSettled(

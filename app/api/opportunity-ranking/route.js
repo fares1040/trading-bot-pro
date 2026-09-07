@@ -57,6 +57,7 @@ import { fetchIndices } from '@/lib/market-engine.js';
 import { buildMarketRegime, defaultMarketRegime } from '@/lib/market-regime-engine.js';
 import { fetchInstitutionalData } from '@/lib/institutional-provider.js';
 import { calculateInstitutionalScore } from '@/lib/institutional-provider.js';
+import { shouldAllowProviderCall, recordProviderFailure } from '@/lib/circuit-breaker-manager.js';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -116,11 +117,17 @@ async function analyzeSymbol(symbol, marketRegime = null) {
     try {
       const { meta, quote: fetchedQuote } = await fetchChart(symbol, '6mo');
       quote = fetchedQuote || {};
-      marketData = analyzeQuote(meta || {}, quote || []);
-      stockData = marketData;
+      try {
+        marketData = analyzeQuote(meta || {}, quote || []);
+        stockData = marketData;
+      } catch (e) {
+        marketData = null;
+        stockData = null;
+      }
     } catch (e) {
       marketData = null;
       stockData = null;
+      recordProviderFailure('yahoo', e, 'opportunity-ranking', symbol, false);
     }
 
     // SEC data: shared by B1, B3, B6
@@ -379,6 +386,31 @@ export async function GET(request) {
 
     const results = [];
     const errors = [];
+
+    const yahooStatus = shouldAllowProviderCall('yahoo');
+    if (!yahooStatus.allowed) {
+      return NextResponse.json({
+        success: false,
+        error: 'Yahoo Finance circuit is OPEN',
+        circuitBlocked: true,
+        timestamp: new Date().toISOString(),
+        scanned: 0,
+        data: [],
+        top: [],
+        alternatives: [],
+        ranking: { method: 'opportunity_score', total: 0 },
+        filters: {
+          quality: ['TOP', 'STRONG', 'WATCH', 'WEAK', 'UNAVAILABLE'],
+          source: ['pennyIntelligence', 'optionsIntelligence', 'institutionalRadar', 'swingIntelligence', 'earlyExplosion', 'catalystIntelligence'],
+        },
+        dataAvailability: buildDataAvailabilitySummary([]),
+        qualityBreakdown: buildQualityBreakdown([]),
+        sourceBreakdown: buildSourceBreakdown([]),
+        limitations: 'Yahoo Finance circuit is OPEN — batch analysis blocked.',
+        disclaimer: 'تحليل فرصة التداول مبني على بيانات مصادر ذكاء متاحة فقط — لا يمثل توصية شراء أو بيع ولا يضمن حركة السعر.',
+        errors: [],
+      }, { status: 503 });
+    }
 
     for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
       const batch = await Promise.allSettled(

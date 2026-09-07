@@ -60,6 +60,7 @@ import {
   buildTradePlanQualityBreakdown,
   buildTradePlanDataAvailability,
 } from '@/lib/trade-plan-engine.js';
+import { shouldAllowProviderCall, recordProviderFailure } from '@/lib/circuit-breaker-manager.js';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -133,18 +134,23 @@ async function analyzeSymbol(symbol, opts, marketRegime = null) {
 
     try {
       const { meta, quote: rawQuote } = await fetchChart(symbol, '6mo');
-      marketData = analyzeQuote(meta || {}, rawQuote || []);
-      stockData = marketData;
-      // Preserve raw OHLCV for Classical / Candlestick / Gamma / Horizon
       const quoteData = rawQuote || {};
       highs = quoteData?.high || [];
       lows = quoteData?.low || [];
       closes = quoteData?.close || [];
       volumes = quoteData?.volume || [];
       opens = quoteData?.open || [];
+      try {
+        marketData = analyzeQuote(meta || {}, rawQuote || []);
+        stockData = marketData;
+      } catch (e) {
+        marketData = null;
+        stockData = null;
+      }
     } catch (e) {
       marketData = null;
       stockData = null;
+      recordProviderFailure('yahoo', e, 'trade-plan', symbol, false);
     }
 
     try {
@@ -303,6 +309,31 @@ export async function GET(request) {
 
     const results = [];
     const errors = [];
+
+    const yahooStatus = shouldAllowProviderCall('yahoo');
+    if (!yahooStatus.allowed) {
+      return NextResponse.json({
+        success: false,
+        error: 'Yahoo Finance circuit is OPEN',
+        circuitBlocked: true,
+        timestamp: new Date().toISOString(),
+        scanned: 0,
+        data: [],
+        top: [],
+        alternatives: [],
+        ranking: { method: 'trade_plan_score', total: 0 },
+        filters: {
+          quality: ['TOP', 'STRONG', 'WATCH', 'WEAK', 'UNAVAILABLE'],
+          signal: ['STRONG_PLAN', 'VALID_PLAN', 'WATCH', 'AVOID', 'UNAVAILABLE'],
+          direction: ['LONG', 'SHORT', 'NEUTRAL', 'UNAVAILABLE'],
+        },
+        dataAvailability: buildTradePlanDataAvailability([]),
+        qualityBreakdown: buildTradePlanQualityBreakdown([]),
+        limitations: 'Yahoo Finance circuit is OPEN — batch analysis blocked.',
+        disclaimer: 'تحليل وخطط تداول مشروطة فقط — ليست توصية شراء أو بيع. المستويات التي لا توجد لها بيانات موثوقة تبقى غير متاحة.',
+        errors: [],
+      }, { status: 503 });
+    }
 
     for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
       const batch = await Promise.allSettled(
