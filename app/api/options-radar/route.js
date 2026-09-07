@@ -99,7 +99,7 @@ export async function GET(request) {
 
     if (!symbols.length) {
       const origin = new URL(request.url).origin;
-      const radarResponse = await fetch(`${origin}/api/stocks`, { cache: 'no-store' });
+      const radarResponse = await fetch(`${origin}/api/stocks`, { cache: 'no-store', signal: AbortSignal.timeout(10000) });
       const radarJson = await radarResponse.json().catch(() => ({}));
 
       symbols = (

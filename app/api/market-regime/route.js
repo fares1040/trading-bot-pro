@@ -3,7 +3,6 @@ import { buildMarketRegime, defaultMarketRegime } from '@/lib/market-regime-engi
 import { checkDashboardAccess } from '@/lib/access-control';
 import { fetchIndices } from '@/lib/market-engine.js';
 import { shouldAllowProviderCall, recordProviderFailure, recordProviderSuccess } from '@/lib/circuit-breaker-manager';
-import { record, ERROR_TYPES, PROVIDERS } from '@/lib/failure-events';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -49,32 +48,8 @@ async function fetchIndicesWithCircuitBreaker() {
     recordProviderFailure('yahoo', err, '/api/market-regime', null, false);
 
     if (err?.message?.includes('timeout') || err?.message?.includes('aborted')) {
-      record({
-        route: '/api/market-regime',
-        provider: PROVIDERS.YAHOO,
-        errorType: ERROR_TYPES.TIMEOUT,
-        message: `Yahoo indices fetch timeout: ${err.message}`,
-        symbol: null,
-        optional: false,
-      });
     } else if (err?.message?.includes('429') || err?.message?.toLowerCase().includes('rate limit')) {
-      record({
-        route: '/api/market-regime',
-        provider: PROVIDERS.YAHOO,
-        errorType: ERROR_TYPES.RATE_LIMIT,
-        message: `Yahoo indices rate limited: ${err.message}`,
-        symbol: null,
-        optional: false,
-      });
     } else if (err?.message?.includes('empty') || err?.message?.includes('incomplete')) {
-      record({
-        route: '/api/market-regime',
-        provider: PROVIDERS.YAHOO,
-        errorType: ERROR_TYPES.EMPTY_RESPONSE,
-        message: `Yahoo indices returned incomplete data: ${err.message}`,
-        symbol: null,
-        optional: false,
-      });
     }
 
     return [];

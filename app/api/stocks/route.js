@@ -1295,15 +1295,6 @@ async function fetchChart(
       `Yahoo Finance ${response.status} for ${clean}`
     );
     recordProviderFailure('yahoo', err, '/api/stocks.chart', clean, false);
-    record({
-      route: '/api/stocks.chart',
-      provider: PROVIDERS.YAHOO,
-      errorType: ERROR_TYPES.HTTP_FAILURE,
-      message: `Yahoo Finance ${response.status} for ${clean}`,
-      status: response.status,
-      symbol: clean,
-      optional: false,
-    });
     throw err;
   }
 
@@ -1332,14 +1323,6 @@ async function fetchChart(
       `No market data for ${clean}`
     );
     recordProviderFailure('yahoo', err, '/api/stocks.chart', clean, false);
-    record({
-      route: '/api/stocks.chart',
-      provider: PROVIDERS.YAHOO,
-      errorType: ERROR_TYPES.EMPTY_RESPONSE,
-      message: `No market data in Yahoo response for ${clean}`,
-      symbol: clean,
-      optional: false,
-    });
     throw err;
   }
 
@@ -1476,15 +1459,6 @@ export async function GET(
         `Yahoo trending ${trendingResponse.status}`
       );
       recordProviderFailure('yahoo', err, '/api/stocks.trending', null, false);
-      record({
-        route: '/api/stocks.trending',
-        provider: PROVIDERS.YAHOO,
-        errorType: ERROR_TYPES.HTTP_FAILURE,
-        message: `Yahoo trending ${trendingResponse.status}`,
-        status: trendingResponse.status,
-        symbol: null,
-        optional: false,
-      });
       throw err;
     }
 

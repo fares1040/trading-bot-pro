@@ -241,5 +241,66 @@ describe('route-reliability', () => {
         global.fetch = originalFetch;
       }
     });
+
+    it('no duplicate events when recordProviderFailure is used', async () => {
+      clear();
+      const originalFetch = global.fetch;
+      global.fetch = async () => new Response('Server Error', { status: 500 });
+
+      try {
+        await fetchChart('AAPL', '6mo');
+      } catch (e) {
+        // expected
+      }
+
+      const events = list({ provider: 'yahoo' });
+      const allEvents = events.filter(e => e.symbol === 'AAPL' || e.symbol == null);
+      // With deduplication, we should have at most 1 event per unique error+symbol combination
+      const uniqueKeys = new Set(allEvents.map(e => `${e.errorType}:${e.symbol}:${e.route}`));
+      assert.strictEqual(uniqueKeys.size, allEvents.length, 'No duplicate events expected');
+      assert.ok(allEvents.length <= 2, 'Expected at most 2 events (HTTP_FAILURE + possible circuit breaker)');
+      const httpEvents = allEvents.filter(e => e.errorType === 'HTTP_FAILURE');
+      assert.strictEqual(httpEvents.length, 1, 'Expected exactly one HTTP_FAILURE event');
+      assert.ok(httpEvents[0]?.message, 'Expected message field');
+      assert.ok(
+        httpEvents[0]?.message?.includes('HTTP_FAILURE') ||
+        httpEvents[0]?.message?.includes('500') ||
+        httpEvents[0]?.message?.includes('Yahoo Finance') ||
+        httpEvents[0]?.message?.includes('Server Error'),
+        'message should contain useful context'
+      );
+    });
+  });
+
+  describe('options-provider timeout behavior', () => {
+    it('fetchOptionsChain timeout does not fabricate data', async () => {
+      const originalFetch = global.fetch;
+      global.fetch = async (url, options = {}) => {
+        const { signal } = options;
+        await new Promise((resolve, reject) => {
+          const timer = setTimeout(resolve, 15000);
+          const onAbort = () => {
+            clearTimeout(timer);
+            reject(new Error('The operation was aborted due to timeout'));
+          };
+          signal?.addEventListener('abort', onAbort, { once: true });
+        });
+        return new Response('{}', { status: 200 });
+      };
+
+      try {
+        const result = await fetchOptionsChain('AAPL');
+        assert.strictEqual(result.available, false);
+        assert.ok(result.reason !== null);
+        assert.ok(
+          result.reason?.includes('timeout') ||
+          result.reason?.includes('aborted') ||
+          result.reason?.includes('fetch failed'),
+          `Expected timeout-related reason, got: ${result.reason}`
+        );
+      } finally {
+        global.fetch = originalFetch;
+      }
+    }, 20000);
   });
 });

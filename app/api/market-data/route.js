@@ -1157,7 +1157,6 @@ async function fetchYahooChart(
       `Yahoo Finance ${response.status} for ${clean}`
     );
     recordProviderFailure('yahoo', err, 'market-data', clean, false);
-    record({ route: 'market-data', provider: 'yahoo', errorType: 'HTTP_FAILURE', message: `Yahoo ${response.status} for ${clean}`, status: response.status, symbol: clean, optional: false });
     throw err;
   }
 
@@ -1173,7 +1172,6 @@ async function fetchYahooChart(
       `No market data for ${clean}`
     );
     recordProviderFailure('yahoo', err, 'market-data', clean, false);
-    record({ route: 'market-data', provider: 'yahoo', errorType: 'EMPTY_RESPONSE', message: `No market data for ${clean}`, symbol: clean, optional: false });
     throw err;
   }
 
@@ -1312,7 +1310,6 @@ async function fetchYahooTrending(
       `Yahoo Trending ${response.status}`
     );
     recordProviderFailure('yahoo', err, 'market-data.trending', null, false);
-    record({ route: 'market-data', provider: 'yahoo', errorType: 'HTTP_FAILURE', message: `Yahoo Trending ${response.status}`, status: response.status, optional: false });
     throw err;
   }
 
