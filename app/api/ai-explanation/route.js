@@ -41,7 +41,7 @@ import { buildAIExplanation,
   buildExplanationQualityBreakdown,
   buildExplanationDataAvailability,
 } from '@/lib/ai-explanation.js';
-import { shouldAllowProviderCall, recordProviderFailure } from '@/lib/circuit-breaker-manager.js';
+import { shouldAllowProviderCall } from '@/lib/circuit-breaker-manager.js';
 import {
   buildOpportunityHorizon,
   defaultOpportunityHorizon,
@@ -87,10 +87,12 @@ async function analyzeSymbol(symbol, marketRegime = null) {
     let optionsData = null;
     let highs = [], lows = [], closes = [], volumes = [], opens = [];
 
+    let marketDataStale = false;
     try {
-      const { meta, quote: rawQuote } = await fetchChart(symbol, '6mo');
+      const { meta, quote: rawQuote, stale: chartStale } = await fetchChart(symbol, '6mo');
       marketData = analyzeQuote(meta || {}, rawQuote || []);
       stockData = marketData;
+      marketDataStale = chartStale || false;
       const quoteData = rawQuote || {};
       highs = quoteData?.high || [];
       lows = quoteData?.low || [];
@@ -100,7 +102,6 @@ async function analyzeSymbol(symbol, marketRegime = null) {
     } catch (e) {
       marketData = null;
       stockData = null;
-      recordProviderFailure('yahoo', e, 'ai-explanation', symbol, false);
     }
 
     try {
@@ -109,12 +110,7 @@ async function analyzeSymbol(symbol, marketRegime = null) {
       secIntelligence = null;
     }
 
-    try {
-      const chain = await fetchOptionsChain(symbol);
-      optionsData = chain;
-    } catch (e) {
-      optionsData = null;
-    }
+    optionsData = await fetchOptionsChain(symbol);
 
     const pennyIntelligence = stockData
       ? buildPennyIntelligence(stockData, { secIntelligence: secIntelligence || undefined })
@@ -182,7 +178,7 @@ async function analyzeSymbol(symbol, marketRegime = null) {
       catalystIntelligence,
     });
 
-    return buildAIExplanation(symbol, {
+    const explanation = buildAIExplanation(symbol, {
       opportunityRanking,
       pennyIntelligence,
       optionsIntelligence,
@@ -192,6 +188,8 @@ async function analyzeSymbol(symbol, marketRegime = null) {
       catalystIntelligence,
       tradePlan,
     });
+    explanation.marketDataStale = marketDataStale;
+    return explanation;
   } catch (error) {
     console.error(`AI Explanation error for ${symbol}:`, error?.message || error);
     return defaultExplanation(symbol);

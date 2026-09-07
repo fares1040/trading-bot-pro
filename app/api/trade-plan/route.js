@@ -60,7 +60,7 @@ import {
   buildTradePlanQualityBreakdown,
   buildTradePlanDataAvailability,
 } from '@/lib/trade-plan-engine.js';
-import { shouldAllowProviderCall, recordProviderFailure } from '@/lib/circuit-breaker-manager.js';
+import { shouldAllowProviderCall } from '@/lib/circuit-breaker-manager.js';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -132,14 +132,16 @@ async function analyzeSymbol(symbol, opts, marketRegime = null) {
     let volumes = [];
     let opens = [];
 
+    let marketDataStale = false;
     try {
-      const { meta, quote: rawQuote } = await fetchChart(symbol, '6mo');
+      const { meta, quote: rawQuote, stale: chartStale } = await fetchChart(symbol, '6mo');
       const quoteData = rawQuote || {};
       highs = quoteData?.high || [];
       lows = quoteData?.low || [];
       closes = quoteData?.close || [];
       volumes = quoteData?.volume || [];
       opens = quoteData?.open || [];
+      marketDataStale = chartStale || false;
       try {
         marketData = analyzeQuote(meta || {}, rawQuote || []);
         stockData = marketData;
@@ -150,7 +152,6 @@ async function analyzeSymbol(symbol, opts, marketRegime = null) {
     } catch (e) {
       marketData = null;
       stockData = null;
-      recordProviderFailure('yahoo', e, 'trade-plan', symbol, false);
     }
 
     try {
@@ -159,12 +160,7 @@ async function analyzeSymbol(symbol, opts, marketRegime = null) {
       secIntelligence = null;
     }
 
-    try {
-      const chain = await fetchOptionsChain(symbol);
-      optionsData = chain;
-    } catch (e) {
-      optionsData = null;
-    }
+    optionsData = await fetchOptionsChain(symbol);
 
     // FINRA institutional data: for B3 only. Safe per-symbol fetch.
     // Returns unavailable-state when credentials missing or verification fails.
@@ -231,7 +227,7 @@ async function analyzeSymbol(symbol, opts, marketRegime = null) {
       gammaContext: buildGammaContext({ symbol, optionsContracts: optionsData?.contracts || [] }),
     });
 
-    return buildTradePlan(symbol, {
+    const tradePlan = buildTradePlan(symbol, {
       opportunityRanking,
       pennyIntelligence,
       optionsIntelligence,
@@ -243,6 +239,8 @@ async function analyzeSymbol(symbol, opts, marketRegime = null) {
       capital: opts.capital,
       maxRiskPercent: opts.maxRiskPercent,
     });
+    tradePlan.marketDataStale = marketDataStale;
+    return tradePlan;
   } catch (error) {
     console.error(`Trade Plan error for ${symbol}:`, error?.message || error);
     return defaultTradePlan(symbol);

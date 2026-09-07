@@ -57,7 +57,7 @@ import { fetchIndices } from '@/lib/market-engine.js';
 import { buildMarketRegime, defaultMarketRegime } from '@/lib/market-regime-engine.js';
 import { fetchInstitutionalData } from '@/lib/institutional-provider.js';
 import { calculateInstitutionalScore } from '@/lib/institutional-provider.js';
-import { shouldAllowProviderCall, recordProviderFailure } from '@/lib/circuit-breaker-manager.js';
+import { shouldAllowProviderCall } from '@/lib/circuit-breaker-manager.js';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -114,9 +114,11 @@ async function analyzeSymbol(symbol, marketRegime = null) {
     let quote = null;
 
     // Market data: fetchChart + analyzeQuote (shared by B4, B5, B6)
+    let marketDataStale = false;
     try {
-      const { meta, quote: fetchedQuote } = await fetchChart(symbol, '6mo');
+      const { meta, quote: fetchedQuote, stale: chartStale } = await fetchChart(symbol, '6mo');
       quote = fetchedQuote || {};
+      marketDataStale = chartStale || false;
       try {
         marketData = analyzeQuote(meta || {}, quote || []);
         stockData = marketData;
@@ -127,7 +129,6 @@ async function analyzeSymbol(symbol, marketRegime = null) {
     } catch (e) {
       marketData = null;
       stockData = null;
-      recordProviderFailure('yahoo', e, 'opportunity-ranking', symbol, false);
     }
 
     // SEC data: shared by B1, B3, B6
@@ -252,8 +253,7 @@ async function analyzeSymbol(symbol, marketRegime = null) {
       } : null,
     });
 
-    // Compose C7 with all B1-B6 sources + methodology evidence
-    return buildOpportunityRanking(symbol, {
+    const opportunity = buildOpportunityRanking(symbol, {
       pennyIntelligence,
       optionsIntelligence,
       institutionalRadar,
@@ -266,6 +266,8 @@ async function analyzeSymbol(symbol, marketRegime = null) {
       candlestickEvidence,
       gammaContext,
     });
+    opportunity.marketDataStale = marketDataStale;
+    return opportunity;
   } catch (error) {
     console.error(`Opportunity Ranking error for ${symbol}:`, error?.message || error);
     return defaultOpportunityRanking(symbol);
