@@ -202,7 +202,15 @@ function NotificationAlertCard({ alert, onStatusChange }) {
 export function NotificationAlertPanel({ alerts = [], loading, onStatusChange, onDisableAll, emptyMessage = 'No notification alerts ready' }) {
   if (loading) return <LoadingState message="Loading alerts…" />;
   if (!alerts || !alerts.length) {
-    return <EmptyState icon="🔔" message={emptyMessage} sub="Alerts ready for Telegram notifications will appear here" />;
+    return (
+      <div style={{ ...panelStyle, padding: '10px 12px', textAlign: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <span style={{ fontSize: 14, opacity: 0.6 }}>🔔</span>
+          <span style={{ color: colors.text.muted, fontSize: 10, fontWeight: 700 }}>No notification alerts</span>
+        </div>
+        <div style={{ color: colors.text.faint, fontSize: 8, marginTop: 2 }}>Alerts ready for Telegram notifications will appear here</div>
+      </div>
+    );
   }
 
   return (

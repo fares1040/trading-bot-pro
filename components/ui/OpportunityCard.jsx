@@ -140,8 +140,8 @@ export default function OpportunityCard({
     <div
       onClick={onClick}
       style={{
-        backgroundColor: isSelected ? '#0F1420' : '#0B0F17',
-        border: `2px solid ${isSelected ? colors.accent.blue + '55' : colors.border}`,
+        backgroundColor: isSelected ? '#0F1420' : classification.label === 'AVOID' ? '#1A0A0A' : classification.label === 'WATCH' ? '#1A1500' : '#0B0F17',
+        border: `2px solid ${isSelected ? colors.accent.blue + '55' : classification.label === 'AVOID' ? '#EF444455' : classification.label === 'WATCH' ? '#FBBF2455' : colors.border}`,
         borderRadius: radius.lg,
         padding: '16px 18px',
         cursor: 'pointer',
