@@ -2002,7 +2002,7 @@ const [selectedSymbol, setSelectedSymbol] = useState(null);
         .detail-columns {
           display: grid;
           grid-template-columns: 1fr 240px;
-          gap: 10;
+          gap: 10px;
           align-items: start;
         }
         @media (max-width: 768px) {
