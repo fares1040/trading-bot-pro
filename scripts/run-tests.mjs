@@ -41,6 +41,7 @@ const TEST_SUITES = [
   { name: 'Smart Money Evidence', file: 'test-smart-money-evidence.mjs' },
   { name: 'Options Flow Schema', file: 'test-options-flow-schema.mjs' },
   { name: 'Options Flow Evidence', file: 'test-options-flow.mjs' },
+  { name: 'Options Smart Money', file: 'test-options-smart-money.mjs' },
 ];
 
 let passed = 0, failed = 0;
