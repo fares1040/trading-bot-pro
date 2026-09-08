@@ -24,6 +24,7 @@ const TEST_SUITES = [
   { name: 'Live Market Data', file: 'test-live-market-data.mjs' },
   { name: 'Live Market Pulse', file: 'test-live-market-pulse.mjs' },
   { name: 'Live Opportunity Stream', file: 'test-live-opportunity-stream.mjs' },
+  { name: 'Acceleration Radar', file: 'test-acceleration-radar.mjs' },
 
   // Decision Pipeline
   { name: 'C7 Technical Evidence Gate', file: 'test-c7-technical-evidence-gate.mjs' },
