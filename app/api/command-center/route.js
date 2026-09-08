@@ -139,7 +139,7 @@ export async function GET(request) {
       planCount: 0,
       intelligenceCoverage: 0,
       sections: defaultCommandCenter().sections,
-      summaries: defaultCommandCenter().summary,
+      summary: defaultCommandCenter().summary,
       limitations: 'API error - Command Center unavailable.',
       disclaimer: 'D11 Command Center is an orchestration layer. Missing data is preserved as null - never fabricated.',
     }, {

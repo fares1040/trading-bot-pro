@@ -14,7 +14,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="ar" dir="rtl">
-      <body>
+      <body style={{ margin: 0, padding: 0, backgroundColor: '#07090E', color: '#F8FAFC' }}>
         <PwaRegister />
         {children}
       </body>

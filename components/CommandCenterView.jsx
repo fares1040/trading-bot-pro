@@ -152,7 +152,7 @@ function ConnectivityHealthPanel({ connectivity }) {
   }
 
   const endpoints = connectivity.endpoints || [];
-  const isHealthy = connectivity.status === 'CONNECTED' || connectivity.status === 'ERROR';
+  const isHealthy = connectivity.status === 'CONNECTED';
   const hasIssues = connectivity.degraded || connectivity.unavailable;
 
   if (endpoints.length === 0) {
