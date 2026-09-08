@@ -8,6 +8,7 @@ const suites = [
   { name: 'Options Flow Evidence', file: 'test-options-flow.mjs' },
   { name: 'Options Smart Money', file: 'test-options-smart-money.mjs' },
   { name: 'Options Smart Money Freshness', file: 'test-options-smart-money-freshness.mjs' },
+  { name: 'Live Radar Evidence', file: 'test-live-radar-evidence.mjs' },
   { name: 'Live Opportunity Service', file: 'test-live-opportunity-service.mjs' },
   { name: 'Live Market Pulse', file: 'test-live-market-pulse.mjs' },
   { name: 'Live Opportunity Stream', file: 'test-live-opportunity-stream.mjs' },
