@@ -583,6 +583,58 @@ export async function POST(
           () => ({})
         );
 
+    /* -----------------------------------------------------
+       OUTBOUND SEND (UI "Send Top 3" etc.)
+    ----------------------------------------------------- */
+
+    if (
+      body?.action === 'send' &&
+      typeof body?.text === 'string' &&
+      body.text.trim()
+    ) {
+      const token =
+        getTelegramToken();
+      const chatId =
+        process.env.TELEGRAM_CHAT_ID;
+
+      if (!token || !chatId) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              'Telegram credentials missing',
+          },
+          { status: 503 }
+        );
+      }
+
+      try {
+        await sendTelegramMessage(
+          token,
+          chatId,
+          body.text.trim()
+        );
+        return NextResponse.json(
+          { success: true },
+          { status: 200 }
+        );
+      } catch (err) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              err?.message ||
+              'Telegram send failed',
+          },
+          { status: 502 }
+        );
+      }
+    }
+
+    /* -----------------------------------------------------
+       WEBHOOK (incoming Telegram update)
+    ----------------------------------------------------- */
+
     const message =
       body?.message ||
       body?.edited_message;

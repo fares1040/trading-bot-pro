@@ -1336,10 +1336,11 @@ function AlertCenterPanel({ alerts, highPriorityAlerts }) {
       const res = await fetch('/api/telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ action: 'send', text: message }),
       });
       if (!res.ok) {
-        throw new Error(`Telegram error: ${res.status}`);
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Telegram error: ${res.status}`);
       }
       setSendResult('Sent successfully');
     } catch (err) {

@@ -1026,7 +1026,9 @@ function getSupabase() {
 
   const key =
     process.env
-      .SUPABASE_SERVICE_ROLE_KEY;
+      .SUPABASE_SERVICE_ROLE_KEY ||
+    process.env
+      .SUPABASE_SERVICE_KEY;
 
   if (!url || !key) {
     return null;
