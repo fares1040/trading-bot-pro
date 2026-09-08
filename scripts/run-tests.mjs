@@ -38,6 +38,7 @@ const TEST_SUITES = [
   { name: 'Live Flow Schema', file: 'test-live-flow-schema.mjs' },
   { name: 'Live Flow Normalizer', file: 'test-live-flow-normalizer.mjs' },
   { name: 'Live Flow Aggregator', file: 'test-live-flow-aggregator.mjs' },
+  { name: 'Smart Money Evidence', file: 'test-smart-money-evidence.mjs' },
 ];
 
 let passed = 0, failed = 0;
