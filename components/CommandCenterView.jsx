@@ -1723,11 +1723,8 @@ const [selectedSymbol, setSelectedSymbol] = useState(null);
     const readToken = process.env.NEXT_PUBLIC_DASHBOARD_READ_TOKEN;
     const headers = readToken ? { Authorization: `Bearer ${readToken}` } : {};
     try {
-      const [ccRes, oppRes, planRes, aiRes, alertRes, optionsRadarRes] = await Promise.allSettled([
-        fetch(`${origin}/api/command-center`, { cache: 'no-store', headers }),
-        fetch(`${origin}/api/opportunity-ranking`, { cache: 'no-store', headers }),
-        fetch(`${origin}/api/trade-plan`, { cache: 'no-store', headers }),
-        fetch(`${origin}/api/ai-explanation`, { cache: 'no-store', headers }),
+      const [ccRes, alertRes, optionsRadarRes] = await Promise.allSettled([
+        fetch(`${origin}/api/command-center?limit=15&raw=true`, { cache: 'no-store', headers }),
         fetch(`${origin}/api/alert-center`, { cache: 'no-store', headers }),
         fetch(`${origin}/api/options-radar`, { cache: 'no-store', headers }),
       ]);
@@ -1737,15 +1734,21 @@ const [selectedSymbol, setSelectedSymbol] = useState(null);
         setCommandCenterData(json);
         setIndices(json.indices || []);
         setError('');
-      }
-      if (oppRes.status === 'fulfilled' && oppRes.value.ok) {
-        setOpportunityData(await oppRes.value.json().catch(() => null));
-      }
-      if (planRes.status === 'fulfilled' && planRes.value.ok) {
-        setTradePlanData(await planRes.value.json().catch(() => null));
-      }
-      if (aiRes.status === 'fulfilled' && aiRes.value.ok) {
-        setAiExplanationData(await aiRes.value.json().catch(() => null));
+        if (json.raw) {
+          if (Array.isArray(json.raw.opportunities)) {
+            setOpportunityData({
+              data: json.raw.opportunities,
+              top: json.raw.opportunities,
+              count: json.raw.opportunities.length,
+            });
+          }
+          if (Array.isArray(json.raw.tradePlans)) {
+            setTradePlanData({ data: json.raw.tradePlans });
+          }
+          if (Array.isArray(json.raw.explanations)) {
+            setAiExplanationData({ data: json.raw.explanations });
+          }
+        }
       }
       if (alertRes.status === 'fulfilled' && alertRes.value.ok) {
         const alertData = await alertRes.value.json().catch(() => null);
