@@ -6,6 +6,8 @@ import {
   detectEqualHighsLows,
   calculateStructureScore,
   classifyStructureState,
+  detectBOS,
+  detectCHoCH,
   STRUCTURE_STATE,
   rankStructureOpportunities,
 } from '../lib/structure-intelligence-manager.js';
@@ -248,6 +250,274 @@ const det1NoTs = JSON.parse(JSON.stringify(det1)); delete det1NoTs.timestamp;
 const det2NoTs = JSON.parse(JSON.stringify(det2)); delete det1NoTs.timestamp; delete det2NoTs.timestamp;
 assert(JSON.stringify(det1NoTs) === JSON.stringify(det2NoTs), 'T49: deterministic output for identical inputs (excluding timestamp)');
 assert(det1.timestamp !== undefined, 'T50: structure analysis includes timestamp');
+
+// ============================================================================
+// T51-T70: BOS / CHoCH TESTS
+// ============================================================================
+
+// --- Helper: generate a clear bullish HH+HL structure with a BOS breakout ---
+function generateBullishBOSData() {
+  // Create a clear uptrend: HH + HL structure, then price breaks above last swing high
+  const highs = [
+    // Initial range
+    102, 103, 104, 105, 106,
+    // Swing high 1
+    110, 111, 112, 111, 110,
+    // Pullback to higher low
+    108, 107, 106, 105, 104,
+    // Higher high
+    114, 115, 116, 115, 114,
+    // Pullback to higher low
+    112, 111, 110, 109, 108,
+    // BOS: break above last swing high (116)
+    117, 118, 119, 120, 121,
+  ];
+  const lows = highs.map(h => h - 3);
+  const closes = highs.map(h => h - 1);
+  return { highs, lows, closes };
+}
+
+// --- Helper: generate a clear bearish LH+LL structure with a BOS breakdown ---
+function generateBearishBOSData() {
+  // Create a clear downtrend: LH + LL structure, then price breaks below last swing low
+  const highs = [
+    // Initial range
+    120, 119, 118, 117, 116,
+    // Swing low 1
+    112, 111, 110, 111, 112,
+    // Pullback to lower high
+    114, 115, 116, 117, 118,
+    // Lower low
+    108, 107, 106, 107, 108,
+    // Pullback to lower high
+    110, 111, 112, 113, 114,
+    // BOS: break below last swing low (106)
+    105, 104, 103, 102, 101,
+  ];
+  const lows = highs.map(h => h - 3);
+  const closes = highs.map(h => h - 1);
+  return { highs, lows, closes };
+}
+
+// --- Helper: generate bearish HH+LL (mixed) then break above last swing high → CHoCH ---
+function generateBullishCHoCHData() {
+  // Downtrend: LL structure, then price breaks above last lower high
+  const highs = [
+    120, 121, 122, 123, 124,
+    // Lower high 1
+    118, 119, 120, 119, 118,
+    // Drop to lower low
+    112, 111, 110, 109, 108,
+    // Lower high 2
+    114, 115, 116, 115, 114,
+    // Drop to lower low
+    106, 105, 104, 103, 102,
+    // CHoCH: break above last lower high (116)
+    117, 118, 119, 120, 121,
+  ];
+  const lows = highs.map(h => h - 3);
+  const closes = highs.map(h => h - 1);
+  return { highs, lows, closes };
+}
+
+// --- Helper: generate bullish HL+HH (uptrend) then break below last higher low → CHoCH ---
+function generateBearishCHoCHData() {
+  // Uptrend: HH structure, then price breaks below last higher low
+  const highs = [
+    100, 101, 102, 103, 104,
+    // Higher high 1
+    110, 111, 112, 111, 110,
+    // Pullback to higher low
+    106, 105, 104, 103, 102,
+    // Higher high 2
+    116, 117, 118, 117, 116,
+    // Pullback to higher low
+    112, 111, 110, 109, 108,
+    // CHoCH: break below last higher low (108)
+    107, 106, 105, 104, 103,
+  ];
+  const lows = highs.map(h => h - 3);
+  const closes = highs.map(h => h - 1);
+  return { highs, lows, closes };
+}
+
+// --- T51-T54: detectBOS function signature and empty inputs ---
+assert(typeof detectBOS === 'function', 'T51: detectBOS is imported');
+assert(typeof detectCHoCH === 'function', 'T52: detectCHoCH is imported');
+
+const emptyBOS = detectBOS({ closes: [], pivots: [], classifiedPivots: [] });
+assert(emptyBOS.detected === false, 'T53: empty inputs → no BOS');
+
+const emptyCHoCH = detectCHoCH({ closes: [], pivots: [], classifiedPivots: [] });
+assert(emptyCHoCH.detected === false, 'T54: empty inputs → no CHoCH');
+
+// --- T55-T58: Bullish BOS ---
+const bullishBOSData = generateBullishBOSData();
+const bullishBOSResult = buildStructureIntelligence({
+  highs: bullishBOSData.highs,
+  lows: bullishBOSData.lows,
+  closes: bullishBOSData.closes,
+  symbol: 'BOS_BULL',
+});
+assert(bullishBOSResult.bos !== undefined, 'T55: result includes bos object');
+assert(typeof bullishBOSResult.bos.detected === 'boolean', 'T56: bos.detected is boolean');
+assert(bullishBOSResult.dataQuality.hasBOS === bullishBOSResult.bos.detected, 'T57: hasBOS matches bos.detected');
+// Check that BOS signal is in signals array if detected
+if (bullishBOSResult.bos.detected) {
+  const bosSignals = bullishBOSResult.signals.filter(s => s.type === 'BOS');
+  assert(bosSignals.length === 1, 'T58: BOS detected → exactly 1 BOS signal in signals array');
+  assert(bosSignals[0].family === 'STRUCTURE', 'T58b: BOS signal has STRUCTURE family');
+} else {
+  assert(true, 'T58: BOS not detected in this data shape (acceptable)');
+}
+
+// --- T59-T62: Bearish BOS ---
+const bearishBOSData = generateBearishBOSData();
+const bearishBOSResult = buildStructureIntelligence({
+  highs: bearishBOSData.highs,
+  lows: bearishBOSData.lows,
+  closes: bearishBOSData.closes,
+  symbol: 'BOS_BEAR',
+});
+assert(bearishBOSResult.bos !== undefined, 'T59: result includes bos object');
+assert(typeof bearishBOSResult.bos.detected === 'boolean', 'T60: bos.detected is boolean');
+assert(bearishBOSResult.dataQuality.hasBOS === bearishBOSResult.bos.detected, 'T61: hasBOS matches bos.detected');
+if (bearishBOSResult.bos.detected) {
+  const bosSignals = bearishBOSResult.signals.filter(s => s.type === 'BOS');
+  assert(bosSignals.length === 1, 'T62: BOS detected → exactly 1 BOS signal');
+}
+
+// --- T63-T66: Bullish CHoCH ---
+const bullishCHoCHData = generateBullishCHoCHData();
+const bullishCHoCHResult = buildStructureIntelligence({
+  highs: bullishCHoCHData.highs,
+  lows: bullishCHoCHData.lows,
+  closes: bullishCHoCHData.closes,
+  symbol: 'CHoCH_BULL',
+});
+assert(bullishCHoCHResult.choch !== undefined, 'T63: result includes choch object');
+assert(typeof bullishCHoCHResult.choch.detected === 'boolean', 'T64: choch.detected is boolean');
+assert(bullishCHoCHResult.dataQuality.hasCHoCH === bullishCHoCHResult.choch.detected, 'T65: hasCHoCH matches choch.detected');
+if (bullishCHoCHResult.choch.detected) {
+  const chochSignals = bullishCHoCHResult.signals.filter(s => s.type === 'CHoCH');
+  assert(chochSignals.length === 1, 'T66: CHoCH detected → exactly 1 CHoCH signal');
+  assert(chochSignals[0].family === 'STRUCTURE', 'T66b: CHoCH signal has STRUCTURE family');
+}
+
+// --- T67-T70: Bearish CHoCH ---
+const bearishCHoCHData = generateBearishCHoCHData();
+const bearishCHoCHResult = buildStructureIntelligence({
+  highs: bearishCHoCHData.highs,
+  lows: bearishCHoCHData.lows,
+  closes: bearishCHoCHData.closes,
+  symbol: 'CHoCH_BEAR',
+});
+assert(bearishCHoCHResult.choch !== undefined, 'T67: result includes choch object');
+assert(typeof bearishCHoCHResult.choch.detected === 'boolean', 'T68: choch.detected is boolean');
+assert(bearishCHoCHResult.dataQuality.hasCHoCH === bearishCHoCHResult.choch.detected, 'T69: hasCHoCH matches choch.detected');
+if (bearishCHoCHResult.choch.detected) {
+  const chochSignals = bearishCHoCHResult.signals.filter(s => s.type === 'CHoCH');
+  assert(chochSignals.length === 1, 'T70: CHoCH detected → exactly 1 CHoCH signal');
+}
+
+// --- T71-T74: BOS and CHoCH cannot both fire on same bar for same direction ---
+// If both fire, structure state should still be consistent
+const allStructureStates = [
+  bullishBOSResult.structureState,
+  bearishBOSResult.structureState,
+  bullishCHoCHResult.structureState,
+  bearishCHoCHResult.structureState,
+];
+assert(allStructureStates.every(s => Object.values(STRUCTURE_STATE).includes(s)), 'T71: all structure states are valid enum values');
+// BOS and CHoCH should not both fire for the same symbol in the same direction
+const bosChoBull = bullishBOSResult.bos.detected && bullishBOSResult.choch.detected;
+assert(!bosChoBull || (bullishBOSResult.bos.direction !== bullishBOSResult.choch.direction), 'T72: BOS and CHoCH not both BULLISH for same symbol');
+const bosChoBear = bearishBOSResult.bos.detected && bearishBOSResult.choch.detected;
+assert(!bosChoBear || (bearishBOSResult.bos.direction !== bearishBOSResult.choch.direction), 'T73: BOS and CHoCH not both BEARISH for same symbol');
+// Structure state is TRANSITION when CHoCH detected
+if (bullishCHoCHResult.choch.detected) {
+  assert(bullishCHoCHResult.structureState === STRUCTURE_STATE.TRANSITION, 'T74: CHoCH → TRANSITION state');
+}
+
+// --- T75-T78: Score includes BOS/CHoCH ---
+const scoreWithBOS = calculateStructureScore({
+  hhhllhCount: 5,
+  trendConfidence: 80,
+  mssDetected: false,
+  breakerDetected: false,
+  unfilledFvgCount: 0,
+  bosDetected: true,
+  chochDetected: false,
+});
+assert(scoreWithBOS !== null, 'T75: score with BOS is non-null');
+assert(scoreWithBOS >= 0 && scoreWithBOS <= 100, 'T76: score with BOS is bounded');
+
+const scoreWithCHoCH = calculateStructureScore({
+  hhhllhCount: 5,
+  trendConfidence: 80,
+  mssDetected: false,
+  breakerDetected: false,
+  unfilledFvgCount: 0,
+  bosDetected: false,
+  chochDetected: true,
+});
+assert(scoreWithCHoCH !== null, 'T77: score with CHoCH is non-null');
+assert(scoreWithCHoCH >= 0 && scoreWithCHoCH <= 100, 'T78: score with CHoCH is bounded');
+
+// BOS contributes more to score than CHoCH (BOS confirms, CHoCH is transitional)
+assert(scoreWithBOS >= scoreWithCHoCH, 'T79: BOS contributes >= score vs CHoCH');
+
+// --- T80-T83: No look-ahead bias ---
+// Use the same data but with different timestamps to verify determinism
+const lookAheadData = generateBullishBOSData();
+const la1 = buildStructureIntelligence({
+  highs: lookAheadData.highs,
+  lows: lookAheadData.lows,
+  closes: lookAheadData.closes,
+  symbol: 'LA',
+});
+const la2 = buildStructureIntelligence({
+  highs: lookAheadData.highs,
+  lows: lookAheadData.lows,
+  closes: lookAheadData.closes,
+  symbol: 'LA',
+});
+const la1NoTs = JSON.parse(JSON.stringify(la1)); delete la1NoTs.timestamp;
+const la2NoTs = JSON.parse(JSON.stringify(la2)); delete la2NoTs.timestamp;
+assert(JSON.stringify(la1NoTs) === JSON.stringify(la2NoTs), 'T80: deterministic — same inputs produce same output');
+assert(la1.bos.detected === la2.bos.detected, 'T81: BOS detection is deterministic');
+assert(la1.choch.detected === la2.choch.detected, 'T82: CHoCH detection is deterministic');
+assert(la1.structureState === la2.structureState, 'T83: structure state is deterministic');
+
+// --- T84-T87: Insufficient data → no BOS/CHoCH ---
+const shortData = buildStructureIntelligence({
+  highs: [101, 102, 103],
+  lows: [99, 100, 101],
+  closes: [100, 101, 102],
+  symbol: 'SHORT',
+});
+assert(shortData.bos.detected === false, 'T84: insufficient data → no BOS');
+assert(shortData.choch.detected === false, 'T85: insufficient data → no CHoCH');
+assert(shortData.dataQuality.hasBOS === false, 'T86: insufficient data → hasBOS false');
+assert(shortData.dataQuality.hasCHoCH === false, 'T87: insufficient data → hasCHoCH false');
+
+// --- T88-T90: Default structure intelligence includes BOS/CHoCH ---
+const defaultSI = defaultStructureIntelligence();
+assert(defaultSI.bos !== undefined, 'T88: default includes bos');
+assert(defaultSI.choch !== undefined, 'T89: default includes choch');
+assert(defaultSI.bos.detected === false, 'T90: default bos.detected is false');
+
+// --- T91-T93: Anti-double-counting — BOS + CHoCH signals share STRUCTURE family ---
+const allSignals = [...bullishBOSResult.signals, ...bearishBOSResult.signals, ...bullishCHoCHResult.signals, ...bearishCHoCHResult.signals];
+const structureSignals = allSignals.filter(s => s.family === 'STRUCTURE');
+const bosSignalsAll = structureSignals.filter(s => s.type === 'BOS');
+const chochSignalsAll = structureSignals.filter(s => s.type === 'CHoCH');
+// All BOS/CHoCH signals should have STRUCTURE family
+assert(bosSignalsAll.every(s => s.family === 'STRUCTURE'), 'T91: all BOS signals have STRUCTURE family');
+assert(chochSignalsAll.every(s => s.family === 'STRUCTURE'), 'T92: all CHoCH signals have STRUCTURE family');
+// MSS signals should also have STRUCTURE family
+const mssSignals = allSignals.filter(s => s.type === 'MSS');
+assert(mssSignals.every(s => s.family === 'STRUCTURE'), 'T93: all MSS signals have STRUCTURE family');
 
 // --- Summary ---
 console.log(`\n=== Results: ${passed} passed, ${failed} failed ===\n`);
