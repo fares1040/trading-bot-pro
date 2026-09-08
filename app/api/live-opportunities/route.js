@@ -7,11 +7,12 @@
  * Maximum 10 symbols. No discovery. No fabrication.
  *
  * Uses existing Yahoo polling via live-market-data.js.
- * Uses existing access control pattern.
+ * Uses existing dashboard read-access control.
  * Uses existing circuit breaker for Yahoo.
  */
 
 import { NextResponse } from 'next/server';
+import { checkDashboardAccess } from '@/lib/access-control.js';
 import { processLiveOpportunities } from '@/lib/live-opportunity-service.js';
 import { shouldAllowProviderCall } from '@/lib/circuit-breaker-manager.js';
 
@@ -19,11 +20,17 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 const SYMBOL_RE = /^[A-Z][A-Z0-9.^=-]{0,11}$/;
-const MAX_SYMBOLS = 10;
 
 export async function GET(request) {
   try {
-    // Circuit breaker check
+    const access = checkDashboardAccess(request);
+    if (!access.allowed) {
+      return NextResponse.json(
+        { success: false, error: access.reason || 'Unauthorized' },
+        { status: 401, headers: { 'Cache-Control': 'no-store' } },
+      );
+    }
+
     const cbResult = shouldAllowProviderCall('yahoo');
     if (cbResult && !cbResult.allowed) {
       return NextResponse.json(
@@ -39,11 +46,10 @@ export async function GET(request) {
         {
           status: 503,
           headers: { 'Cache-Control': 'no-store' },
-        }
+        },
       );
     }
 
-    // Parse symbols from query
     const { searchParams } = new URL(request.url);
     const symbolsRaw = searchParams.get('symbols') || '';
 
@@ -54,44 +60,30 @@ export async function GET(request) {
           error: 'Missing required parameter: symbols',
           usage: '/api/live-opportunities?symbols=NVDA,AMD,TSLA',
         },
-        {
-          status: 400,
-          headers: { 'Cache-Control': 'no-store' },
-        }
+        { status: 400, headers: { 'Cache-Control': 'no-store' } },
       );
     }
 
-    const rawSymbols = symbolsRaw.split(',').map(s => s.trim()).filter(Boolean);
+    const rawSymbols = symbolsRaw.split(',').map((s) => s.trim()).filter(Boolean);
 
     if (rawSymbols.length === 0) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'No valid symbols provided',
-        },
-        {
-          status: 400,
-          headers: { 'Cache-Control': 'no-store' },
-        }
+        { success: false, error: 'No valid symbols provided' },
+        { status: 400, headers: { 'Cache-Control': 'no-store' } },
       );
     }
 
-    // Validate symbol format before processing
-    const invalidSymbols = rawSymbols.filter(s => !SYMBOL_RE.test(s.toUpperCase()));
+    const invalidSymbols = rawSymbols.filter((s) => !SYMBOL_RE.test(s.toUpperCase()));
     if (invalidSymbols.length > 0) {
       return NextResponse.json(
         {
           success: false,
           error: `Invalid symbol format: ${invalidSymbols.join(', ')}`,
         },
-        {
-          status: 400,
-          headers: { 'Cache-Control': 'no-store' },
-        }
+        { status: 400, headers: { 'Cache-Control': 'no-store' } },
       );
     }
 
-    // Process
     const result = await processLiveOpportunities(rawSymbols);
 
     return NextResponse.json(result, {
@@ -114,7 +106,7 @@ export async function GET(request) {
       {
         status: 500,
         headers: { 'Cache-Control': 'no-store' },
-      }
+      },
     );
   }
 }
