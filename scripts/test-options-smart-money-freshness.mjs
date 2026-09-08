@@ -20,8 +20,8 @@ const possible = classifyOptionsSmartMoney(observations);
 if (possible.classification !== 'POSSIBLE' || possible.quantitativeFlow !== true) throw new Error('Fresh quantitative flow should allow POSSIBLE');
 
 const blocked = classifyOptionsSmartMoney(mixed);
-if (blocked.quantitativeFlow !== true) throw new Error('Fresh quantitative flow should still be observed');
-if (blocked.classification !== 'POSSIBLE') throw new Error('Fresh quantitative observations should still allow POSSIBLE');
+if (blocked.quantitativeFlow !== false) throw new Error('Stale quantitative flow must not count');
+if (blocked.classification !== 'UNATTRIBUTED') throw new Error('Fresh non-quantitative observations must not create POSSIBLE');
 
 const staleOnly = classifyOptionsSmartMoney([
   { symbol: 'TEST', type: 'CALL', direction: 'BUY', contracts: 1000, freshness: stale },
