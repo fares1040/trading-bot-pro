@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { shouldAllowProviderCall } from '@/lib/circuit-breaker-manager.js';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 const YAHOO_HEADERS = {
@@ -996,6 +997,29 @@ export async function GET(request) {
                 count: 0,
                 data: [],
                 message: 'السوق الأمريكي مغلق حالياً. تم تخطي الفحص.',
+                timestamp: new Date().toISOString(),
+            });
+        }
+        const yahooStatus = shouldAllowProviderCall('yahoo');
+        if (!yahooStatus.allowed) {
+            return NextResponse.json({
+                success: true,
+                market_active: true,
+                ny_time: market.nyTime,
+                yahoo_circuit_open: true,
+                count: 0,
+                newly_saved: 0,
+                data: [],
+                dataSource: 'Yahoo Finance (circuit OPEN — skipped)',
+                dataAvailability: {
+                    price: false,
+                    volume: false,
+                    technicals: false,
+                    options: false,
+                    darkPool: false,
+                    institutionalFlow: false,
+                },
+                limitations: 'Yahoo Finance circuit is OPEN — cron scan skipped to avoid rate limiting. Alerts suppressed.',
                 timestamp: new Date().toISOString(),
             });
         }
