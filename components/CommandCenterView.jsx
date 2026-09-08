@@ -1401,7 +1401,7 @@ function AlertCenterPanel({ alerts, highPriorityAlerts }) {
   );
 }
 
-function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanationData, optionsRadarData, swingHorizonData, horizonLoading }) {
+function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanationData, optionsRadarData, swingHorizonData, horizonLoading, horizonError }) {
   const opp = useMemo(() => {
     if (!opportunityData?.data) return null;
     return opportunityData.data.find(o => o.symbol === symbol) || null;
@@ -1597,6 +1597,11 @@ function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanati
       </CollapsibleSection>
 
       <CollapsibleSection label="SWING HORIZON" icon="📈" isOpen={showSwing} onToggle={() => setShowSwing(!showSwing)}>
+        {horizonError && !swingHorizonData && (
+          <div style={{ padding: '6px 10px', fontSize: 9, color: colors.accent.amber }}>
+            ⚠ Swing Horizon unavailable — {horizonError}
+          </div>
+        )}
         <SwingHorizonBlock swingHorizonData={swingHorizonData || null} loading={horizonLoading} symbol={symbol} />
       </CollapsibleSection>
 
@@ -1706,6 +1711,8 @@ const [selectedSymbol, setSelectedSymbol] = useState(null);
    const [swingHorizonMap, setSwingHorizonMap] = useState({});
    const [horizonLoading, setHorizonLoading] = useState(false);
    const [horizonError, setHorizonError] = useState('');
+   const [alertCenterError, setAlertCenterError] = useState('');
+   const [optionsRadarError, setOptionsRadarError] = useState('');
   const [connectivity, setConnectivity] = useState({
     status: 'LOADING',
     lastSuccess: null,
@@ -1753,6 +1760,7 @@ const [selectedSymbol, setSelectedSymbol] = useState(null);
       if (alertRes.status === 'fulfilled' && alertRes.value.ok) {
         const alertData = await alertRes.value.json().catch(() => null);
         setAlertCenterData(alertData);
+        setAlertCenterError('');
         if (alertData?.alerts) {
           setNotificationAlerts(
             alertData.alerts
@@ -1765,9 +1773,14 @@ const [selectedSymbol, setSelectedSymbol] = useState(null);
           });
           setNotificationAlertsByStage(byStage);
         }
+      } else if (alertRes.status === 'rejected' || (alertRes.status === 'fulfilled' && !alertRes.value.ok)) {
+        setAlertCenterError('Alert Center unavailable');
       }
       if (optionsRadarRes.status === 'fulfilled' && optionsRadarRes.value.ok) {
         setOptionsRadarData(await optionsRadarRes.value.json().catch(() => null));
+        setOptionsRadarError('');
+      } else if (optionsRadarRes.status === 'rejected' || (optionsRadarRes.status === 'fulfilled' && !optionsRadarRes.value.ok)) {
+        setOptionsRadarError('Options Radar unavailable');
       }
     } catch (err) {
       setError(err?.message || 'Failed to load data');
@@ -1931,7 +1944,25 @@ const [selectedSymbol, setSelectedSymbol] = useState(null);
     }}>
       <div style={{ maxWidth: 1600, margin: '0 auto', padding: '14px 16px' }}>
 
-        {error && <ErrorState message={error} onRetry={fetchAll} />}
+        {loading && (
+          <div style={{ ...panel, padding: 16, marginBottom: 8, textAlign: 'center' }}>
+            <LoadingState message="Loading Command Center..." />
+          </div>
+        )}
+
+        {!loading && error && <ErrorState message={error} onRetry={fetchAll} />}
+
+        {!loading && alertCenterError && (
+          <div style={{ ...panel, padding: '6px 10px', marginBottom: 6, border: `1px solid ${colors.accent.amber}30` }}>
+            <span style={{ fontSize: 9, color: colors.accent.amber }}>⚠ {alertCenterError}</span>
+          </div>
+        )}
+
+        {!loading && optionsRadarError && (
+          <div style={{ ...panel, padding: '6px 10px', marginBottom: 6, border: `1px solid ${colors.accent.amber}30` }}>
+            <span style={{ fontSize: 9, color: colors.accent.amber }}>⚠ {optionsRadarError}</span>
+          </div>
+        )}
 
         <ConnectivityHealthPanel connectivity={connectivity} />
 
@@ -1969,6 +2000,7 @@ const [selectedSymbol, setSelectedSymbol] = useState(null);
               optionsRadarData={optionsRadarData}
               swingHorizonData={swingHorizonMap[selectedSymbol] || null}
               horizonLoading={horizonLoading}
+              horizonError={horizonError}
               regime={regime}
               regimeScore={regimeScore}
               regimeConfidence={regimeConfidence}
