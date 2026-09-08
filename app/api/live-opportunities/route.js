@@ -7,12 +7,12 @@
  * Maximum 10 symbols. No discovery. No fabrication.
  *
  * Uses existing Yahoo polling via live-market-data.js.
- * This endpoint is read-only market data and must remain callable by the
- * browser dashboard even when CRON_SECRET protects scheduled APIs.
+ * Uses existing dashboard read-access control.
  * Uses existing circuit breaker for Yahoo.
  */
 
 import { NextResponse } from 'next/server';
+import { checkDashboardAccess } from '@/lib/access-control.js';
 import { processLiveOpportunities } from '@/lib/live-opportunity-service.js';
 import { shouldAllowProviderCall } from '@/lib/circuit-breaker-manager.js';
 
@@ -23,6 +23,14 @@ const SYMBOL_RE = /^[A-Z][A-Z0-9.^=-]{0,11}$/;
 
 export async function GET(request) {
   try {
+    const access = checkDashboardAccess(request);
+    if (!access.allowed) {
+      return NextResponse.json(
+        { success: false, error: access.reason || 'Unauthorized' },
+        { status: 401, headers: { 'Cache-Control': 'no-store' } },
+      );
+    }
+
     const cbResult = shouldAllowProviderCall('yahoo');
     if (cbResult && !cbResult.allowed) {
       return NextResponse.json(
