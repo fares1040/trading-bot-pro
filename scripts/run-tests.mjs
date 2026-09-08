@@ -41,6 +41,9 @@ const TEST_SUITES = [
   { name: 'Alert Center', file: 'test-alert-center.mjs' },
   { name: 'Connectivity Health', file: 'test-connectivity-health.mjs' },
   { name: 'D12 Consistency', file: 'test-d12-consistency.mjs' },
+
+  // Live Market Intelligence
+  { name: 'Live Opportunity Service', file: 'test-live-opportunity-service.mjs' },
 ];
 
 let passed = 0;
