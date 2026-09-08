@@ -341,14 +341,14 @@ function TopHunts({ opportunities, plansBySymbol, explanationsBySymbol, selected
   const avoids = sorted.filter(o => classifyOpportunity(o.quality, plansBySymbol?.[o.symbol]?.planSignal).label === 'AVOID').slice(0, 6);
 
   return (
-    <div style={{ marginBottom: 8 }}>
+    <div style={{ marginBottom: 6 }}>
       {hunts.length > 0 && (
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <div style={{ marginBottom: 6 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
             <ZoneLabel label="TOP OPPORTUNITIES" icon="🔥" />
             <span style={{ fontSize: 9, color: colors.text.faint }}>{hunts.length} opportunities</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10, overflowX: 'auto' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 8, overflowX: 'auto' }}>
             {hunts.map((item) => (
               <OpportunityCard
                 key={item.symbol}
@@ -365,12 +365,12 @@ function TopHunts({ opportunities, plansBySymbol, explanationsBySymbol, selected
       )}
 
       {avoids.length > 0 && (
-        <div style={{ ...panel, padding: '10px 12px', marginBottom: 8, border: '1px solid #EF444430' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <div style={{ ...panel, padding: '8px 10px', marginBottom: 6, border: '1px solid #EF444430' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
             <ZoneLabel label="AVOID / NO-GO" icon="❌" color="#EF4444" />
             <span style={{ fontSize: 9, color: colors.text.faint }}>{avoids.length} opportunities</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 6 }}>
             {avoids.map((item) => (
               <AvoidCard
                 key={item.symbol}
@@ -430,7 +430,7 @@ function OptionsCentsRadar({ optionsRadarData }) {
     return (
       <div style={{ ...panel, padding: '6px 10px', marginBottom: 6 }}>
         <ZoneLabel label="OPTIONS CENTS" icon="⚡" color={colors.accent.amber} />
-        <div style={{ color: colors.text.muted, fontSize: 9 }}>Options Cents UNAVAILABLE · Provider unavailable or market closed</div>
+        <div style={{ color: colors.text.muted, fontSize: 8 }}>Options data unavailable · Provider offline or market closed</div>
       </div>
     );
   }
@@ -439,7 +439,7 @@ function OptionsCentsRadar({ optionsRadarData }) {
     return (
       <div style={{ ...panel, padding: '6px 10px', marginBottom: 6 }}>
         <ZoneLabel label="OPTIONS CENTS" icon="⚡" color={colors.accent.amber} />
-        <div style={{ color: colors.semantic.danger, fontSize: 9 }}>{optionsRadarData.error || 'Options radar unavailable'}</div>
+        <div style={{ color: colors.semantic.danger, fontSize: 8 }}>{optionsRadarData.error || 'Options radar unavailable'}</div>
       </div>
     );
   }
@@ -450,7 +450,7 @@ function OptionsCentsRadar({ optionsRadarData }) {
     return (
       <div style={{ ...panel, padding: '6px 10px', marginBottom: 6 }}>
         <ZoneLabel label="OPTIONS CENTS" icon="⚡" color={colors.accent.amber} />
-        <div style={{ color: colors.text.muted, fontSize: 9 }}>No sub-$1 premium contracts · Provider data unavailable</div>
+        <div style={{ color: colors.text.muted, fontSize: 8 }}>No sub-$1 premium contracts found</div>
       </div>
     );
   }
@@ -732,24 +732,24 @@ function RadarHub({ opportunities, plansBySymbol, explanationsBySymbol, selected
   }, [opportunities, activeTab, plansBySymbol]);
 
   return (
-    <div style={{ ...panel, padding: 10, marginBottom: 6 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+    <div style={{ ...panel, padding: '8px 10px', marginBottom: 6, border: `1px solid ${colors.accent.violet}20` }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
         <div>
           <ZoneLabel label="RADAR HUB" icon="📡" color={colors.accent.violet} />
-          <div style={{ fontSize: 8, color: colors.text.faint, marginTop: 2 }}>Discovery & Filtering · All signals</div>
+          <div style={{ fontSize: 8, color: colors.text.faint, marginTop: 2 }}>Discovery & Filtering · Explore all signals by category</div>
         </div>
         <span style={{ fontSize: 9, color: colors.text.faint }}>{filtered.length} {activeTab === 'ALL' ? 'total' : 'matched'}</span>
       </div>
-      <div style={{ marginBottom: 8 }}>
+      <div style={{ marginBottom: 6 }}>
         <TabGroup tabs={RADAR_TABS} active={activeTab} onTabChange={setActiveTab} />
       </div>
       {filtered.length === 0 ? (
-        <div style={{ padding: 10, textAlign: 'center' }}>
-          <span style={{ color: colors.text.muted, fontSize: 10 }}>No data for this radar</span>
-          <div style={{ color: colors.text.faint, fontSize: 8, marginTop: 3 }}>UNAVAILABLE</div>
+        <div style={{ padding: 8, textAlign: 'center' }}>
+          <span style={{ color: colors.text.muted, fontSize: 9 }}>No data for this radar filter</span>
+          <div style={{ color: colors.text.faint, fontSize: 8, marginTop: 2 }}>Try a different category or check data availability</div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 6 }}>
           {filtered.slice(0, 8).map((item) => {
             const plan = plansBySymbol?.[item.symbol];
             const explanation = explanationsBySymbol?.[item.symbol];
@@ -759,26 +759,26 @@ function RadarHub({ opportunities, plansBySymbol, explanationsBySymbol, selected
             const cls = classifyOpportunity(item.quality, planSignal);
             return (
               <div key={item.symbol} onClick={() => onSelectSymbol(item.symbol)} style={{
-                padding: '10px 12px',
+                padding: '8px 10px',
                 backgroundColor: selectedSymbol === item.symbol ? '#0F1420' : '#07090E',
                 border: `1px solid ${selectedSymbol === item.symbol ? colors.accent.blue + '55' : colors.border}`,
                 borderRadius: radius.sm, cursor: 'pointer',
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                  <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: 13, color: colors.text.primary }}>{item.symbol}</span>
-                  <span style={{ fontSize: 11 }}>{cls.emoji}</span>
+                  <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: 12, color: colors.text.primary }}>{item.symbol}</span>
+                  <span style={{ fontSize: 10 }}>{cls.emoji}</span>
                 </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 }}>
-                  <span style={{ fontSize: 14, fontWeight: 900, color: scoreColor(oppScore), fontFamily: 'monospace' }}>{oppScore ?? '—'}</span>
-                  {planScore != null && <span style={{ fontSize: 11, fontWeight: 700, color: scoreColor(planScore), opacity: 0.8 }}>/{planScore}</span>}
+                  <span style={{ fontSize: 13, fontWeight: 900, color: scoreColor(oppScore), fontFamily: 'monospace' }}>{oppScore ?? '—'}</span>
+                  {planScore != null && <span style={{ fontSize: 10, fontWeight: 700, color: scoreColor(planScore), opacity: 0.8 }}>/{planScore}</span>}
                   <Tag value={item.quality} colorMap={Q_COLOR} size="sm" />
                   {planSignal && <Tag value={planSignal} colorMap={S_COLOR} size="sm" />}
                 </div>
                 {plan?.riskReward != null && (
-                  <div style={{ fontSize: 10, color: riskRewardColor(plan.riskReward), fontWeight: 700 }}>R/R {plan.riskReward}</div>
+                  <div style={{ fontSize: 9, color: riskRewardColor(plan.riskReward), fontWeight: 700 }}>R/R {plan.riskReward}</div>
                 )}
                 {explanation?.whyNow?.length > 0 && (
-                  <div style={{ fontSize: 9, color: colors.accent.amber, lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{ fontSize: 8, color: colors.accent.amber, lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {explanation.whyNow[0].factor}: {explanation.whyNow[0].explanation}
                   </div>
                 )}
@@ -794,9 +794,9 @@ function RadarHub({ opportunities, plansBySymbol, explanationsBySymbol, selected
 function TradePlanBlock({ plan }) {
   if (!plan) {
     return (
-      <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
+      <div style={{ ...panel, padding: '10px 12px', marginBottom: 8 }}>
         <ZoneLabel label="TRADE PLAN" icon="📐" />
-        <div style={{ color: colors.text.muted, fontSize: 11 }}>No trade plan available</div>
+        <div style={{ color: colors.text.muted, fontSize: 9 }}>No trade plan available for this symbol</div>
       </div>
     );
   }
@@ -921,9 +921,9 @@ function StructureBlock({ opportunity, structureData }) {
 
   if (!hasBreaker && !hasFvg && !hasMss && !hasSweep && !hasSupport && !hasResistance) {
     return (
-      <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
+      <div style={{ ...panel, padding: '10px 12px', marginBottom: 8 }}>
         <ZoneLabel label="STRUCTURE" icon="🏔" />
-        <div style={{ color: colors.text.muted, fontSize: 11 }}>No structure data available</div>
+        <div style={{ color: colors.text.muted, fontSize: 9 }}>No structure data available for this symbol</div>
       </div>
     );
   }
@@ -1021,18 +1021,18 @@ function HorizonRow({ label, value, sub, color }) {
 function SwingHorizonBlock({ swingHorizonData, loading, symbol }) {
   if (loading) {
     return (
-      <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
+      <div style={{ ...panel, padding: '10px 12px', marginBottom: 8 }}>
         <ZoneLabel label="SWING HORIZON" icon="📊" color="#34D399" />
-        <LoadingState message="Loading 1-3 month horizon intelligence..." />
+        <LoadingState message="Loading 1-3 month horizon..." />
       </div>
     );
   }
 
   if (!swingHorizonData) {
     return (
-      <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
+      <div style={{ ...panel, padding: '10px 12px', marginBottom: 8 }}>
         <ZoneLabel label="SWING HORIZON" icon="📊" color="#34D399" />
-        <div style={{ color: colors.text.muted, fontSize: 11 }}>Swing Horizon intelligence unavailable</div>
+        <div style={{ color: colors.text.muted, fontSize: 9 }}>Swing Horizon data unavailable</div>
       </div>
     );
   }
@@ -1054,7 +1054,7 @@ function SwingHorizonBlock({ swingHorizonData, loading, symbol }) {
 
   if (!hasAny) {
     return (
-      <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
+      <div style={{ ...panel, padding: '10px 12px', marginBottom: 8 }}>
         <ZoneLabel label="SWING HORIZON" icon="📊" color="#34D399" />
         <EmptyState message="Swing Horizon data unavailable" sub="Horizon intelligence not yet computed" />
       </div>
@@ -1212,9 +1212,9 @@ function EvidenceBlock({ explanation, opportunity }) {
   const flags = opportunity?.flags || [];
   if (!positive.length && !negative.length && !sources.length && !flags.length) {
     return (
-      <div style={{ ...panel, padding: 16, marginBottom: 12 }}>
+      <div style={{ ...panel, padding: '10px 12px', marginBottom: 8 }}>
         <ZoneLabel label="EVIDENCE" icon="🔍" />
-        <div style={{ color: colors.text.muted, fontSize: 11 }}>No evidence available</div>
+        <div style={{ color: colors.text.muted, fontSize: 9 }}>No evidence available for this symbol</div>
       </div>
     );
   }
@@ -1376,7 +1376,7 @@ function AlertCenterPanel({ alerts, highPriorityAlerts }) {
         </div>
       )}
       {feed.length === 0 ? (
-        <div style={{ color: colors.text.muted, fontSize: 9, padding: '4px 0' }}>No alerts · Active alerts will appear here</div>
+        <div style={{ color: colors.text.muted, fontSize: 8, padding: '4px 0' }}>No alerts active · Alerts will appear when triggered</div>
       ) : (
         <div style={{ maxHeight: 200, overflowY: 'auto' }}>
           {feed.slice(0, 8).map((alert) => (
@@ -1425,12 +1425,11 @@ function OpportunityDetail({ symbol, opportunityData, tradePlanData, aiExplanati
 
   if (!symbol) {
     return (
-      <div style={{ ...panel, padding: '10px 12px', textAlign: 'center', marginBottom: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 2 }}>
-          <span style={{ fontSize: 13, opacity: 0.6 }}>🎯</span>
-          <span style={{ color: colors.text.muted, fontSize: 10, fontWeight: 700 }}>Select an opportunity</span>
+      <div style={{ ...panel, padding: '8px 12px', textAlign: 'center', marginBottom: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          <span style={{ fontSize: 11, opacity: 0.6 }}>🎯</span>
+          <span style={{ color: colors.text.muted, fontSize: 9, fontWeight: 700 }}>Select an opportunity from Top Opportunities to inspect</span>
         </div>
-        <div style={{ color: colors.text.faint, fontSize: 8 }}>Choose a ticker from Top Opportunities to inspect Trade Plan, Evidence & Risk.</div>
       </div>
     );
   }
