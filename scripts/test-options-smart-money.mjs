@@ -19,9 +19,9 @@ test('stale flow cannot confirm', () => {
   const r = classifyOptionsSmartMoney([obs({ freshness: { status: 'STALE', isFresh: false } })], { attributionEvidence: ['provider'] });
   assert.equal(r.classification, 'UNATTRIBUTED');
 });
-test('missing notional does not fabricate whale evidence', () => {
+test('missing quantitative flow cannot create possible', () => {
   const r = classifyOptionsSmartMoney([obs({ notional: null, contracts: null }), obs({ notional: null, contracts: null }), obs({ notional: null, contracts: null })]);
-  assert.equal(r.classification, 'POSSIBLE');
+  assert.equal(r.classification, 'UNATTRIBUTED'); assert.equal(r.quantitativeFlow, false);
   assert.match(r.disclaimer, /does not prove institutional or whale/i);
 });
 test('score stays bounded', () => {
