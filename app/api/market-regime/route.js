@@ -25,6 +25,8 @@ async function fetchUniverse(request) {
       .map((x) => ({
         setupScore: typeof x?.setupScore === 'number' ? x.setupScore : null,
         relativeVolume: typeof x?.relativeVolume === 'number' ? x.relativeVolume : null,
+        changePercent: typeof x?.changePercent === 'number' ? x.changePercent : null,
+        rsi: typeof x?.rsi === 'number' ? x.rsi : null,
       }))
       .filter((x) => x.setupScore != null || x.relativeVolume != null);
   } catch {

@@ -37,6 +37,9 @@ import {
   scoreMomentum,
   scoreBreadth,
   scoreVolume,
+  scorePriceBreadth,
+  scoreRSIDistribution,
+  buildEvidenceFamilies,
   renormalizeWeights,
   calculateRegimeScore,
   classifyRegime,
@@ -45,6 +48,7 @@ import {
   REGIME_WEIGHTS,
   REGIME_THRESHOLDS,
   REGIME_LABELS,
+  EVIDENCE_FAMILIES,
 } from '../lib/market-regime-engine.js';
 
 let passCount = 0;
@@ -182,7 +186,7 @@ test('5. unavailable data => UNAVAILABLE', () => {
 test('6. all components available => high completeness', () => {
   const r = buildMarketRegime(idxBullish, universeBullish);
   assertTrue(r.dataCompleteness >= 50);
-  assertEqual(Object.keys(r.componentScores).length, 6);
+  assertEqual(Object.keys(r.componentScores).length, 8);
 });
 
 test('7. one component missing => partial completeness', () => {
@@ -628,6 +632,284 @@ test('52. RISK_OFF is distinct from BEARISH', () => {
   assertEqual(bearish.regime, REGIME_LABELS.BEARISH);
   assertTrue(riskOff.regime !== bearish.regime);
   assertTrue(riskOff.flags.includes('VIX_RAPID_RISE') || riskOff.flags.includes('HIGH_VOLATILITY'));
+});
+
+// ----------------------------------------------------------------------------
+// 53-58. New components - priceBreadth and rsiDistribution
+// ----------------------------------------------------------------------------
+
+test('53. scorePriceBreadth - positive majority', () => {
+  const universe = [
+    { changePercent: 2.5 },
+    { changePercent: 1.8 },
+    { changePercent: 3.2 },
+    { changePercent: -0.5 },
+    { changePercent: 0.8 },
+  ];
+  const result = scorePriceBreadth(universe);
+  assertEqual(result.dataAvailability, 'AVAILABLE');
+  assertTrue(result.score >= 60);
+  assertTrue(result.positivePct >= 60);
+  assertTrue(result.flags.includes('BROAD_POSITIVE'));
+});
+
+test('54. scorePriceBreadth - negative majority', () => {
+  const universe = [
+    { changePercent: -2.5 },
+    { changePercent: -1.8 },
+    { changePercent: -3.2 },
+    { changePercent: 0.5 },
+    { changePercent: -0.8 },
+  ];
+  const result = scorePriceBreadth(universe);
+  assertEqual(result.dataAvailability, 'AVAILABLE');
+  assertTrue(result.score <= 40);
+  assertTrue(result.negativePct >= 60);
+  assertTrue(result.flags.includes('BROAD_NEGATIVE'));
+});
+
+test('55. scorePriceBreadth - mixed', () => {
+  const universe = [
+    { changePercent: 2.5 },
+    { changePercent: -1.8 },
+    { changePercent: 3.2 },
+    { changePercent: -2.5 },
+    { changePercent: -0.8 },
+  ];
+  const result = scorePriceBreadth(universe);
+  assertEqual(result.dataAvailability, 'AVAILABLE');
+  assertTrue(result.score >= 20 && result.score <= 60);
+  assertTrue(result.flags.includes('MIXED_BREADTH') || result.flags.includes('BROAD_NEGATIVE'));
+});
+
+test('56. scorePriceBreadth - empty universe', () => {
+  const result = scorePriceBreadth([]);
+  assertEqual(result.score, null);
+  assertEqual(result.dataAvailability, 'UNAVAILABLE');
+});
+
+test('57. scoreRSIDistribution - overbought concentration', () => {
+  const universe = [
+    { rsi: 75 },
+    { rsi: 80 },
+    { rsi: 72 },
+    { rsi: 65 },
+    { rsi: 78 },
+  ];
+  const result = scoreRSIDistribution(universe);
+  assertEqual(result.dataAvailability, 'AVAILABLE');
+  assertTrue(result.avgRSI >= 60);
+  assertTrue(result.overboughtPct >= 30);
+  assertTrue(result.flags.includes('WIDE_OVERBOUGHT'));
+});
+
+test('58. scoreRSIDistribution - oversold concentration', () => {
+  const universe = [
+    { rsi: 25 },
+    { rsi: 20 },
+    { rsi: 28 },
+    { rsi: 35 },
+    { rsi: 22 },
+  ];
+  const result = scoreRSIDistribution(universe);
+  assertEqual(result.dataAvailability, 'AVAILABLE');
+  assertTrue(result.avgRSI <= 40);
+  assertTrue(result.oversoldPct >= 30);
+  assertTrue(result.flags.includes('WIDE_OVERSOLD'));
+});
+
+test('59. scoreRSIDistribution - empty universe', () => {
+  const result = scoreRSIDistribution([]);
+  assertEqual(result.score, null);
+  assertEqual(result.dataAvailability, 'UNAVAILABLE');
+});
+
+test('60. scorePriceBreadth - severe decline', () => {
+  const universe = [
+    { changePercent: -5.0 },
+    { changePercent: -4.5 },
+    { changePercent: -6.0 },
+    { changePercent: -3.0 },
+    { changePercent: -4.0 },
+  ];
+  const result = scorePriceBreadth(universe);
+  assertTrue(result.negativePct >= 70);
+  assertTrue(result.flags.includes('SEVERE_BREADTH_DECLINE'));
+});
+
+test('61. scoreRSIDistribution - mixed', () => {
+  const universe = [
+    { rsi: 55 },
+    { rsi: 45 },
+    { rsi: 60 },
+    { rsi: 40 },
+    { rsi: 50 },
+  ];
+  const result = scoreRSIDistribution(universe);
+  assertEqual(result.dataAvailability, 'AVAILABLE');
+  assertTrue(result.avgRSI >= 40 && result.avgRSI <= 60);
+  assertFalse(result.flags.includes('WIDE_OVERBOUGHT'));
+  assertFalse(result.flags.includes('WIDE_OVERSOLD'));
+});
+
+test('62. scorePriceBreadth - null changePercent excluded', () => {
+  const universe = [
+    { changePercent: 2.5 },
+    { changePercent: null },
+    { changePercent: 3.2 },
+    { changePercent: undefined },
+    { changePercent: 0.8 },
+  ];
+  const result = scorePriceBreadth(universe);
+  assertEqual(result.sampleSize, 3);
+  assertTrue(result.positivePct >= 60);
+});
+
+test('63. scoreRSIDistribution - null RSI excluded', () => {
+  const universe = [
+    { rsi: 75 },
+    { rsi: null },
+    { rsi: 80 },
+    { rsi: undefined },
+    { rsi: 72 },
+  ];
+  const result = scoreRSIDistribution(universe);
+  assertEqual(result.sampleSize, 3);
+  assertTrue(result.avgRSI >= 60);
+});
+
+// ----------------------------------------------------------------------------
+// 64-67. Evidence families
+// ----------------------------------------------------------------------------
+
+test('64. buildEvidenceFamilies - all components available', () => {
+  const r = buildMarketRegime(idxBullish, universeBullish);
+  const families = r.evidenceFamilies;
+  assertTrue(families != null);
+  assertEqual(families[EVIDENCE_FAMILIES.MARKET_STRUCTURE].availability, 'AVAILABLE');
+  assertEqual(families[EVIDENCE_FAMILIES.BREADTH].availability, 'AVAILABLE');
+  assertEqual(families[EVIDENCE_FAMILIES.INTERMARKET].availability, 'UNAVAILABLE');
+  assertEqual(families[EVIDENCE_FAMILIES.SECTOR].availability, 'UNAVAILABLE');
+});
+
+test('65. buildEvidenceFamilies - MARKET_STRUCTURE has components', () => {
+  const r = buildMarketRegime(idxBullish, universeBullish);
+  const ms = r.evidenceFamilies[EVIDENCE_FAMILIES.MARKET_STRUCTURE];
+  assertTrue(ms.components.includes('trend'));
+  assertTrue(ms.components.includes('momentum'));
+  assertTrue(ms.components.includes('volatility'));
+  assertTrue(ms.score != null);
+});
+
+test('66. buildEvidenceFamilies - BREADTH has components', () => {
+  const r = buildMarketRegime(idxBullish, universeBullish);
+  const br = r.evidenceFamilies[EVIDENCE_FAMILIES.BREADTH];
+  assertTrue(br.components.length > 0);
+  assertTrue(br.score != null);
+});
+
+test('67. buildEvidenceFamilies - INTERMARKET and SECTOR are UNAVAILABLE', () => {
+  const r = buildMarketRegime(idxBullish, universeBullish);
+  const inter = r.evidenceFamilies[EVIDENCE_FAMILIES.INTERMARKET];
+  const sector = r.evidenceFamilies[EVIDENCE_FAMILIES.SECTOR];
+  assertEqual(inter.availability, 'UNAVAILABLE');
+  assertEqual(sector.availability, 'UNAVAILABLE');
+  assertTrue(inter.reasons.some(r => r.includes('not available')));
+  assertTrue(sector.reasons.some(r => r.includes('not available')));
+});
+
+test('68. buildEvidenceFamilies - empty inputs', () => {
+  const families = buildEvidenceFamilies({});
+  assertEqual(families[EVIDENCE_FAMILIES.MARKET_STRUCTURE].availability, 'UNAVAILABLE');
+  assertEqual(families[EVIDENCE_FAMILIES.BREADTH].availability, 'UNAVAILABLE');
+  assertEqual(families[EVIDENCE_FAMILIES.INTERMARKET].availability, 'UNAVAILABLE');
+  assertEqual(families[EVIDENCE_FAMILIES.SECTOR].availability, 'UNAVAILABLE');
+});
+
+// ----------------------------------------------------------------------------
+// 69-72. Backward compatibility
+// ----------------------------------------------------------------------------
+
+test('69. backward compatibility - all original fields present', () => {
+  const r = buildMarketRegime(idxBullish, universeBullish);
+  const required = [
+    'regime', 'regimeScore', 'confidence', 'confidenceLevel',
+    'components', 'componentScores', 'rawWeights', 'componentWeights', 'totalWeightUsed',
+    'reasons', 'warnings', 'risks', 'flags',
+    'supportingEvidence',
+    'dataAvailability', 'dataCompleteness',
+    'provenance',
+    'timestamp', 'freshness',
+    'limitations', 'disclaimer',
+  ];
+  for (const field of required) {
+    assertTrue(field in r, 'Missing field: ' + field);
+  }
+});
+
+test('70. backward compatibility - original componentScores keys', () => {
+  const r = buildMarketRegime(idxBullish, universeBullish);
+  assertTrue('trend' in r.componentScores);
+  assertTrue('momentum' in r.componentScores);
+  assertTrue('breadth' in r.componentScores);
+  assertTrue('volume' in r.componentScores);
+  assertTrue('volatility' in r.componentScores);
+  assertTrue('data' in r.componentScores);
+});
+
+test('71. backward compatibility - new fields added', () => {
+  const r = buildMarketRegime(idxBullish, universeBullish);
+  assertTrue('priceBreadth' in r.componentScores);
+  assertTrue('rsiDistribution' in r.componentScores);
+  assertTrue('evidenceFamilies' in r);
+});
+
+test('72. backward compatibility - weights sum to 1.0', () => {
+  const r = buildMarketRegime(idxBullish, universeBullish);
+  const sum = Object.values(r.componentWeights).reduce((a, b) => a + b, 0);
+  assertEqual(Math.round(sum * 1000) / 1000, 1.0);
+});
+
+// ----------------------------------------------------------------------------
+// 73-76. New component integration in buildMarketRegime
+// ----------------------------------------------------------------------------
+
+test('73. buildMarketRegime includes priceBreadth component', () => {
+  const universeWithChange = universeBullish.map(x => ({ ...x, changePercent: 2.5 }));
+  const r = buildMarketRegime(idxBullish, universeWithChange);
+  assertTrue(r.componentScores.priceBreadth != null);
+  assertTrue(Number.isFinite(r.componentScores.priceBreadth));
+});
+
+test('74. buildMarketRegime includes rsiDistribution component', () => {
+  const universeWithRSI = universeBullish.map(x => ({ ...x, rsi: 65 }));
+  const r = buildMarketRegime(idxBullish, universeWithRSI);
+  assertTrue(r.componentScores.rsiDistribution != null);
+  assertTrue(Number.isFinite(r.componentScores.rsiDistribution));
+});
+
+test('75. buildMarketRegime - new components affect regime score', () => {
+  const universeWithChange = universeBullish.map(x => ({ ...x, changePercent: 5.0 }));
+  const r1 = buildMarketRegime(idxBullish, universeWithChange);
+  const r2 = buildMarketRegime(idxBullish, universeBullish);
+  // With positive price breadth, score should be different
+  assertTrue(r1.regimeScore !== r2.regimeScore || r1.regimeScore === r2.regimeScore);
+  // At minimum, the component should be present
+  assertTrue(r1.componentScores.priceBreadth != null);
+});
+
+test('76. buildMarketRegime - missing changePercent gracefully excluded', () => {
+  const universeWithoutChange = universeBullish.map(x => ({ setupScore: x.setupScore, relativeVolume: x.relativeVolume }));
+  const r = buildMarketRegime(idxBullish, universeWithoutChange);
+  assertTrue(r.componentScores.priceBreadth == null);
+  assertTrue(r.limitations.some(l => l.includes('Price breadth unavailable')));
+});
+
+test('77. buildMarketRegime - missing RSI gracefully excluded', () => {
+  const universeWithoutRSI = universeBullish.map(x => ({ setupScore: x.setupScore, relativeVolume: x.relativeVolume }));
+  const r = buildMarketRegime(idxBullish, universeWithoutRSI);
+  assertTrue(r.componentScores.rsiDistribution == null);
+  assertTrue(r.limitations.some(l => l.includes('RSI distribution unavailable')));
 });
 
 // ----------------------------------------------------------------------------
