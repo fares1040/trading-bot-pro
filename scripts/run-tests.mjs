@@ -48,6 +48,7 @@ const TEST_SUITES = [
 
   // Live Market Intelligence
   { name: 'Live Opportunity Service', file: 'test-live-opportunity-service.mjs' },
+  { name: 'Live Flow Schema', file: 'test-live-flow-schema.mjs' },
 ];
 
 let passed = 0;
