@@ -46,6 +46,7 @@ const TEST_SUITES = [
   { name: 'Options Smart Money', file: 'test-options-smart-money.mjs' },
   { name: 'Options Smart Money Freshness', file: 'test-options-smart-money-freshness.mjs' },
   { name: 'Live Radar Evidence', file: 'test-live-radar-evidence.mjs' },
+  { name: 'Live Radar Health', file: 'test-live-radar-health.mjs' },
 ];
 
 let passed = 0, failed = 0;
