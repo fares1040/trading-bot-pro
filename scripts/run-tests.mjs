@@ -20,6 +20,7 @@ const TEST_SUITES = [
   { name: 'Acceleration Radar', file: 'test-acceleration-radar.mjs' },
   { name: 'Early Explosion Radar', file: 'test-early-explosion-radar.mjs' },
   { name: 'Live Opportunity Early Explosion', file: 'test-live-opportunity-early-explosion.mjs' },
+  { name: 'Live Intelligence Summary', file: 'test-live-intelligence-summary.mjs' },
   { name: 'C7 Technical Evidence Gate', file: 'test-c7-technical-evidence-gate.mjs' },
   { name: 'C8 Technical Evidence Integration', file: 'test-c8-technical-evidence-integration.mjs' },
   { name: 'C8 Trade Plan Engine', file: 'test-trade-plan-engine.mjs' },
