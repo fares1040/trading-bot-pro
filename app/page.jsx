@@ -5,7 +5,7 @@ import AppNav from '@/components/ui/AppNav';
 import AppFooter from '@/components/ui/AppFooter';
 import HunterStartPanel from '@/components/HunterStartPanel';
 import MarketScanner from '@/components/MarketScanner';
-import CommandCenterView from '@/components/CommandCenterView';
+import PublicCommandCenter from '@/components/PublicCommandCenter';
 import LiveRadarShell from '@/components/LiveRadarShell';
 
 const sectionLabel = { maxWidth: 1600, margin: '0 auto 6px', padding: '0 16px', color: '#64748B', fontSize: 8, fontWeight: 900, letterSpacing: 1.2 };
@@ -74,7 +74,7 @@ export default function HomePage() {
       <div className="hunter-divider" />
       <section id="command-center" className="hunter-section"><div style={{...sectionLabel,color:'#38BDF8'}}>02 · مركز قيادة الصياد — قرارات مؤهلة</div>
         <div className="hunter-command-context"><div className="hunter-command-context-inner"><div className="hunter-command-lead"><div className="hunter-command-lead-title">مكتب القرار</div><div className="hunter-command-lead-text">اقرأ الفرصة بالترتيب: الجودة ← المحفز ← الخطة ← نقطة الإبطال.</div></div>{decisionContext.map((item)=><div className="hunter-command-item" key={item.label}><strong>{item.label}</strong><span>{item.text}</span></div>)}</div></div>
-        <CommandCenterView />
+        <PublicCommandCenter />
       </section>
       <div className="hunter-divider" />
       <section id="live-radar" className="hunter-section" style={{maxWidth:1600,margin:'0 auto',padding:'0 16px 24px'}}><div style={{...sectionLabel,padding:0,marginBottom:6,color:'#34D399'}}>03 · الرادار المباشر — حركة السوق الحديثة</div><LiveRadarShell /></section>
