@@ -1,90 +1,22 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { colors, radius } from '@/components/ui/DesignTokens';
+import React,{useEffect,useState,useCallback,useRef} from 'react';
+import { colors,radius } from '@/components/ui/DesignTokens';
 import { buildLiveRadarHealth } from '@/lib/live-radar-health';
 
-const panel = { backgroundColor: '#090A0F', border: '1px solid #1F2636', borderRadius: radius.lg };
-const STATUS_COLORS = { OPPORTUNITY: '#22C55E', WATCH: '#FBBF24', NO_OPPORTUNITY: '#6B7280', INSUFFICIENT_DATA: '#F97316', STALE_DATA: '#EF4444', ERROR: '#EF4444' };
-const DIRECTION_COLORS = { LONG: '#22C55E', SHORT: '#EF4444', NEUTRAL: '#6B7280' };
-const FRESHNESS_COLORS = { FRESH: '#22C55E', STALE: '#EF4444', INSUFFICIENT: '#F97316' };
-const HEALTH_COLORS = { HEALTHY: '#22C55E', STALE: '#F97316', DEGRADED: '#EF4444', NO_DATA: '#6B7280' };
-const EXPLOSION_COLORS = { IGNITION: '#22C55E', PREPARING: '#FBBF24', QUIET: '#6B7280' };
-
-function toUiDirection(direction) {
-  if (direction === 'UP' || direction === 'LONG') return 'LONG';
-  if (direction === 'DOWN' || direction === 'SHORT') return 'SHORT';
-  return 'NEUTRAL';
-}
-function StatusBadge({ status }) { const color = STATUS_COLORS[status] || '#6B7280'; return <span style={{ fontSize: 9, padding: '3px 8px', borderRadius: 9999, backgroundColor: color + '20', border: `1px solid ${color}40`, color, fontWeight: 700 }}>{status || 'UNKNOWN'}</span>; }
-function DirectionBadge({ direction }) { const uiDirection = toUiDirection(direction); const color = DIRECTION_COLORS[uiDirection]; return <span style={{ fontSize: 10, color, fontWeight: 700 }}>{uiDirection === 'LONG' ? '↑' : uiDirection === 'SHORT' ? '↓' : '—'} {uiDirection}</span>; }
-function FreshnessBadge({ freshness }) { const color = FRESHNESS_COLORS[freshness] || '#6B7280'; return <span style={{ fontSize: 9, color }}>{freshness === 'FRESH' ? '● LIVE' : freshness === 'STALE' ? '⚠ STALE' : '⏳ INSUFFICIENT'}</span>; }
-function PressureBar({ pressure }) { if (pressure == null) return <span style={{ fontSize: 10, color: colors.text.muted }}>—</span>; const value = Math.max(0, Math.min(100, Number(pressure))); const color = value >= 65 ? '#22C55E' : value <= 35 ? '#EF4444' : '#FBBF24'; return <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 60, height: 6, backgroundColor: '#1F2636', borderRadius: 3 }}><div style={{ width: `${value}%`, height: '100%', backgroundColor: color, borderRadius: 3 }} /></div><span style={{ fontSize: 10, color, fontWeight: 700 }}>{value.toFixed(0)}</span></div>; }
-function EvidenceValue({ label, value }) { return <span style={{ padding: '3px 7px', borderRadius: 6, background: '#111722', border: '1px solid #1F2636', color: colors.text.muted }}>{label}: {value ?? '—'}</span>; }
-
-function OpportunityRow({ entry }) {
-  const [expanded, setExpanded] = useState(false);
-  const options = entry.optionsFlow || entry.options || null;
-  const smartMoney = entry.optionsSmartMoney || entry.smartMoney || null;
-  const direction = entry.opportunity?.direction || entry.pulse?.direction || 'NEUTRAL';
-  const status = entry.status || entry.opportunity?.status || 'UNKNOWN';
-  const pressure = entry.pulse?.pressureScore ?? entry.pulse?.pressure ?? null;
-  const optionLabel = options ? (options.direction || options.dataQuality || 'OBSERVED') : 'NO DATA';
-  const smartLabel = smartMoney?.classification || 'UNATTRIBUTED';
-  const earlyExplosion = entry.earlyExplosion || null;
-  const explosionState = earlyExplosion?.state || 'QUIET';
-  const explosionColor = EXPLOSION_COLORS[explosionState] || '#6B7280';
-  return <div style={{ padding: '12px 14px', borderRadius: radius.md, backgroundColor: '#0B0F17D0', border: '1px solid #1F263660', display: 'flex', flexDirection: 'column', gap: 8 }}>
-    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}><div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><span style={{ color: colors.text.primary, fontWeight: 900, fontSize: 13 }}>{entry.symbol}</span><DirectionBadge direction={direction} /><StatusBadge status={status} /></div><div style={{ display: 'flex', alignItems: 'center', gap: 12 }}><FreshnessBadge freshness={entry.freshness} /><PressureBar pressure={pressure} /></div></div>
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, fontSize: 9 }}>
-      {explosionState !== 'QUIET' && <EvidenceValue label="EARLY" value={<span style={{ color: explosionColor, fontWeight: 800 }}>{explosionState}</span>} />}
-      {entry.pulse?.priceChangePercent != null && <EvidenceValue label="Δ" value={`${entry.pulse.priceChangePercent.toFixed(2)}%`} />}
-      {entry.acceleration?.direction && entry.acceleration.direction !== 'UNAVAILABLE' && <EvidenceValue label="ACCEL" value={entry.acceleration.direction} />}
-      {entry.pulse?.volumeChangePercent != null && <EvidenceValue label="VOL" value={`${entry.pulse.volumeChangePercent.toFixed(1)}%`} />}
-      <EvidenceValue label="OPT" value={optionLabel} />
-      <EvidenceValue label="SMART" value={smartLabel} />
-    </div>
-    {earlyExplosion?.signals?.length > 0 && explosionState !== 'QUIET' && <div style={{ fontSize: 10, color: colors.text.muted }}>Early signals: {earlyExplosion.signals.map((signal) => signal.type).join(' · ')}</div>}
-    {entry.acceleration?.direction && entry.acceleration.direction !== 'UNAVAILABLE' && <div style={{ fontSize: 10, color: colors.text.muted }}>Acceleration: {entry.acceleration.direction}{entry.historySize ? ` (${entry.historySize} samples)` : ''}</div>}
-    {entry.opportunity?.warnings?.length > 0 && <div style={{ fontSize: 10, color: '#FBBF24' }}>{entry.opportunity.warnings.map((w, i) => <div key={i}>⚠ {w}</div>)}</div>}
-    <button onClick={() => setExpanded(!expanded)} style={{ fontSize: 9, color: colors.text.muted, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0 }}>{expanded ? '▾ Hide evidence' : '▸ Show evidence'}</button>
-    {expanded && <div style={{ fontSize: 10, color: colors.text.muted, fontFamily: 'monospace', lineHeight: 1.6 }}>{entry.evidence?.length > 0 && entry.evidence.map((e, i) => <div key={i}>{e}</div>)}{earlyExplosion && <div>EARLY_EXPLOSION: {JSON.stringify(earlyExplosion)}</div>}{options && <div>OPTIONS: {JSON.stringify(options)}</div>}{smartMoney && <div>SMART_MONEY: {JSON.stringify(smartMoney)}</div>}</div>}
-  </div>;
-}
-
-export default function LiveRadar({ onData }) {
-  const [data, setData] = useState([]); const [loading, setLoading] = useState(true); const [error, setError] = useState(null); const [symbols, setSymbols] = useState(''); const intervalRef = useRef(null);
-  const fetchData = useCallback(async (syms) => { try { const res = await fetch(`/api/live-opportunities?symbols=${encodeURIComponent(syms)}`, { cache: 'no-store' }); const json = await res.json(); if (!json.success) { setError(json.errors?.[0]?.error || json.error || 'Failed to load'); setData([]); onData?.([]); } else { const nextData = Array.isArray(json.data) ? json.data : []; setData(nextData); onData?.(nextData); setError(null); } } catch (err) { setError(err?.message || 'Network error'); setData([]); onData?.([]); } finally { setLoading(false); } }, [onData]);
-  const discoverSymbols = useCallback(async () => {
-    try {
-      const res = await fetch('/api/stocks?limit=10', { cache: 'no-store' });
-      const json = await res.json();
-      const discovered = Array.isArray(json?.data) ? json.data.map((item) => item?.symbol).filter(Boolean) : [];
-      if (discovered.length) {
-        const nextSymbols = discovered.join(',');
-        setSymbols(nextSymbols);
-        return nextSymbols;
-      }
-    } catch (err) {
-      console.warn('Live Radar discovery unavailable:', err?.message || err);
-    }
-    return '';
-  }, []);
-  const refresh = useCallback(async () => {
-    let syms = symbols;
-    if (!syms) syms = await discoverSymbols();
-    if (syms) await fetchData(syms);
-    else setLoading(false);
-  }, [symbols, discoverSymbols, fetchData]);
-  useEffect(() => { refresh(); intervalRef.current = setInterval(refresh, 20000); return () => clearInterval(intervalRef.current); }, [refresh]);
-  const handleSearch = () => { setLoading(true); clearInterval(intervalRef.current); refresh(); intervalRef.current = setInterval(refresh, 20000); };
-  const health = buildLiveRadarHealth(data);
-  const healthColor = HEALTH_COLORS[health.state] || '#6B7280';
-  return <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}><div><h3 style={{ fontSize: 16, fontWeight: 800, color: colors.accent.cyan, display: 'flex', alignItems: 'center', gap: 8 }}>📡 Live Opportunity Radar</h3><p style={{ fontSize: 11, color: colors.text.muted, marginTop: 4 }}>Market pulse, acceleration, early-explosion conditions, options flow and evidence-gated smart-money layers.</p></div><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ fontSize: 10, padding: '6px 12px', borderRadius: 9999, backgroundColor: healthColor + '20', border: `1px solid ${healthColor}40`, color: healthColor, fontWeight: 700 }}>● {health.state}</span><span style={{ fontSize: 10, padding: '6px 14px', borderRadius: 9999, backgroundColor: '#164E6320', border: '1px solid #22D3EE40', color: colors.accent.cyan, fontWeight: 700 }}>● LIVE RADAR</span></div></div>
-    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><input type="text" value={symbols} onChange={(e) => setSymbols(e.target.value.toUpperCase())} placeholder="Auto-discovering stocks…" style={{ flex: 1, padding: '8px 12px', fontSize: 12, fontFamily: 'monospace', backgroundColor: '#0B0F17', border: '1px solid #1F2636', borderRadius: radius.md, color: colors.text.primary, outline: 'none' }} /><button onClick={handleSearch} disabled={loading} style={{ padding: '8px 16px', fontSize: 11, fontWeight: 700, backgroundColor: colors.accent.cyan + '20', border: `1px solid ${colors.accent.cyan}40`, borderRadius: radius.md, color: colors.accent.cyan, cursor: loading ? 'wait' : 'pointer' }}>{loading ? '...' : 'Scan'}</button></div>
-    <div style={{ ...panel, padding: 20 }}>{loading && data.length === 0 ? <div style={{ fontSize: 11, color: colors.text.muted, padding: '24px 0', textAlign: 'center' }}>⏳ Scanning market data...</div> : error && data.length === 0 ? <div style={{ fontSize: 11, color: '#EF4444', padding: '24px 0', textAlign: 'center' }}>❌ {error}</div> : data.length === 0 ? <div style={{ fontSize: 11, color: colors.text.muted, padding: '24px 0', textAlign: 'center' }}>No opportunities found. Try different symbols.</div> : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{data.map((entry) => <OpportunityRow key={entry.symbol} entry={entry} />)}</div>}
-      <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #1F2636', fontSize: 10, color: colors.text.faint }}>{health.fresh}/{health.total} fresh · {health.stale} stale · {health.errors} errors · {health.freshRatio.toFixed(0)}% fresh. Yahoo market data is polled and may be delayed. Options/flow/smart-money fields are shown only when supplied by an evidence-bearing source; Early Explosion is a derived preparation/ignition classifier and does not predict price or prove whale activity.</div>
-    </div>
-  </div>;
-}
+const panel={backgroundColor:'#090A0F',border:'1px solid #1F2636',borderRadius:radius.lg};
+const STATUS_COLORS={OPPORTUNITY:'#22C55E',WATCH:'#FBBF24',NO_OPPORTUNITY:'#6B7280',INSUFFICIENT_DATA:'#F97316',STALE_DATA:'#EF4444',ERROR:'#EF4444'};
+const DIRECTION_COLORS={LONG:'#22C55E',SHORT:'#EF4444',NEUTRAL:'#6B7280'};
+const FRESHNESS_COLORS={FRESH:'#22C55E',STALE:'#EF4444',INSUFFICIENT:'#F97316'};
+const HEALTH_COLORS={HEALTHY:'#22C55E',STALE:'#F97316',DEGRADED:'#EF4444',NO_DATA:'#6B7280'};
+const EXPLOSION_COLORS={IGNITION:'#22C55E',PREPARING:'#FBBF24',QUIET:'#6B7280'};
+const statusLabel={OPPORTUNITY:'فرصة',WATCH:'مراقبة',NO_OPPORTUNITY:'لا توجد فرصة',INSUFFICIENT_DATA:'بيانات غير كافية',STALE_DATA:'بيانات قديمة',ERROR:'خطأ'};
+const healthLabel={HEALTHY:'سليم',STALE:'متأخر',DEGRADED:'متدهور',NO_DATA:'لا توجد بيانات'};
+function toUiDirection(d){if(d==='UP'||d==='LONG')return'LONG';if(d==='DOWN'||d==='SHORT')return'SHORT';return'NEUTRAL';}
+function DirectionBadge({direction}){const d=toUiDirection(direction);return <span style={{fontSize:10,color:DIRECTION_COLORS[d],fontWeight:700}}>{d==='LONG'?'↑':d==='SHORT'?'↓':'—'} {d==='LONG'?'صاعد':d==='SHORT'?'هابط':'محايد'}</span>}
+function StatusBadge({status}){const c=STATUS_COLORS[status]||'#6B7280';return <span style={{fontSize:9,padding:'3px 8px',borderRadius:9999,backgroundColor:c+'20',border:`1px solid ${c}40`,color:c,fontWeight:700}}>{statusLabel[status]||'غير معروف'}</span>}
+function FreshnessBadge({freshness}){const c=FRESHNESS_COLORS[freshness]||'#6B7280';return <span style={{fontSize:9,color:c}}>{freshness==='FRESH'?'● حديثة':freshness==='STALE'?'⚠ قديمة':'⏳ غير كافية'}</span>}
+function PressureBar({pressure}){if(pressure==null)return <span style={{fontSize:10,color:colors.text.muted}}>—</span>;const v=Math.max(0,Math.min(100,Number(pressure)));const c=v>=65?'#22C55E':v<=35?'#EF4444':'#FBBF24';return <div style={{display:'flex',alignItems:'center',gap:6}}><div style={{width:60,height:6,backgroundColor:'#1F2636',borderRadius:3}}><div style={{width:`${v}%`,height:'100%',backgroundColor:c,borderRadius:3}}/></div><span style={{fontSize:10,color:c,fontWeight:700}}>{v.toFixed(0)}</span></div>}
+function EvidenceValue({label,value}){return <span style={{padding:'3px 7px',borderRadius:6,background:'#111722',border:'1px solid #1F2636',color:colors.text.muted}}>{label}: {value??'—'}</span>}
+function OpportunityRow({entry}){const[expanded,setExpanded]=useState(false);const options=entry.optionsFlow||entry.options||null;const smart=entry.optionsSmartMoney||entry.smartMoney||null;const direction=entry.opportunity?.direction||entry.pulse?.direction||'NEUTRAL';const status=entry.status||entry.opportunity?.status||'UNKNOWN';const pressure=entry.pulse?.pressureScore??entry.pulse?.pressure??null;const optionLabel=options?(options.direction||options.dataQuality||'مرصود'):'لا توجد بيانات';const smartLabel=smart?.classification==='CONFIRMED'?'مؤكد':smart?.classification==='POSSIBLE'?'محتمل':'غير منسوب';const ex=entry.earlyExplosion||null;const state=ex?.state||'QUIET';const ec=EXPLOSION_COLORS[state]||'#6B7280';return <div style={{padding:'12px 14px',borderRadius:radius.md,backgroundColor:'#0B0F17D0',border:'1px solid #1F263660',display:'flex',flexDirection:'column',gap:8}}><div style={{display:'flex',flexWrap:'wrap',alignItems:'center',justifyContent:'space-between',gap:8}}><div style={{display:'flex',alignItems:'center',gap:10}}><span style={{color:colors.text.primary,fontWeight:900,fontSize:13}}>{entry.symbol}</span><DirectionBadge direction={direction}/><StatusBadge status={status}/></div><div style={{display:'flex',alignItems:'center',gap:12}}><FreshnessBadge freshness={entry.freshness}/><PressureBar pressure={pressure}/></div></div><div style={{display:'flex',flexWrap:'wrap',gap:6,fontSize:9}}>{state!=='QUIET'&&<EvidenceValue label="حالة مبكرة" value={<span style={{color:ec,fontWeight:800}}>{state==='IGNITION'?'إشعال': 'تهيؤ'}</span>}/>} {entry.pulse?.priceChangePercent!=null&&<EvidenceValue label="التغير" value={`${entry.pulse.priceChangePercent.toFixed(2)}%`}/>} {entry.acceleration?.direction&&entry.acceleration.direction!=='UNAVAILABLE'&&<EvidenceValue label="التسارع" value={entry.acceleration.direction==='UP'?'صاعد':'هابط'}/>} {entry.pulse?.volumeChangePercent!=null&&<EvidenceValue label="الحجم" value={`${entry.pulse.volumeChangePercent.toFixed(1)}%`}/>}<EvidenceValue label="الخيارات" value={optionLabel}/><EvidenceValue label="الأموال الذكية" value={smartLabel}/></div>{ex?.signals?.length>0&&state!=='QUIET'&&<div style={{fontSize:10,color:colors.text.muted}}>الإشارات المبكرة: {ex.signals.map(s=>s.type).join(' · ')}</div>}{entry.acceleration?.direction&&entry.acceleration.direction!=='UNAVAILABLE'&&<div style={{fontSize:10,color:colors.text.muted}}>التسارع: {entry.acceleration.direction==='UP'?'صاعد':'هابط'}{entry.historySize?` (${entry.historySize} عينة)`:''}</div>}{entry.opportunity?.warnings?.length>0&&<div style={{fontSize:10,color:'#FBBF24'}}>{entry.opportunity.warnings.map((w,i)=><div key={i}>⚠ {w}</div>)}</div>}<button onClick={()=>setExpanded(!expanded)} style={{fontSize:9,color:colors.text.muted,background:'none',border:'none',cursor:'pointer',textAlign:'right',padding:0}}>{expanded?'▾ إخفاء الأدلة':'▸ عرض الأدلة'}</button>{expanded&&<div style={{fontSize:10,color:colors.text.muted,fontFamily:'monospace',lineHeight:1.6}}>{entry.evidence?.length>0&&entry.evidence.map((e,i)=><div key={i}>{e}</div>)}{ex&&<div>الحالة المبكرة: {JSON.stringify(ex)}</div>}{options&&<div>الخيارات: {JSON.stringify(options)}</div>}{smart&&<div>الأموال الذكية: {JSON.stringify(smart)}</div>}</div>}</div>}
+export default function LiveRadar({onData}){const[data,setData]=useState([]);const[loading,setLoading]=useState(true);const[error,setError]=useState(null);const[symbols,setSymbols]=useState('');const intervalRef=useRef(null);const fetchData=useCallback(async(syms)=>{try{const res=await fetch(`/api/live-opportunities?symbols=${encodeURIComponent(syms)}`,{cache:'no-store'});const json=await res.json();if(!json.success){setError(json.errors?.[0]?.error||json.error||'تعذر التحميل');setData([]);onData?.([]);}else{const next=Array.isArray(json.data)?json.data:[];setData(next);onData?.(next);setError(null);}}catch(err){setError(err?.message||'خطأ في الشبكة');setData([]);onData?.([]);}finally{setLoading(false);}},[onData]);const discoverSymbols=useCallback(async()=>{try{const res=await fetch('/api/stocks?limit=10',{cache:'no-store'});const json=await res.json();const found=Array.isArray(json?.data)?json.data.map(i=>i?.symbol).filter(Boolean):[];if(found.length){const next=found.join(',');setSymbols(next);return next;}}catch(err){console.warn('تعذر اكتشاف الأسهم للرادار المباشر:',err?.message||err);}return'';},[]);const refresh=useCallback(async()=>{let syms=symbols;if(!syms)syms=await discoverSymbols();if(syms)await fetchData(syms);else setLoading(false);},[symbols,discoverSymbols,fetchData]);useEffect(()=>{refresh();intervalRef.current=setInterval(refresh,20000);return()=>clearInterval(intervalRef.current);},[refresh]);const handleSearch=()=>{setLoading(true);clearInterval(intervalRef.current);refresh();intervalRef.current=setInterval(refresh,20000)};const health=buildLiveRadarHealth(data);const hc=HEALTH_COLORS[health.state]||'#6B7280';return <div dir="rtl" style={{display:'flex',flexDirection:'column',gap:16}}><div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:12}}><div><h3 style={{fontSize:16,fontWeight:800,color:colors.accent.cyan,display:'flex',alignItems:'center',gap:8}}>📡 رادار الفرص المباشر</h3><p style={{fontSize:11,color:colors.text.muted,marginTop:4}}>نبض السوق والتسارع وحالات الحركة المبكرة وتدفق الخيارات والأدلة المدعومة بالمصدر.</p></div><div style={{display:'flex',alignItems:'center',gap:8}}><span style={{fontSize:10,padding:'6px 12px',borderRadius:9999,backgroundColor:hc+'20',border:`1px solid ${hc}40`,color:hc,fontWeight:700}}>● {healthLabel[health.state]||health.state}</span><span style={{fontSize:10,padding:'6px 14px',borderRadius:9999,backgroundColor:'#164E6320',border:'1px solid #22D3EE40',color:colors.accent.cyan,fontWeight:700}}>● مباشر</span></div></div><div style={{display:'flex',gap:8,alignItems:'center'}}><input type="text" value={symbols} onChange={e=>setSymbols(e.target.value.toUpperCase())} placeholder="اكتب رموز الأسهم مفصولة بفاصلة…" style={{flex:1,padding:'8px 12px',fontSize:12,fontFamily:'monospace',backgroundColor:'#0B0F17',border:'1px solid #1F2636',borderRadius:radius.md,color:colors.text.primary,outline:'none',direction:'ltr',textAlign:'left'}}/><button onClick={handleSearch} disabled={loading} style={{padding:'8px 16px',fontSize:11,fontWeight:700,backgroundColor:colors.accent.cyan+'20',border:`1px solid ${colors.accent.cyan}40`,borderRadius:radius.md,color:colors.accent.cyan,cursor:loading?'wait':'pointer'}}>{loading?'…':'فحص'}</button></div><div style={{...panel,padding:20}}>{loading&&data.length===0?<div style={{fontSize:11,color:colors.text.muted,padding:'24px 0',textAlign:'center'}}>⏳ جارٍ فحص بيانات السوق…</div>:error&&data.length===0?<div style={{fontSize:11,color:'#EF4444',padding:'24px 0',textAlign:'center'}}>❌ {error}</div>:data.length===0?<div style={{fontSize:11,color:colors.text.muted,padding:'24px 0',textAlign:'center'}}>لا توجد فرص حالية. جرّب رموزًا أخرى.</div>:<div style={{display:'flex',flexDirection:'column',gap:8}}>{data.map(e=><OpportunityRow key={e.symbol} entry={e}/>)}</div>}<div style={{marginTop:16,paddingTop:12,borderTop:'1px solid #1F2636',fontSize:10,color:colors.text.faint}}>{health.fresh}/{health.total} حديثة · {health.stale} قديمة · {health.errors} أخطاء · {health.freshRatio.toFixed(0)}% حديثة. بيانات السوق من ياهو تُحدّث بالاستطلاع وقد تتأخر. حقول الخيارات والتدفقات والأموال الذكية تظهر فقط عند توفر مصدر يحمل أدلة؛ وحالة الحركة المبكرة مصنّف مشتق ولا تتنبأ بالسعر ولا تثبت نشاط الحيتان.</div></div></div>}
