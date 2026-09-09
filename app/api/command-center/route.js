@@ -18,8 +18,13 @@ const DEFAULT_LIMIT = 5;
 async function fetchAPI(url, request) {
   try {
     const origin = new URL(request.url).origin;
+    const headers = {};
+    const authorization = request.headers.get('authorization');
+    if (authorization) headers.authorization = authorization;
+
     const response = await fetch(`${origin}${url}`, {
       cache: 'no-store',
+      headers,
       signal: AbortSignal.timeout(15000),
     });
     if (!response.ok) return null;
@@ -58,9 +63,7 @@ export async function GET(request) {
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const includeRawData = searchParams.get('raw') === 'true';
 
-    // Apply pagination to opportunity data: effective limit per-section, with total awareness
     const oppLimit = Math.min(limit, 25);
-    const oppPageLimit = Math.min(oppLimit, 25);
     const oppPage = page;
 
     const sourceData = await fetchAllSources(request);
@@ -88,9 +91,9 @@ export async function GET(request) {
       regime: sourceData.regimeData?.regime || REGIME_LABELS.UNAVAILABLE,
       regimeScore: sourceData.regimeData?.regimeScore || null,
       confidenceLevel: sourceData.regimeData?.confidenceLevel || 'UNKNOWN',
-      opportunityCount: opportunityCount,
-      planCount: planCount,
-      intelligenceCoverage: intelligenceCoverage,
+      opportunityCount,
+      planCount,
+      intelligenceCoverage,
       sections: commandCenter.sections,
       summary: commandCenter.summary,
       limitations: commandCenter.limitations,
