@@ -19,6 +19,8 @@ const MIN_HISTORY = 60;
 const MIN_PRICE = 0.5;
 const MAX_PRICE = 100;
 const MIN_AVERAGE_VOLUME = 100_000;
+const DISCOVERY_BATCH_SIZE = 6;
+const DISCOVERY_BATCH_DELAY_MS = 150;
 
 // Yahoo's trending endpoint is a discovery hint, not a reliable stock universe.
 // Keep a small, liquid US-equity fallback so a transient/empty trending response
@@ -435,7 +437,7 @@ function buildAnalytics(meta, quote) {
     riskPercent: riskReward.riskPercent, rewardPercent: riskReward.rewardPercent, riskReward: riskReward.riskReward, riskScore: riskReward.score,
     atr: calculateATR(highs, lows, closes, 14), bollingerBandwidth: round(bollinger.bandwidth), squeeze: bollinger.squeeze,
     squeezeScore: bollinger.squeezeScore, cluster: cluster.isCluster, clusterRangePercent: round(cluster.rangePercent), clusterScore: Math.round(cluster.score),
-    technicalScore: Math.round(adjustedTechnicalScore), discoveryScore: Math.round(discoveryScore), setupScore, signal,
+    technicalScore: Math.round(adjustedTechnicalScore), discoveryScore: Math.round(discoveryScore), setupScore,
     signalStrength: setupScore >= 75 ? 'HIGH' : setupScore >= 60 ? 'MEDIUM' : 'LOW',
     directionBias: setupScore >= 65 ? 'ميل فني صاعد' : setupScore <= 40 ? 'ميل فني هابط' : 'ميل فني محايد',
     riskLevel: setupScore >= 75 ? 'متوسط' : setupScore >= 55 ? 'متوسط إلى مرتفع' : 'مرتفع',
@@ -496,6 +498,28 @@ function isUsEquity(meta) {
   return type === 'EQUITY' && Boolean(meta?.exchangeTimezoneName || meta?.fullExchangeName);
 }
 
+async function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchDiscoveryCharts(symbols) {
+  const charts = [];
+  for (let i = 0; i < symbols.length; i += DISCOVERY_BATCH_SIZE) {
+    const batch = await Promise.allSettled(
+      symbols.slice(i, i + DISCOVERY_BATCH_SIZE).map((item) => fetchChart(item))
+    );
+
+    for (const item of batch) {
+      if (item.status === 'fulfilled') charts.push(item.value);
+    }
+
+    if (i + DISCOVERY_BATCH_SIZE < symbols.length) {
+      await sleep(DISCOVERY_BATCH_DELAY_MS);
+    }
+  }
+  return charts;
+}
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -544,17 +568,16 @@ export async function GET(request) {
       ...FALLBACK_DISCOVERY_SYMBOLS,
     ])].slice(0, 50);
 
-    const settled = await Promise.allSettled(symbols.map((item) => fetchChart(item)));
-    const results = settled
-      .filter((item) => item.status === 'fulfilled')
-      .map((item) => item.value)
+    const charts = await fetchDiscoveryCharts(symbols);
+    const allResults = charts
       .filter((chart) => isUsEquity(chart.meta))
       .map((chart) => ({ symbol: chart.symbol, quoteType: chart.meta?.quoteType || null, ...buildAnalytics(chart.meta, chart.quote) }))
       .filter((item) => item.technicalReady && item.price >= MIN_PRICE && item.price <= MAX_PRICE && Number(item.averageVolume20) >= MIN_AVERAGE_VOLUME)
-      .sort((a, b) => Number(b.setupScore || 0) - Number(a.setupScore || 0))
-      .slice((page - 1) * limit, page * limit);
+      .sort((a, b) => Number(b.setupScore || 0) - Number(a.setupScore || 0));
 
-    const total = results.length + (page - 1) * limit;
+    const total = allResults.length;
+    const results = allResults.slice((page - 1) * limit, page * limit);
+
     return NextResponse.json({
       status: 'success', timestamp: new Date().toISOString(), count: results.length, total, page, limit,
       hasNext: page * limit < total, hasPrevious: page > 1, data: results,
