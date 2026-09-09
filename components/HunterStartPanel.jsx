@@ -78,7 +78,6 @@ export default function HunterStartPanel() {
 
   const top = useMemo(() => pickTopOpportunity(payload), [payload]);
   const regime = payload?.regime || 'UNAVAILABLE';
-  const marketClosed = payload?.marketStatus?.open === false;
   const opportunityCount = Number(payload?.opportunityCount || 0);
   const planCount = Number(payload?.planCount || 0);
 
@@ -118,8 +117,8 @@ export default function HunterStartPanel() {
         <div style={{ padding: 12, borderRadius: radius.md, background: '#070B12', border: '1px solid #1F2636' }}>
           <div style={{ color: colors.text.faint, fontSize: 8, fontWeight: 800, letterSpacing: 0.8 }}>01 · MARKET</div>
           <div style={{ color: colors.text.primary, fontSize: 13, fontWeight: 900, marginTop: 6 }}>{regimeLabel}</div>
-          <div style={{ color: marketClosed ? '#FBBF24' : '#34D399', fontSize: 9, marginTop: 5 }}>
-            {marketClosed ? '● US market closed — no live setup required' : '● Market session active'}
+          <div style={{ color: '#38BDF8', fontSize: 9, marginTop: 5 }}>
+            ● Context from C10 Market Regime
           </div>
         </div>
 
