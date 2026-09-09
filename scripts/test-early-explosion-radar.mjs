@@ -1,0 +1,15 @@
+import { strict as assert } from 'node:assert';
+import { detectEarlyExplosion } from '../lib/early-explosion-radar.js';
+const fresh={status:'FRESH',isFresh:true,ageMs:5000};
+const base={symbol:'NVDA',freshness:fresh,pulse:{direction:'UP',pressureScore:70,priceAccelerationPercent:0.2,volumeAccelerationPercent:6,spreadPercent:0.5},acceleration:{eligible:true}};
+let passed=0,failed=0;
+const test=(name,fn)=>{try{fn();console.log('PASS: '+name);passed++;}catch(e){console.error('FAIL: '+name+' — '+e.message);failed++;}};
+test('strong confluence reaches ignition',()=>{const r=detectEarlyExplosion(base);assert.equal(r.eligible,true);assert.equal(r.state,'IGNITION');assert.ok(r.signalCount>=3);});
+test('two signals are preparation only',()=>{const r=detectEarlyExplosion({...base,pulse:{...base.pulse,priceAccelerationPercent:null,volumeAccelerationPercent:null},acceleration:{eligible:false}});assert.equal(r.eligible,false);assert.equal(r.state,'PREPARING');});
+test('stale data is rejected',()=>assert.equal(detectEarlyExplosion({...base,freshness:{...fresh,status:'STALE',isFresh:false}}).reason,'STALE_OR_UNVERIFIED_DATA'));
+test('wide spread blocks ignition',()=>{const r=detectEarlyExplosion({...base,pulse:{...base.pulse,spreadPercent:2}});assert.equal(r.eligible,false);assert.equal(r.reason,'SPREAD_TOO_WIDE');});
+test('options flow can contribute evidence',()=>{const r=detectEarlyExplosion({...base,pulse:{...base.pulse,priceAccelerationPercent:null,volumeAccelerationPercent:null},acceleration:{eligible:false},optionsFlow:{pressureScore:75}});assert.ok(r.signalCount>=2);});
+test('flow can contribute evidence',()=>{const r=detectEarlyExplosion({...base,pulse:{...base.pulse,priceAccelerationPercent:null,volumeAccelerationPercent:null},acceleration:{eligible:false},flow:{pressureScore:75}});assert.ok(r.signalCount>=2);});
+test('missing values stay absent',()=>{const r=detectEarlyExplosion({symbol:'X',freshness:fresh,pulse:{direction:'UP'}});assert.equal(r.eligible,false);assert.equal(r.state,'QUIET');});
+test('no whale claim',()=>assert.match(detectEarlyExplosion(base).disclaimer,/does not.*prove institutional\/whale activity/));
+console.log(`\nResults: ${passed} passed, ${failed} failed`);process.exit(failed?1:0);
