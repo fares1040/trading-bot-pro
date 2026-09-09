@@ -5,7 +5,7 @@ const base={symbol:'NVDA',freshness:fresh,pulse:{direction:'UP',pressureScore:70
 let passed=0,failed=0;
 const test=(name,fn)=>{try{fn();console.log('PASS: '+name);passed++;}catch(e){console.error('FAIL: '+name+' — '+e.message);failed++;}};
 test('strong confluence reaches ignition',()=>{const r=detectEarlyExplosion(base);assert.equal(r.eligible,true);assert.equal(r.state,'IGNITION');assert.ok(r.signalCount>=3);});
-test('two signals are preparation only',()=>{const r=detectEarlyExplosion({...base,pulse:{...base.pulse,priceAccelerationPercent:null,volumeAccelerationPercent:null},acceleration:{eligible:false}});assert.equal(r.eligible,false);assert.equal(r.state,'PREPARING');});
+test('two signals are preparation only',()=>{const r=detectEarlyExplosion({...base,pulse:{...base.pulse,volumeAccelerationPercent:null},acceleration:{eligible:false}});assert.equal(r.eligible,false);assert.equal(r.state,'PREPARING');assert.equal(r.signalCount,2);});
 test('stale data is rejected',()=>assert.equal(detectEarlyExplosion({...base,freshness:{...fresh,status:'STALE',isFresh:false}}).reason,'STALE_OR_UNVERIFIED_DATA'));
 test('wide spread blocks ignition',()=>{const r=detectEarlyExplosion({...base,pulse:{...base.pulse,spreadPercent:2}});assert.equal(r.eligible,false);assert.equal(r.reason,'SPREAD_TOO_WIDE');});
 test('options flow can contribute evidence',()=>{const r=detectEarlyExplosion({...base,pulse:{...base.pulse,priceAccelerationPercent:null,volumeAccelerationPercent:null},acceleration:{eligible:false},optionsFlow:{pressureScore:75}});assert.ok(r.signalCount>=2);});
