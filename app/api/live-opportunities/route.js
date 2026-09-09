@@ -21,6 +21,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 const SYMBOL_RE = /^[A-Z][A-Z0-9.^=-]{0,11}$/;
+const MAX_SYMBOLS = 10;
 
 export async function GET(request) {
   try {
@@ -71,6 +72,16 @@ export async function GET(request) {
     if (rawSymbols.length === 0) {
       return NextResponse.json(
         { success: false, error: 'No valid symbols provided' },
+        { status: 400, headers: { 'Cache-Control': 'no-store' } },
+      );
+    }
+
+    if (rawSymbols.length > MAX_SYMBOLS) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Too many symbols. Maximum is ${MAX_SYMBOLS}.`,
+        },
         { status: 400, headers: { 'Cache-Control': 'no-store' } },
       );
     }
