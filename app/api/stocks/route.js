@@ -20,7 +20,9 @@ const MIN_PRICE = 0.5;
 const MAX_PRICE = 100;
 const MIN_AVERAGE_VOLUME = 100_000;
 const DISCOVERY_BATCH_SIZE = 6;
-const DISCOVERY_BATCH_DELAY_MS = 150;
+const DISCOVERY_BATCH_DELAY_MS = 250;
+const DISCOVERY_MAX_SYMBOLS = 30;
+const DISCOVERY_CACHE_TTL_MS = 30_000;
 
 // Yahoo's trending endpoint is a discovery hint, not a reliable stock universe.
 // Keep a small, liquid US-equity fallback so a transient/empty trending response
@@ -30,6 +32,9 @@ const FALLBACK_DISCOVERY_SYMBOLS = [
   'F', 'BAC', 'AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'META',
   'INTC', 'PYPL', 'SNAP', 'PFE',
 ];
+
+let discoveryCache = null;
+let discoveryCacheAt = 0;
 
 function num(value, fallback = null) {
   const n = Number(value);
@@ -520,6 +525,20 @@ async function fetchDiscoveryCharts(symbols) {
   return charts;
 }
 
+function getCachedDiscovery() {
+  if (!discoveryCache || Date.now() - discoveryCacheAt > DISCOVERY_CACHE_TTL_MS) {
+    return null;
+  }
+
+  return discoveryCache;
+}
+
+function paginateDiscovery(results, page, limit) {
+  const total = results.length;
+  const data = results.slice((page - 1) * limit, page * limit);
+  return { total, data, hasNext: page * limit < total, hasPrevious: page > 1 };
+}
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -533,6 +552,18 @@ export async function GET(request) {
       return NextResponse.json({
         status: 'success', timestamp: new Date().toISOString(), count: 1,
         data: [{ symbol: chart.symbol, quoteType: chart.meta?.quoteType || null, ...analytics }],
+      }, { headers: { 'Cache-Control': 'no-store, max-age=0' } });
+    }
+
+    const cached = getCachedDiscovery();
+    if (cached) {
+      const paged = paginateDiscovery(cached, page, limit);
+      return NextResponse.json({
+        status: 'success', timestamp: new Date().toISOString(), count: paged.data.length, total: paged.total, page, limit,
+        hasNext: paged.hasNext, hasPrevious: paged.hasPrevious, data: paged.data,
+        universe: 'Yahoo Finance US trending equities with resilient liquid-stock fallback, price $0.50-$100, average volume >= 100K',
+        cache: 'server-memory', cacheAgeMs: Date.now() - discoveryCacheAt,
+        limitations: 'المصدر الحالي يوفر سعر/حجم/بيانات تاريخية، وليس Options أو Dark Pool أو تدفق مؤسسات لحظي.',
       }, { headers: { 'Cache-Control': 'no-store, max-age=0' } });
     }
 
@@ -555,7 +586,7 @@ export async function GET(request) {
         trendingSymbols = (trendingData?.finance?.result?.[0]?.quotes || [])
           .map((item) => item?.symbol)
           .filter((item) => SYMBOL_REGEX.test(item || ''))
-          .slice(0, 50);
+          .slice(0, 20);
       } else {
         recordProviderFailure('yahoo', new Error(`Yahoo trending ${trendingResponse.status}`), '/api/stocks.trending', null, false);
       }
@@ -564,9 +595,9 @@ export async function GET(request) {
     }
 
     const symbols = [...new Set([
-      ...trendingSymbols,
       ...FALLBACK_DISCOVERY_SYMBOLS,
-    ])].slice(0, 50);
+      ...trendingSymbols,
+    ])].slice(0, DISCOVERY_MAX_SYMBOLS);
 
     const charts = await fetchDiscoveryCharts(symbols);
     const allResults = charts
@@ -575,13 +606,16 @@ export async function GET(request) {
       .filter((item) => item.technicalReady && item.price >= MIN_PRICE && item.price <= MAX_PRICE && Number(item.averageVolume20) >= MIN_AVERAGE_VOLUME)
       .sort((a, b) => Number(b.setupScore || 0) - Number(a.setupScore || 0));
 
-    const total = allResults.length;
-    const results = allResults.slice((page - 1) * limit, page * limit);
+    discoveryCache = allResults;
+    discoveryCacheAt = Date.now();
+
+    const paged = paginateDiscovery(allResults, page, limit);
 
     return NextResponse.json({
-      status: 'success', timestamp: new Date().toISOString(), count: results.length, total, page, limit,
-      hasNext: page * limit < total, hasPrevious: page > 1, data: results,
+      status: 'success', timestamp: new Date().toISOString(), count: paged.data.length, total: paged.total, page, limit,
+      hasNext: paged.hasNext, hasPrevious: paged.hasPrevious, data: paged.data,
       universe: 'Yahoo Finance US trending equities with resilient liquid-stock fallback, price $0.50-$100, average volume >= 100K',
+      cache: 'server-memory', cacheAgeMs: 0,
       limitations: 'المصدر الحالي يوفر سعر/حجم/بيانات تاريخية، وليس Options أو Dark Pool أو تدفق مؤسسات لحظي.',
     }, { headers: { 'Cache-Control': 'no-store, max-age=0' } });
   } catch (error) {
