@@ -28,14 +28,7 @@ function classifyOpportunity(quality, planSignal) {
   return { label: 'AVOID', emoji: '❌', color: '#EF4444' };
 }
 
-export default function OpportunityCard({
-  item,
-  plan,
-  explanation,
-  isSelected,
-  onClick,
-  compact = false,
-}) {
+export default function OpportunityCard({ item, plan, explanation, isSelected, onClick, compact = false }) {
   const oppScore = item.opportunityScore ?? item.setupScore ?? null;
   const planScore = plan?.planScore ?? null;
   const direction = plan?.direction || item.directionBias || item.direction || null;
@@ -46,174 +39,98 @@ export default function OpportunityCard({
   const warning = plan?.warnings?.[0] || item.warnings?.[0] || explanation?.warnings?.[0] || null;
   const timeframe = plan?.expectedTimeframe || item.expectedTimeframe || null;
   const assetType = item.assetType || item.kind || 'STOCK';
+  const accent = classification.color;
 
-  if (compact) {
-    return (
-      <div
-        onClick={onClick}
-        style={{
-          backgroundColor: isSelected ? '#0F1420' : '#0B0F17',
-          border: `2px solid ${isSelected ? colors.accent.blue + '55' : colors.border}`,
-          borderRadius: radius.lg,
-          padding: '12px 14px',
-          cursor: 'pointer',
-          transition: 'all 0.15s',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 6,
-          minWidth: 260,
-          maxWidth: 320,
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span dir="ltr" style={{ fontFamily: 'monospace', fontWeight: 900, fontSize: 15, color: colors.text.primary }}>
-              {item.symbol || '—'}
-            </span>
-            <span style={{ fontSize: 13 }} title={classification.label}>{classification.emoji}</span>
-          </div>
-          <Tag value={classification.label} colorMap={CLASS_COLOR} size="sm" />
-        </div>
+  const cardStyle = {
+    position: 'relative',
+    overflow: 'hidden',
+    backgroundColor: isSelected ? '#0F1420' : classification.label === 'AVOID' ? '#1A0A0A' : classification.label === 'WATCH' ? '#1A1500' : '#0B0F17',
+    border: `1px solid ${isSelected ? colors.accent.blue + '70' : accent + '35'}`,
+    borderRadius: radius.lg,
+    padding: compact ? '12px 14px' : '16px 18px',
+    cursor: 'pointer',
+    transition: 'transform .16s ease, border-color .16s ease, box-shadow .16s ease',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: compact ? 6 : 8,
+    boxShadow: isSelected ? `0 0 0 1px ${colors.accent.blue}22, 0 10px 28px rgba(0,0,0,.2)` : '0 8px 24px rgba(0,0,0,.12)',
+  };
 
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div dir="ltr" style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 18, fontWeight: 900, color: scoreColor(oppScore), fontFamily: 'monospace' }}>{oppScore ?? '—'}</div>
-            <div style={{ fontSize: 6, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700 }}>C7</div>
-          </div>
-          {planScore != null && (
-            <div dir="ltr" style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 18, fontWeight: 900, color: scoreColor(planScore), fontFamily: 'monospace' }}>{planScore}</div>
-              <div style={{ fontSize: 6, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700 }}>C8</div>
-            </div>
-          )}
-          {direction && <Tag value={direction} colorMap={{ LONG: '#34D399', SHORT: '#F87171', NEUTRAL: '#FBBF24', UNAVAILABLE: '#475569' }} size="sm" />}
-          {timeframe && <Tag value={timeframe} colorMap={{ [timeframe]: '#38BDF8' }} size="sm" />}
-        </div>
-
-        {plan && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginTop: 4 }}>
-            {(plan.entryZone || plan.entryPrice) && (
-              <div style={{ textAlign: 'center', padding: '4px 2px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
-                <div style={{ fontSize: 6, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700 }}>Entry</div>
-                <div dir="ltr" style={{ fontSize: 11, fontWeight: 800, color: colors.text.primary, fontFamily: 'monospace' }}>{formatPrice(plan.entryZone ?? plan.entryPrice)}</div>
-              </div>
-            )}
-            {(plan.stopLoss || plan.invalidation) && (
-              <div style={{ textAlign: 'center', padding: '4px 2px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
-                <div style={{ fontSize: 6, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700 }}>Stop</div>
-                <div dir="ltr" style={{ fontSize: 11, fontWeight: 800, color: '#EF4444', fontFamily: 'monospace' }}>{formatPrice(plan.stopLoss ?? plan.invalidation)}</div>
-              </div>
-            )}
-            {plan.target1 && (
-              <div style={{ textAlign: 'center', padding: '4px 2px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
-                <div style={{ fontSize: 6, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700 }}>Target</div>
-                <div dir="ltr" style={{ fontSize: 11, fontWeight: 800, color: '#34D399', fontFamily: 'monospace' }}>{formatPrice(plan.target1)}</div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {riskReward != null && (
-          <div dir="ltr" style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-            <span style={{ fontSize: 8, color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase' }}>R/R</span>
-            <span style={{ fontSize: 13, fontWeight: 900, color: riskRewardColor(riskReward), fontFamily: 'monospace' }}>{riskReward}x</span>
-          </div>
-        )}
-
-        {whyNow && (
-          <div style={{ fontSize: 9, color: colors.accent.amber, lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            <span style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.3, fontSize: 8 }}>Why Now</span>
-            <span style={{ marginRight: 4 }}>{whyNow.explanation || String(whyNow)}</span>
-          </div>
-        )}
-
-        {warning && (
-          <div style={{ fontSize: 9, color: '#FBBF24', lineHeight: 1.3, padding: '3px 6px', backgroundColor: '#1A1500', borderRadius: radius.sm }}>
-            ⚠ {warning}
-          </div>
-        )}
+  const scoreBlock = (
+    <div dir="ltr" style={{ textAlign: 'center', minWidth: compact ? 42 : 48 }}>
+      <div style={{ fontSize: compact ? 18 : 22, fontWeight: 900, color: scoreColor(oppScore), fontFamily: 'monospace', lineHeight: 1 }}>
+        {oppScore ?? '—'}
       </div>
-    );
-  }
+      <div style={{ fontSize: compact ? 6 : 7, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700, marginTop: 3 }}>C7</div>
+    </div>
+  );
+
+  const planScoreBlock = planScore != null ? (
+    <div dir="ltr" style={{ textAlign: 'center', minWidth: compact ? 42 : 48 }}>
+      <div style={{ fontSize: compact ? 18 : 22, fontWeight: 900, color: scoreColor(planScore), fontFamily: 'monospace', lineHeight: 1 }}>{planScore}</div>
+      <div style={{ fontSize: compact ? 6 : 7, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700, marginTop: 3 }}>C8</div>
+    </div>
+  ) : null;
 
   return (
-    <div
-      onClick={onClick}
-      style={{
-        backgroundColor: isSelected ? '#0F1420' : classification.label === 'AVOID' ? '#1A0A0A' : classification.label === 'WATCH' ? '#1A1500' : '#0B0F17',
-        border: `2px solid ${isSelected ? colors.accent.blue + '55' : classification.label === 'AVOID' ? '#EF444455' : classification.label === 'WATCH' ? '#FBBF2455' : colors.border}`,
-        borderRadius: radius.lg,
-        padding: '16px 18px',
-        cursor: 'pointer',
-        transition: 'all 0.15s',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
-      }}
-    >
+    <div onClick={onClick} style={cardStyle} role="button" tabIndex={0}>
+      <div style={{ position: 'absolute', left: 0, top: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${accent}, transparent)` }} />
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span dir="ltr" style={{ fontFamily: 'monospace', fontWeight: 900, fontSize: 18, color: colors.text.primary }}>{item.symbol || '—'}</span>
-          <SmallTag value={assetType} color="#38BDF8" />
-          <span style={{ fontSize: 16 }} title={classification.label}>{classification.emoji}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span dir="ltr" style={{ fontFamily: 'monospace', fontWeight: 900, fontSize: compact ? 15 : 18, color: colors.text.primary }}>{item.symbol || '—'}</span>
+          {!compact && <SmallTag value={assetType} color="#38BDF8" />}
+          <span style={{ fontSize: compact ? 13 : 15 }} title={classification.label}>{classification.emoji}</span>
         </div>
-        <Tag value={classification.label} colorMap={CLASS_COLOR} />
+        <Tag value={classification.label} colorMap={CLASS_COLOR} size={compact ? 'sm' : undefined} />
       </div>
 
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div dir="ltr" style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 22, fontWeight: 900, color: scoreColor(oppScore), fontFamily: 'monospace' }}>{oppScore ?? '—'}</div>
-          <div style={{ fontSize: 7, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700 }}>C7</div>
-        </div>
-        {planScore != null && (
-          <div dir="ltr" style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 22, fontWeight: 900, color: scoreColor(planScore), fontFamily: 'monospace' }}>{planScore}</div>
-            <div style={{ fontSize: 7, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700 }}>C8</div>
-          </div>
-        )}
-        {direction && <Tag value={direction} colorMap={{ LONG: '#34D399', SHORT: '#F87171', NEUTRAL: '#FBBF24', UNAVAILABLE: '#475569' }} />}
-        {timeframe && <Tag value={timeframe} colorMap={{ [timeframe]: '#38BDF8' }} />}
+      <div style={{ display: 'flex', gap: compact ? 9 : 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        {scoreBlock}
+        {planScoreBlock}
+        {direction && <Tag value={direction} colorMap={{ LONG: '#34D399', SHORT: '#F87171', NEUTRAL: '#FBBF24', UNAVAILABLE: '#475569' }} size={compact ? 'sm' : undefined} />}
+        {timeframe && <Tag value={timeframe} colorMap={{ [timeframe]: '#38BDF8' }} size={compact ? 'sm' : undefined} />}
       </div>
 
       {plan && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 4 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: compact ? 6 : 8, marginTop: 3 }}>
           {(plan.entryZone || plan.entryPrice) && (
-            <div style={{ textAlign: 'center', padding: '8px 6px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
-              <div style={{ fontSize: 7, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>Entry</div>
-              <div dir="ltr" style={{ fontSize: 14, fontWeight: 900, color: colors.text.primary, fontFamily: 'monospace' }}>{formatPrice(plan.entryZone ?? plan.entryPrice)}</div>
+            <div style={{ textAlign: 'center', padding: compact ? '4px 2px' : '8px 6px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
+              <div style={{ fontSize: compact ? 6 : 7, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700, marginBottom: 3 }}>Entry</div>
+              <div dir="ltr" style={{ fontSize: compact ? 11 : 14, fontWeight: 900, color: colors.text.primary, fontFamily: 'monospace' }}>{formatPrice(plan.entryZone ?? plan.entryPrice)}</div>
             </div>
           )}
           {(plan.stopLoss || plan.invalidation) && (
-            <div style={{ textAlign: 'center', padding: '8px 6px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
-              <div style={{ fontSize: 7, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>Stop</div>
-              <div dir="ltr" style={{ fontSize: 14, fontWeight: 900, color: '#EF4444', fontFamily: 'monospace' }}>{formatPrice(plan.stopLoss ?? plan.invalidation)}</div>
+            <div style={{ textAlign: 'center', padding: compact ? '4px 2px' : '8px 6px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
+              <div style={{ fontSize: compact ? 6 : 7, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700, marginBottom: 3 }}>Stop</div>
+              <div dir="ltr" style={{ fontSize: compact ? 11 : 14, fontWeight: 900, color: '#EF4444', fontFamily: 'monospace' }}>{formatPrice(plan.stopLoss ?? plan.invalidation)}</div>
             </div>
           )}
           {plan.target1 && (
-            <div style={{ textAlign: 'center', padding: '8px 6px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
-              <div style={{ fontSize: 7, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>Target 1</div>
-              <div dir="ltr" style={{ fontSize: 14, fontWeight: 900, color: '#34D399', fontFamily: 'monospace' }}>{formatPrice(plan.target1)}</div>
+            <div style={{ textAlign: 'center', padding: compact ? '4px 2px' : '8px 6px', backgroundColor: '#07090E', borderRadius: radius.sm, border: `1px solid ${colors.border}` }}>
+              <div style={{ fontSize: compact ? 6 : 7, color: colors.text.faint, textTransform: 'uppercase', fontWeight: 700, marginBottom: 3 }}>Target {compact ? '' : '1'}</div>
+              <div dir="ltr" style={{ fontSize: compact ? 11 : 14, fontWeight: 900, color: '#34D399', fontFamily: 'monospace' }}>{formatPrice(plan.target1)}</div>
             </div>
           )}
         </div>
       )}
 
       {riskReward != null && (
-        <div dir="ltr" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 9, color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase' }}>R/R</span>
-          <span style={{ fontSize: 16, fontWeight: 900, color: riskRewardColor(riskReward), fontFamily: 'monospace' }}>{riskReward}x</span>
+        <div dir="ltr" style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 1 }}>
+          <span style={{ fontSize: compact ? 8 : 9, color: colors.text.faint, fontWeight: 700, textTransform: 'uppercase' }}>R/R</span>
+          <span style={{ fontSize: compact ? 13 : 16, fontWeight: 900, color: riskRewardColor(riskReward), fontFamily: 'monospace' }}>{riskReward}x</span>
         </div>
       )}
 
       {whyNow && (
-        <div style={{ width: '100%', minWidth: 0, marginTop: 2, paddingTop: 6, borderTop: `1px solid ${colors.border}`, fontSize: 10, color: colors.accent.amber, lineHeight: 1.5, overflowWrap: 'anywhere' }}>
-          <span style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.3, fontSize: 8, marginRight: 4 }}>Why Now</span>
+        <div style={{ width: '100%', minWidth: 0, marginTop: 2, paddingTop: compact ? 5 : 6, borderTop: `1px solid ${colors.border}`, fontSize: compact ? 9 : 10, color: colors.accent.amber, lineHeight: 1.45, overflowWrap: 'anywhere' }}>
+          <span style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.3, fontSize: compact ? 8 : 8, marginRight: 4 }}>Why Now</span>
           <span>{whyNow.explanation || String(whyNow)}</span>
         </div>
       )}
 
       {warning && (
-        <div style={{ fontSize: 10, color: '#FBBF24', lineHeight: 1.4, padding: '4px 8px', backgroundColor: '#1A1500', borderRadius: radius.sm }}>
+        <div style={{ fontSize: compact ? 9 : 10, color: '#FBBF24', lineHeight: 1.35, padding: compact ? '3px 6px' : '4px 8px', backgroundColor: '#1A1500', borderRadius: radius.sm }}>
           ⚠ {warning}
         </div>
       )}
