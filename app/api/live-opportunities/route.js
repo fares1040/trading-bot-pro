@@ -14,6 +14,7 @@
 import { NextResponse } from 'next/server';
 import { checkDashboardAccess } from '@/lib/access-control.js';
 import { processLiveOpportunities } from '@/lib/live-opportunity-service.js';
+import { buildLiveIntelligenceSummary } from '@/lib/live-intelligence-summary.js';
 import { shouldAllowProviderCall } from '@/lib/circuit-breaker-manager.js';
 
 export const dynamic = 'force-dynamic';
@@ -40,6 +41,7 @@ export async function GET(request) {
           mode: 'live',
           generatedAt: new Date().toISOString(),
           data: [],
+          summary: buildLiveIntelligenceSummary([]),
           errors: [{ symbol: '', error: 'Yahoo circuit breaker open — try again later' }],
           disclaimer: 'Live opportunity radar is derived from polled Yahoo data.',
         },
@@ -85,8 +87,9 @@ export async function GET(request) {
     }
 
     const result = await processLiveOpportunities(rawSymbols);
+    const summary = buildLiveIntelligenceSummary(result.data);
 
-    return NextResponse.json(result, {
+    return NextResponse.json({ ...result, summary }, {
       status: 200,
       headers: { 'Cache-Control': 'no-store' },
     });
@@ -100,6 +103,7 @@ export async function GET(request) {
         mode: 'live',
         generatedAt: new Date().toISOString(),
         data: [],
+        summary: buildLiveIntelligenceSummary([]),
         errors: [{ symbol: '', error: error?.message || 'Internal error' }],
         disclaimer: 'Live opportunity radar is derived from polled Yahoo data.',
       },
