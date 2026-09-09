@@ -29,6 +29,20 @@ function directionLabel(item) {
   return 'NEUTRAL';
 }
 
+async function loadCoreFallback() {
+  const fallbackResults = await Promise.allSettled(
+    CORE_DISCOVERY_SYMBOLS.map(async (symbol) => {
+      const directRes = await fetch(`/api/stocks?symbol=${symbol}`, { cache: 'no-store' });
+      const directJson = await directRes.json().catch(() => null);
+      if (!directRes.ok || directJson?.status !== 'success' || !Array.isArray(directJson.data) || !directJson.data[0]) return null;
+      return directJson.data[0];
+    })
+  );
+  return fallbackResults
+    .filter((result) => result.status === 'fulfilled' && result.value)
+    .map((result) => result.value);
+}
+
 function ScannerRow({ item, rank }) {
   const direction = directionLabel(item);
   const directionColor = direction === 'LONG' ? '#34D399' : direction === 'SHORT' ? '#F87171' : '#94A3B8';
@@ -146,17 +160,7 @@ export default function MarketScanner() {
       let usedFallback = false;
 
       if (nextItems.length === 0) {
-        const fallbackResults = await Promise.allSettled(
-          CORE_DISCOVERY_SYMBOLS.map(async (symbol) => {
-            const directRes = await fetch(`/api/stocks?symbol=${symbol}`, { cache: 'no-store' });
-            const directJson = await directRes.json().catch(() => null);
-            if (!directRes.ok || directJson?.status !== 'success' || !Array.isArray(directJson.data) || !directJson.data[0]) return null;
-            return directJson.data[0];
-          })
-        );
-        nextItems = fallbackResults
-          .filter((result) => result.status === 'fulfilled' && result.value)
-          .map((result) => result.value);
+        nextItems = await loadCoreFallback();
         usedFallback = nextItems.length > 0;
       }
 
@@ -165,7 +169,20 @@ export default function MarketScanner() {
       setUpdatedAt(json.timestamp || new Date().toISOString());
       setError(nextItems.length > 0 ? '' : 'No discovery symbols returned');
     } catch (err) {
-      setError(err?.message || 'Market scanner unavailable');
+      const discoveryError = err?.message || 'Market scanner unavailable';
+      try {
+        const fallbackItems = await loadCoreFallback();
+        if (fallbackItems.length > 0) {
+          setItems(fallbackItems);
+          setFallbackMode(true);
+          setUpdatedAt(new Date().toISOString());
+          setError('Discovery feed unavailable; showing direct core-symbol fallback.');
+          return;
+        }
+      } catch {
+        // Preserve the primary discovery error below when fallback also fails.
+      }
+      setError(discoveryError);
       setFallbackMode(false);
     } finally {
       setLoading(false);
