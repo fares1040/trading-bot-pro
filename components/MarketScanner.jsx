@@ -10,6 +10,7 @@ const FILTERS = [
   { key: 'WATCH', label: 'WATCH' },
   { key: 'SETUP', label: 'SETUP' },
 ];
+const CORE_DISCOVERY_SYMBOLS = ['NVDA', 'AMD', 'TSLA', 'PLTR', 'AAPL', 'MSFT'];
 
 function fmt(value, digits = 2) {
   if (value == null || !Number.isFinite(Number(value))) return '—';
@@ -133,17 +134,39 @@ export default function MarketScanner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [updatedAt, setUpdatedAt] = useState(null);
+  const [fallbackMode, setFallbackMode] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const res = await fetch('/api/stocks?limit=25', { cache: 'no-store' });
       const json = await res.json().catch(() => null);
       if (!res.ok || json?.status !== 'success') throw new Error(json?.error || `Scanner request failed (${res.status})`);
-      setItems(Array.isArray(json.data) ? json.data : []);
+
+      let nextItems = Array.isArray(json.data) ? json.data : [];
+      let usedFallback = false;
+
+      if (nextItems.length === 0) {
+        const fallbackResults = await Promise.allSettled(
+          CORE_DISCOVERY_SYMBOLS.map(async (symbol) => {
+            const directRes = await fetch(`/api/stocks?symbol=${symbol}`, { cache: 'no-store' });
+            const directJson = await directRes.json().catch(() => null);
+            if (!directRes.ok || directJson?.status !== 'success' || !Array.isArray(directJson.data) || !directJson.data[0]) return null;
+            return directJson.data[0];
+          })
+        );
+        nextItems = fallbackResults
+          .filter((result) => result.status === 'fulfilled' && result.value)
+          .map((result) => result.value);
+        usedFallback = nextItems.length > 0;
+      }
+
+      setItems(nextItems);
+      setFallbackMode(usedFallback);
       setUpdatedAt(json.timestamp || new Date().toISOString());
-      setError('');
+      setError(nextItems.length > 0 ? '' : 'No discovery symbols returned');
     } catch (err) {
       setError(err?.message || 'Market scanner unavailable');
+      setFallbackMode(false);
     } finally {
       setLoading(false);
     }
@@ -180,6 +203,12 @@ export default function MarketScanner() {
           <button onClick={() => { setLoading(true); load(); }} disabled={loading} style={{ padding: '5px 10px', borderRadius: radius.sm, border: `1px solid ${colors.accent.cyan}45`, background: `${colors.accent.cyan}12`, color: colors.accent.cyan, fontSize: 8, fontWeight: 900, cursor: loading ? 'wait' : 'pointer' }}>{loading ? 'SCANNING…' : 'REFRESH'}</button>
         </div>
       </div>
+
+      {fallbackMode && (
+        <div style={{ marginBottom: 10, padding: '6px 9px', borderRadius: radius.sm, border: '1px solid #FBBF2430', background: '#FBBF2408', color: '#FBBF24', fontSize: 8 }}>
+          ⚠ Discovery feed returned no candidates. Showing direct core-symbol fallback; this does not change Hunter qualification.
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
         {FILTERS.map((tab) => (
