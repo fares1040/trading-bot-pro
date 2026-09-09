@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import LiveRadar from '@/components/LiveRadar';
 import { buildLiveIntelligenceSummary } from '@/lib/live-intelligence-summary';
 
@@ -13,27 +13,6 @@ const items = [
 
 export default function LiveRadarShell() {
   const [liveData, setLiveData] = useState([]);
-
-  useEffect(() => {
-    let active = true;
-    const load = async () => {
-      try {
-        const res = await fetch('/api/stocks?limit=10', { cache: 'no-store' });
-        const json = await res.json();
-        const symbols = Array.isArray(json?.data) ? json.data.map((item) => item?.symbol).filter(Boolean).slice(0, 10) : [];
-        if (!symbols.length) return;
-        const liveRes = await fetch(`/api/live-opportunities?symbols=${encodeURIComponent(symbols.join(','))}`, { cache: 'no-store' });
-        const liveJson = await liveRes.json();
-        if (active && liveJson?.success) setLiveData(Array.isArray(liveJson.data) ? liveJson.data : []);
-      } catch {
-        if (active) setLiveData([]);
-      }
-    };
-    load();
-    const timer = setInterval(load, 20000);
-    return () => { active = false; clearInterval(timer); };
-  }, []);
-
   const summary = useMemo(() => buildLiveIntelligenceSummary(liveData), [liveData]);
 
   return (
@@ -70,7 +49,7 @@ export default function LiveRadarShell() {
         <span>{summary.total} scanned</span><span>·</span><span>{summary.opportunities} opportunities</span><span>·</span><span>{summary.watches} watch</span><span>·</span><span>{summary.freshRatio.toFixed(0)}% fresh</span>
       </div>
       <div className="live-radar-disclaimer">LIVE RADAR is a movement monitor — not a promise of execution or guaranteed exchange-level real-time data.</div>
-      <LiveRadar />
+      <LiveRadar onData={setLiveData} />
     </div>
   );
 }
