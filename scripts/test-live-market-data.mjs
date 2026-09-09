@@ -24,15 +24,15 @@ async function asyncTest(name, fn) {
 
 const originalFetch = globalThis.fetch;
 
-function mockYahooResponse({ timestamp = Math.floor((Date.now() - 20_000) / 1000) } = {}) {
+function mockYahooResponse({ timestamp = Math.floor((Date.now() - 20_000) / 1000), includeVolume = true } = {}) {
   return {
     ok: true,
     status: 200,
     async json() {
       return { chart: { result: [{
-        meta: { symbol: 'AAPL', regularMarketPrice: 201.25, previousClose: 200, regularMarketVolume: 1_500_000 },
+        meta: { symbol: 'AAPL', regularMarketPrice: 201.25, previousClose: 200, ...(includeVolume ? { regularMarketVolume: 1_500_000 } : {}) },
         timestamp: [timestamp],
-        indicators: { quote: [{ open: [200.5], high: [202], low: [199.75], close: [201.25], volume: [1_450_000] }] },
+        indicators: { quote: [{ open: [200.5], high: [202], low: [199.75], close: [201.25], ...(includeVolume ? { volume: [1_450_000] } : {}) }] },
       }] } };
     },
   };
@@ -65,6 +65,13 @@ try {
     assert.ok(snapshot.fetchedAt);
     assert.equal(typeof snapshot.freshness.ageMs, 'number');
     assert.equal(snapshot.disclaimer.includes('not a guaranteed real-time market feed'), true);
+  });
+
+  await asyncTest('preserves missing volume as unknown instead of zero', async () => {
+    clearLiveMarketDataCache();
+    globalThis.fetch = async () => mockYahooResponse({ includeVolume: false });
+    const snapshot = await fetchLiveMarketSnapshot('AAPL');
+    assert.equal(snapshot.volume, null);
   });
 
   await asyncTest('uses the cache within TTL', async () => {
