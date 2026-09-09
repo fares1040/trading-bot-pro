@@ -31,6 +31,13 @@ const workflow = [
   { n: '03', title: 'MOVE', text: 'Watch fresh movement with evidence gates.', tone: '#34D399' },
 ];
 
+const decisionContext = [
+  { label: 'QUALITY', text: 'Does it qualify?' },
+  { label: 'WHY NOW', text: 'What changed?' },
+  { label: 'PLAN', text: 'Where is the setup?' },
+  { label: 'RISK', text: 'What invalidates it?' },
+];
+
 export default function HomePage() {
   return (
     <>
@@ -60,6 +67,19 @@ export default function HomePage() {
         .hunter-workflow-num { position: absolute; left: 12px; top: 11px; color: var(--workflow-tone); font: 900 9px/1 monospace; }
         .hunter-workflow-title { color: #E2E8F0; font: 900 9px/1 monospace; letter-spacing: .8px; }
         .hunter-workflow-text { color: #64748B; font: 600 8px/1.35 sans-serif; margin-top: 5px; }
+        .hunter-command-context { max-width: 1600px; margin: 0 auto 8px; padding: 0 16px; }
+        .hunter-command-context-inner { display: grid; grid-template-columns: 1.4fr repeat(4, 1fr); gap: 6px; align-items: stretch; }
+        .hunter-command-lead, .hunter-command-item { border: 1px solid rgba(71,85,105,.32); border-radius: 9px; background: rgba(7,10,16,.78); }
+        .hunter-command-lead { padding: 9px 12px; background: linear-gradient(135deg, rgba(56,189,248,.075), rgba(7,10,16,.86)); }
+        .hunter-command-lead-title { color: #E2E8F0; font: 900 9px/1 monospace; letter-spacing: .7px; }
+        .hunter-command-lead-text { margin-top: 5px; color: #64748B; font: 600 8px/1.35 sans-serif; }
+        .hunter-command-item { padding: 8px 9px; display: flex; flex-direction: column; justify-content: center; }
+        .hunter-command-item strong { color: #38BDF8; font: 900 7px/1 monospace; letter-spacing: .7px; }
+        .hunter-command-item span { color: #94A3B8; font: 700 8px/1.25 sans-serif; margin-top: 4px; }
+        @media (max-width: 900px) {
+          .hunter-command-context-inner { grid-template-columns: 1fr 1fr; }
+          .hunter-command-lead { grid-column: 1 / -1; }
+        }
         @media (max-width: 720px) {
           .hunter-nav { top: 4px; padding: 0 10px; }
           .hunter-nav-inner { grid-template-columns: 1fr; gap: 7px; padding: 7px; }
@@ -69,6 +89,9 @@ export default function HomePage() {
           .hunter-workflow { padding: 0 10px; }
           .hunter-workflow-grid { grid-template-columns: 1fr; gap: 6px; }
           .hunter-workflow-card { min-height: 50px; }
+          .hunter-command-context { padding: 0 10px; }
+          .hunter-command-context-inner { grid-template-columns: 1fr 1fr; }
+          .hunter-command-lead { grid-column: 1 / -1; }
         }
       `}</style>
 
@@ -108,6 +131,20 @@ export default function HomePage() {
 
         <section id="command-center" className="hunter-section command">
           <div style={{ ...sectionLabel, color: '#38BDF8' }}>02 · HUNTER COMMAND CENTER — QUALIFIED DECISIONS</div>
+          <div className="hunter-command-context" aria-label="Decision context">
+            <div className="hunter-command-context-inner">
+              <div className="hunter-command-lead">
+                <div className="hunter-command-lead-title">DECISION DESK</div>
+                <div className="hunter-command-lead-text">Read the opportunity in order: quality → catalyst → plan → invalidation.</div>
+              </div>
+              {decisionContext.map((item) => (
+                <div className="hunter-command-item" key={item.label}>
+                  <strong>{item.label}</strong>
+                  <span>{item.text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
           <CommandCenterView />
         </section>
 
