@@ -36,6 +36,7 @@ const TEST_SUITES = [
   { name: 'D12 Consistency', file: 'test-d12-consistency.mjs' },
   { name: 'Live Opportunity Service', file: 'test-live-opportunity-service.mjs' },
   { name: 'Live Flow Service Integration', file: 'test-live-flow-service-integration.mjs' },
+  { name: 'Unusual Whales Flow Provider', file: 'test-unusual-whales-flow-provider.mjs' },
   { name: 'Live Flow Schema', file: 'test-live-flow-schema.mjs' },
   { name: 'Live Flow Normalizer', file: 'test-live-flow-normalizer.mjs' },
   { name: 'Live Flow Aggregator', file: 'test-live-flow-aggregator.mjs' },
