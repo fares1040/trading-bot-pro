@@ -2,11 +2,13 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { colors, radius } from '@/components/ui/DesignTokens';
+import { buildLiveRadarHealth } from '@/lib/live-radar-health';
 
 const panel = { backgroundColor: '#090A0F', border: '1px solid #1F2636', borderRadius: radius.lg };
 const STATUS_COLORS = { OPPORTUNITY: '#22C55E', WATCH: '#FBBF24', NO_OPPORTUNITY: '#6B7280', INSUFFICIENT_DATA: '#F97316', STALE_DATA: '#EF4444', ERROR: '#EF4444' };
 const DIRECTION_COLORS = { LONG: '#22C55E', SHORT: '#EF4444', NEUTRAL: '#6B7280' };
 const FRESHNESS_COLORS = { FRESH: '#22C55E', STALE: '#EF4444', INSUFFICIENT: '#F97316' };
+const HEALTH_COLORS = { HEALTHY: '#22C55E', STALE: '#F97316', DEGRADED: '#EF4444', NO_DATA: '#6B7280' };
 
 function toUiDirection(direction) {
   if (direction === 'UP' || direction === 'LONG') return 'LONG';
@@ -23,11 +25,11 @@ function OpportunityRow({ entry }) {
   const [expanded, setExpanded] = useState(false);
   const options = entry.optionsFlow || entry.options || null;
   const smartMoney = entry.optionsSmartMoney || entry.smartMoney || null;
-  const optionLabel = options ? (options.direction || options.dataQuality || 'OBSERVED') : 'NO DATA';
-  const smartLabel = smartMoney?.classification || 'UNATTRIBUTED';
   const direction = entry.opportunity?.direction || entry.pulse?.direction || 'NEUTRAL';
   const status = entry.status || entry.opportunity?.status || 'UNKNOWN';
   const pressure = entry.pulse?.pressureScore ?? entry.pulse?.pressure ?? null;
+  const optionLabel = options ? (options.direction || options.dataQuality || 'OBSERVED') : 'NO DATA';
+  const smartLabel = smartMoney?.classification || 'UNATTRIBUTED';
   return <div style={{ padding: '12px 14px', borderRadius: radius.md, backgroundColor: '#0B0F17D0', border: '1px solid #1F263660', display: 'flex', flexDirection: 'column', gap: 8 }}>
     <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}><div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><span style={{ color: colors.text.primary, fontWeight: 900, fontSize: 13 }}>{entry.symbol}</span><DirectionBadge direction={direction} /><StatusBadge status={status} /></div><div style={{ display: 'flex', alignItems: 'center', gap: 12 }}><FreshnessBadge freshness={entry.freshness} /><PressureBar pressure={pressure} /></div></div>
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, fontSize: 9 }}>
@@ -70,11 +72,13 @@ export default function LiveRadar() {
   }, [symbols, discoverSymbols, fetchData]);
   useEffect(() => { refresh(); intervalRef.current = setInterval(refresh, 20000); return () => clearInterval(intervalRef.current); }, [refresh]);
   const handleSearch = () => { setLoading(true); clearInterval(intervalRef.current); refresh(); intervalRef.current = setInterval(refresh, 20000); };
+  const health = buildLiveRadarHealth(data);
+  const healthColor = HEALTH_COLORS[health.state] || '#6B7280';
   return <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}><div><h3 style={{ fontSize: 16, fontWeight: 800, color: colors.accent.cyan, display: 'flex', alignItems: 'center', gap: 8 }}>📡 Live Opportunity Radar</h3><p style={{ fontSize: 11, color: colors.text.muted, marginTop: 4 }}>Market pulse, acceleration, options flow and evidence-gated smart-money layers.</p></div><span style={{ fontSize: 10, padding: '6px 14px', borderRadius: 9999, backgroundColor: '#164E6320', border: '1px solid #22D3EE40', color: colors.accent.cyan, fontWeight: 700 }}>● LIVE RADAR</span></div>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}><div><h3 style={{ fontSize: 16, fontWeight: 800, color: colors.accent.cyan, display: 'flex', alignItems: 'center', gap: 8 }}>📡 Live Opportunity Radar</h3><p style={{ fontSize: 11, color: colors.text.muted, marginTop: 4 }}>Market pulse, acceleration, options flow and evidence-gated smart-money layers.</p></div><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ fontSize: 10, padding: '6px 12px', borderRadius: 9999, backgroundColor: healthColor + '20', border: `1px solid ${healthColor}40`, color: healthColor, fontWeight: 700 }}>● {health.state}</span><span style={{ fontSize: 10, padding: '6px 14px', borderRadius: 9999, backgroundColor: '#164E6320', border: '1px solid #22D3EE40', color: colors.accent.cyan, fontWeight: 700 }}>● LIVE RADAR</span></div></div>
     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><input type="text" value={symbols} onChange={(e) => setSymbols(e.target.value.toUpperCase())} placeholder="Auto-discovering stocks…" style={{ flex: 1, padding: '8px 12px', fontSize: 12, fontFamily: 'monospace', backgroundColor: '#0B0F17', border: '1px solid #1F2636', borderRadius: radius.md, color: colors.text.primary, outline: 'none' }} /><button onClick={handleSearch} disabled={loading} style={{ padding: '8px 16px', fontSize: 11, fontWeight: 700, backgroundColor: colors.accent.cyan + '20', border: `1px solid ${colors.accent.cyan}40`, borderRadius: radius.md, color: colors.accent.cyan, cursor: loading ? 'wait' : 'pointer' }}>{loading ? '...' : 'Scan'}</button></div>
     <div style={{ ...panel, padding: 20 }}>{loading && data.length === 0 ? <div style={{ fontSize: 11, color: colors.text.muted, padding: '24px 0', textAlign: 'center' }}>⏳ Scanning market data...</div> : error && data.length === 0 ? <div style={{ fontSize: 11, color: '#EF4444', padding: '24px 0', textAlign: 'center' }}>❌ {error}</div> : data.length === 0 ? <div style={{ fontSize: 11, color: colors.text.muted, padding: '24px 0', textAlign: 'center' }}>No opportunities found. Try different symbols.</div> : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{data.map((entry) => <OpportunityRow key={entry.symbol} entry={entry} />)}</div>}
-      <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #1F2636', fontSize: 10, color: colors.text.faint }}>Yahoo market data is polled and may be delayed. Options/flow/smart-money fields are shown only when supplied by an evidence-bearing source; no whale attribution is inferred from price or volume alone.</div>
+      <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #1F2636', fontSize: 10, color: colors.text.faint }}>{health.fresh}/{health.total} fresh · {health.stale} stale · {health.errors} errors · {health.freshRatio.toFixed(0)}% fresh. Yahoo market data is polled and may be delayed. Options/flow/smart-money fields are shown only when supplied by an evidence-bearing source; no whale attribution is inferred from price or volume alone.</div>
     </div>
   </div>;
 }
