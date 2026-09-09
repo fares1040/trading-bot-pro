@@ -52,9 +52,9 @@ function OpportunityRow({ entry }) {
   </div>;
 }
 
-export default function LiveRadar() {
+export default function LiveRadar({ onData }) {
   const [data, setData] = useState([]); const [loading, setLoading] = useState(true); const [error, setError] = useState(null); const [symbols, setSymbols] = useState(''); const intervalRef = useRef(null);
-  const fetchData = useCallback(async (syms) => { try { const res = await fetch(`/api/live-opportunities?symbols=${encodeURIComponent(syms)}`, { cache: 'no-store' }); const json = await res.json(); if (!json.success) { setError(json.errors?.[0]?.error || json.error || 'Failed to load'); setData([]); } else { setData(json.data || []); setError(null); } } catch (err) { setError(err?.message || 'Network error'); setData([]); } finally { setLoading(false); } }, []);
+  const fetchData = useCallback(async (syms) => { try { const res = await fetch(`/api/live-opportunities?symbols=${encodeURIComponent(syms)}`, { cache: 'no-store' }); const json = await res.json(); if (!json.success) { setError(json.errors?.[0]?.error || json.error || 'Failed to load'); setData([]); onData?.([]); } else { const nextData = Array.isArray(json.data) ? json.data : []; setData(nextData); onData?.(nextData); setError(null); } } catch (err) { setError(err?.message || 'Network error'); setData([]); onData?.([]); } finally { setLoading(false); } }, [onData]);
   const discoverSymbols = useCallback(async () => {
     try {
       const res = await fetch('/api/stocks?limit=10', { cache: 'no-store' });
