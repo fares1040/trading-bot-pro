@@ -14,7 +14,7 @@ export default function LiveRadarShell() {
   return (
     <div className="live-radar-shell">
       <style jsx>{`
-        .live-radar-shell { display: flex; flex-direction: column; gap: 10px; }
+        .live-radar-shell { display: flex; flex-direction: column; gap: 12px; }
         .live-radar-cockpit { display: grid; grid-template-columns: minmax(220px, 1.25fr) repeat(4, minmax(120px, 1fr)); gap: 6px; padding: 8px; border: 1px solid rgba(52,211,153,.18); border-radius: 12px; background: linear-gradient(135deg, rgba(16,185,129,.055), rgba(5,8,13,.86)); }
         .live-radar-lead { padding: 7px 10px; }
         .live-radar-title { color: #34D399; font: 900 9px/1 monospace; letter-spacing: .9px; }
