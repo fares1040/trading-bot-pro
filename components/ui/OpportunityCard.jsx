@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
 import { colors, radius, scoreColor, riskRewardColor, formatPrice } from './DesignTokens';
 import { Tag, SmallTag } from './Primitives';
 
