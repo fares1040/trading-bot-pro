@@ -6,7 +6,7 @@ import AppFooter from '@/components/ui/AppFooter';
 import HunterStartPanel from '@/components/HunterStartPanel';
 import MarketScanner from '@/components/MarketScanner';
 import CommandCenterView from '@/components/CommandCenterView';
-import LiveRadar from '@/components/LiveRadar';
+import LiveRadarShell from '@/components/LiveRadarShell';
 
 const sectionLabel = {
   maxWidth: 1600,
@@ -152,7 +152,7 @@ export default function HomePage() {
 
         <section id="live-radar" className="hunter-section live" style={{ maxWidth: 1600, margin: '0 auto', padding: '0 16px 24px' }}>
           <div style={{ ...sectionLabel, padding: 0, marginBottom: 6, color: '#34D399' }}>03 · LIVE RADAR — FRESH MARKET MOVEMENT</div>
-          <LiveRadar />
+          <LiveRadarShell />
         </section>
       </main>
 
