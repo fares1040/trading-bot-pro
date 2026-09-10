@@ -20,9 +20,9 @@ import { processLiveOpportunities, clearHistory } from '../lib/live-opportunity-
 let passCount = 0;
 let failCount = 0;
 
-function test(name, fn) {
+async function test(name, fn) {
   try {
-    fn();
+    await fn();
     console.log('PASS: ' + name);
     passCount++;
   } catch (error) {
@@ -69,10 +69,7 @@ function makeSnapshot(overrides = {}) {
   };
 }
 
-// ============================================================================
-// 1. Pulse basics
-// ============================================================================
-test('pulse: valid snapshot produces direction', () => {
+await test('pulse: valid snapshot produces direction', () => {
   const snapshot = makeSnapshot({ symbol: 'NVDA', price: 120.50, previousClose: 118.00, changePercent: 2.12 });
   const pulse = buildLiveMarketPulse(snapshot, []);
   assertEqual(pulse.symbol, 'NVDA');
@@ -80,23 +77,20 @@ test('pulse: valid snapshot produces direction', () => {
   assertNotNull(pulse.pressureScore);
 });
 
-test('pulse: strong up move produces UP direction', () => {
+await test('pulse: strong up move produces UP direction', () => {
   const snapshot = makeSnapshot({ symbol: 'AAPL', price: 200, previousClose: 190, changePercent: 5.26 });
   const pulse = buildLiveMarketPulse(snapshot, []);
   assertEqual(pulse.direction, 'UP');
   assertTrue(pulse.pressureScore >= 60, 'pressure should be elevated for strong up move');
 });
 
-test('pulse: strong down move produces DOWN direction', () => {
+await test('pulse: strong down move produces DOWN direction', () => {
   const snapshot = makeSnapshot({ symbol: 'TSLA', price: 180, previousClose: 200, changePercent: -10 });
   const pulse = buildLiveMarketPulse(snapshot, []);
   assertEqual(pulse.direction, 'DOWN');
 });
 
-// ============================================================================
-// 2. Pulse with history
-// ============================================================================
-test('pulse: history improves acceleration detection', () => {
+await test('pulse: history improves acceleration detection', () => {
   const s1 = makeSnapshot({ symbol: 'HIST', price: 100, previousClose: 98, changePercent: 2.04, volume: 5000 });
   const s2 = makeSnapshot({ symbol: 'HIST', price: 104, previousClose: 100, changePercent: 3.85, volume: 7000 });
   const s3 = makeSnapshot({ symbol: 'HIST', price: 110, previousClose: 104, changePercent: 5.58, volume: 10000 });
@@ -105,21 +99,11 @@ test('pulse: history improves acceleration detection', () => {
   assertNotNull(pulse.volumeAccelerationPercent);
 });
 
-// ============================================================================
-// 3. Opportunity detection
-// ============================================================================
-test('opportunity: eligible pulse returns eligible=true', () => {
+await test('opportunity: eligible pulse returns eligible=true', () => {
   const pulse = {
-    symbol: 'OPP',
-    direction: 'UP',
-    pressureScore: 75,
-    priceChangePercent: 3.0,
-    priceAccelerationPercent: 1.5,
-    volumeChangePercent: 25,
-    volumeAccelerationPercent: 10,
-    spreadPercent: 0.1,
-    freshness: { status: 'FRESH', isFresh: true },
-    dataQuality: 'FRESH',
+    symbol: 'OPP', direction: 'UP', pressureScore: 75, priceChangePercent: 3.0,
+    priceAccelerationPercent: 1.5, volumeChangePercent: 25, volumeAccelerationPercent: 10,
+    spreadPercent: 0.1, freshness: { status: 'FRESH', isFresh: true }, dataQuality: 'FRESH',
   };
   const result = detectLiveOpportunity(pulse);
   assertEqual(result.eligible, true);
@@ -127,78 +111,54 @@ test('opportunity: eligible pulse returns eligible=true', () => {
   assertEqual(result.direction, 'UP');
 });
 
-test('opportunity: stale data returns ineligible', () => {
+await test('opportunity: stale data returns ineligible', () => {
   const pulse = {
-    symbol: 'STALE',
-    direction: 'UP',
-    pressureScore: 80,
-    priceChangePercent: 5,
-    freshness: { status: 'STALE', isFresh: false },
-    dataQuality: 'STALE',
+    symbol: 'STALE', direction: 'UP', pressureScore: 80, priceChangePercent: 5,
+    freshness: { status: 'STALE', isFresh: false }, dataQuality: 'STALE',
   };
   const result = detectLiveOpportunity(pulse);
   assertEqual(result.eligible, false);
   assertEqual(result.reason, 'STALE_OR_UNVERIFIED_DATA');
 });
 
-test('opportunity: flat direction returns ineligible', () => {
+await test('opportunity: flat direction returns ineligible', () => {
   const pulse = {
-    symbol: 'FLAT',
-    direction: 'FLAT',
-    pressureScore: 50,
-    priceChangePercent: 0.01,
-    freshness: { status: 'FRESH', isFresh: true },
-    dataQuality: 'FRESH',
+    symbol: 'FLAT', direction: 'FLAT', pressureScore: 50, priceChangePercent: 0.01,
+    freshness: { status: 'FRESH', isFresh: true }, dataQuality: 'FRESH',
   };
   const result = detectLiveOpportunity(pulse);
   assertEqual(result.eligible, false);
 });
 
-// ============================================================================
-// 4. Acceleration detection
-// ============================================================================
-test('acceleration: eligible pulse returns eligible=true', () => {
+await test('acceleration: eligible pulse returns eligible=true', () => {
   const pulse = {
-    symbol: 'ACCEL',
-    direction: 'UP',
-    pressureScore: 70,
-    priceAccelerationPercent: 2.0,
-    volumeAccelerationPercent: 15,
-    spreadPercent: 0.3,
-    freshness: { status: 'FRESH', isFresh: true, ageMs: 5000 },
-    dataQuality: 'FRESH',
+    symbol: 'ACCEL', direction: 'UP', pressureScore: 70, priceAccelerationPercent: 2.0,
+    volumeAccelerationPercent: 15, spreadPercent: 0.3,
+    freshness: { status: 'FRESH', isFresh: true, ageMs: 5000 }, dataQuality: 'FRESH',
   };
   const result = detectAcceleration(pulse);
   assertEqual(result.eligible, true);
   assertEqual(result.symbol, 'ACCEL');
 });
 
-test('acceleration: flat direction returns ineligible', () => {
+await test('acceleration: flat direction returns ineligible', () => {
   const pulse = {
-    symbol: 'NOAC',
-    direction: 'FLAT',
-    pressureScore: 80,
-    priceAccelerationPercent: 5,
-    volumeAccelerationPercent: 20,
-    spreadPercent: 0.3,
-    freshness: { status: 'FRESH', isFresh: true, ageMs: 5000 },
-    dataQuality: 'FRESH',
+    symbol: 'NOAC', direction: 'FLAT', pressureScore: 80, priceAccelerationPercent: 5,
+    volumeAccelerationPercent: 20, spreadPercent: 0.3,
+    freshness: { status: 'FRESH', isFresh: true, ageMs: 5000 }, dataQuality: 'FRESH',
   };
   const result = detectAcceleration(pulse);
   assertEqual(result.eligible, false);
   assertEqual(result.reason, 'NO_DIRECTION');
 });
 
-test('acceleration: null pulse returns INSUFFICIENT_DATA', () => {
+await test('acceleration: null pulse returns INSUFFICIENT_DATA', () => {
   const result = detectAcceleration(null);
   assertEqual(result.eligible, false);
   assertEqual(result.reason, 'INSUFFICIENT_DATA');
 });
 
-// ============================================================================
-// 5. Service: empty symbols
-// ============================================================================
-test('service: empty symbols returns success with empty data', async () => {
+await test('service: empty symbols returns success with empty data', async () => {
   const result = await processLiveOpportunities([]);
   assertEqual(result.success, true);
   assertEqual(result.data.length, 0);
@@ -206,89 +166,56 @@ test('service: empty symbols returns success with empty data', async () => {
   assertTrue(result.disclaimer.length > 0);
 });
 
-// ============================================================================
-// 6. Service: invalid symbols
-// ============================================================================
-test('service: invalid symbol returns error', async () => {
+await test('service: invalid symbol returns error', async () => {
   const result = await processLiveOpportunities(['!!!INVALID!!!']);
   assertTrue(result.errors.length > 0 || result.data.length === 0);
 });
 
-// ============================================================================
-// 7. Service: export check
-// ============================================================================
-test('service: exports processLiveOpportunities function', () => {
+await test('service: exports processLiveOpportunities function', () => {
   assertTrue(typeof processLiveOpportunities === 'function');
 });
 
-// ============================================================================
-// 8. Disclaimer presence
-// ============================================================================
-test('pulse: disclaimer is present and meaningful', () => {
+await test('pulse: disclaimer is present and meaningful', () => {
   const snapshot = makeSnapshot({ symbol: 'DIS' });
   const pulse = buildLiveMarketPulse(snapshot, []);
   assertTrue(typeof pulse.disclaimer === 'string');
   assertTrue(pulse.disclaimer.length > 10);
 });
 
-test('opportunity: disclaimer is present', () => {
+await test('opportunity: disclaimer is present', () => {
   const pulse = {
-    symbol: 'DIS',
-    direction: 'UP',
-    pressureScore: 70,
-    priceChangePercent: 2,
-    freshness: { status: 'FRESH', isFresh: true },
-    dataQuality: 'FRESH',
+    symbol: 'DIS', direction: 'UP', pressureScore: 70, priceChangePercent: 2,
+    freshness: { status: 'FRESH', isFresh: true }, dataQuality: 'FRESH',
   };
   const result = detectLiveOpportunity(pulse);
   assertTrue(typeof result.disclaimer === 'string');
   assertTrue(result.disclaimer.length > 10);
 });
 
-test('acceleration: disclaimer is present', () => {
+await test('acceleration: disclaimer is present', () => {
   const pulse = {
-    symbol: 'DIS',
-    direction: 'UP',
-    pressureScore: 70,
-    priceAccelerationPercent: 1,
-    volumeAccelerationPercent: 10,
-    spreadPercent: 0.3,
-    freshness: { status: 'FRESH', isFresh: true, ageMs: 5000 },
-    dataQuality: 'FRESH',
+    symbol: 'DIS', direction: 'UP', pressureScore: 70, priceAccelerationPercent: 1,
+    volumeAccelerationPercent: 10, spreadPercent: 0.3,
+    freshness: { status: 'FRESH', isFresh: true, ageMs: 5000 }, dataQuality: 'FRESH',
   };
   const result = detectAcceleration(pulse);
   assertTrue(typeof result.disclaimer === 'string');
   assertTrue(result.disclaimer.length > 10);
 });
 
-// ============================================================================
-// 9. No fabrication — null fields stay null
-// ============================================================================
-test('pulse: null fields remain null, not zero', () => {
-  const snapshot = makeSnapshot({
-    symbol: 'FAB',
-    previousClose: null,
-    changePercent: null,
-    volume: null,
-  });
+await test('pulse: null fields remain null, not zero', () => {
+  const snapshot = makeSnapshot({ symbol: 'FAB', previousClose: null, changePercent: null, volume: null });
   const pulse = buildLiveMarketPulse(snapshot, []);
   assertEqual(pulse.symbol, 'FAB');
   assertEqual(pulse.priceChangePercent, null);
   assertEqual(pulse.volumeChangePercent, null);
 });
 
-// ============================================================================
-// 10. History management
-// ============================================================================
-test('history: clear is deterministic and does not perform network access', () => {
+await test('history: clear is deterministic and does not perform network access', () => {
   clearHistory('TESTSYM');
   clearHistory();
   assertTrue(true);
 });
-
-// ============================================================================
-// Summary
-// ============================================================================
 
 console.log('\n========================================');
 console.log('Live Opportunity Service Tests');
