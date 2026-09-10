@@ -4,7 +4,7 @@
  * GET /api/live-opportunities?symbols=NVDA,AMD,TSLA
  *
  * Returns live market opportunity data for explicit symbols.
- * Maximum 10 symbols. No discovery. No fabrication.
+ * Maximum 10 unique symbols. No discovery. No fabrication.
  *
  * Uses existing Yahoo polling via live-market-data.js.
  * Uses existing dashboard read-access control.
@@ -22,15 +22,48 @@ export const revalidate = 0;
 
 const SYMBOL_RE = /^[A-Z][A-Z0-9.^=-]{0,11}$/;
 const MAX_SYMBOLS = 10;
+const MAX_SYMBOLS_QUERY_LENGTH = 256;
+
+function apiError(error, status = 400) {
+  return NextResponse.json(
+    { success: false, error },
+    { status, headers: { 'Cache-Control': 'no-store' } },
+  );
+}
 
 export async function GET(request) {
   try {
     const access = checkDashboardAccess(request);
     if (!access.allowed) {
-      return NextResponse.json(
-        { success: false, error: access.reason || 'Unauthorized' },
-        { status: 401, headers: { 'Cache-Control': 'no-store' } },
-      );
+      return apiError(access.reason || 'Unauthorized', 401);
+    }
+
+    const { searchParams } = new URL(request.url);
+    const symbolsRaw = searchParams.get('symbols') || '';
+
+    if (!symbolsRaw.trim()) {
+      return apiError('Missing required parameter: symbols');
+    }
+
+    if (symbolsRaw.length > MAX_SYMBOLS_QUERY_LENGTH) {
+      return apiError(`Symbols query is too long. Maximum is ${MAX_SYMBOLS_QUERY_LENGTH} characters.`);
+    }
+
+    const rawSymbols = symbolsRaw.split(',').map((s) => s.trim()).filter(Boolean);
+    const normalizedSymbols = rawSymbols.map((symbol) => symbol.toUpperCase());
+
+    const invalidSymbols = normalizedSymbols.filter((symbol) => !SYMBOL_RE.test(symbol));
+    if (invalidSymbols.length > 0) {
+      return apiError(`Invalid symbol format: ${invalidSymbols.join(', ')}`);
+    }
+
+    const symbols = [...new Set(normalizedSymbols)];
+    if (symbols.length === 0) {
+      return apiError('No valid symbols provided');
+    }
+
+    if (symbols.length > MAX_SYMBOLS) {
+      return apiError(`Too many symbols. Maximum is ${MAX_SYMBOLS}.`);
     }
 
     const cbResult = shouldAllowProviderCall('yahoo');
@@ -53,51 +86,7 @@ export async function GET(request) {
       );
     }
 
-    const { searchParams } = new URL(request.url);
-    const symbolsRaw = searchParams.get('symbols') || '';
-
-    if (!symbolsRaw.trim()) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Missing required parameter: symbols',
-          usage: '/api/live-opportunities?symbols=NVDA,AMD,TSLA',
-        },
-        { status: 400, headers: { 'Cache-Control': 'no-store' } },
-      );
-    }
-
-    const rawSymbols = symbolsRaw.split(',').map((s) => s.trim()).filter(Boolean);
-
-    if (rawSymbols.length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'No valid symbols provided' },
-        { status: 400, headers: { 'Cache-Control': 'no-store' } },
-      );
-    }
-
-    if (rawSymbols.length > MAX_SYMBOLS) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Too many symbols. Maximum is ${MAX_SYMBOLS}.`,
-        },
-        { status: 400, headers: { 'Cache-Control': 'no-store' } },
-      );
-    }
-
-    const invalidSymbols = rawSymbols.filter((s) => !SYMBOL_RE.test(s.toUpperCase()));
-    if (invalidSymbols.length > 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Invalid symbol format: ${invalidSymbols.join(', ')}`,
-        },
-        { status: 400, headers: { 'Cache-Control': 'no-store' } },
-      );
-    }
-
-    const result = await processLiveOpportunities(rawSymbols);
+    const result = await processLiveOpportunities(symbols);
     const summary = buildLiveIntelligenceSummary(result.data);
 
     return NextResponse.json({ ...result, summary }, {
@@ -109,13 +98,13 @@ export async function GET(request) {
     return NextResponse.json(
       {
         success: false,
-        error: error?.message || 'Internal error',
+        error: 'Live opportunities request failed',
         source: 'yahoo',
         mode: 'live',
         generatedAt: new Date().toISOString(),
         data: [],
         summary: buildLiveIntelligenceSummary([]),
-        errors: [{ symbol: '', error: error?.message || 'Internal error' }],
+        errors: [{ symbol: '', error: 'Live opportunities request failed' }],
         disclaimer: 'Live opportunity radar is derived from polled Yahoo data.',
       },
       {
