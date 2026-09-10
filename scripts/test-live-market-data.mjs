@@ -8,6 +8,7 @@ import {
   LIVE_DATA_MODE,
   LIVE_DATA_SOURCE,
 } from '../lib/live-market-data.js';
+import { getCircuitBreaker, resetAll } from '../lib/circuit-breaker-manager.js';
 
 let passed = 0;
 let failed = 0;
@@ -39,6 +40,8 @@ function mockYahooResponse({ timestamp = Math.floor((Date.now() - 20_000) / 1000
 }
 
 try {
+  resetAll();
+
   test('exports explicit polling mode and Yahoo source', () => {
     assert.equal(LIVE_DATA_MODE, 'POLLING');
     assert.equal(LIVE_DATA_SOURCE, 'YAHOO_CHART');
@@ -51,6 +54,7 @@ try {
 
   await asyncTest('normalizes a live snapshot without fabricating fields', async () => {
     clearLiveMarketDataCache();
+    resetAll();
     globalThis.fetch = async () => mockYahooResponse();
     const snapshot = await fetchLiveMarketSnapshot('AAPL', { ttlMs: 1000 });
     assert.equal(snapshot.symbol, 'AAPL');
@@ -65,10 +69,12 @@ try {
     assert.ok(snapshot.fetchedAt);
     assert.equal(typeof snapshot.freshness.ageMs, 'number');
     assert.equal(snapshot.disclaimer.includes('not a guaranteed real-time market feed'), true);
+    assert.equal(getCircuitBreaker('yahoo').getStatus().failureCount, 0);
   });
 
   await asyncTest('preserves missing volume as unknown instead of zero', async () => {
     clearLiveMarketDataCache();
+    resetAll();
     globalThis.fetch = async () => mockYahooResponse({ includeVolume: false });
     const snapshot = await fetchLiveMarketSnapshot('AAPL');
     assert.equal(snapshot.volume, null);
@@ -76,6 +82,7 @@ try {
 
   await asyncTest('uses the cache within TTL', async () => {
     clearLiveMarketDataCache();
+    resetAll();
     let calls = 0;
     globalThis.fetch = async () => { calls++; return mockYahooResponse(); };
     await fetchLiveMarketSnapshot('AAPL', { ttlMs: 10_000 });
@@ -87,6 +94,7 @@ try {
 
   await asyncTest('refreshes after TTL expiry', async () => {
     clearLiveMarketDataCache();
+    resetAll();
     let calls = 0;
     globalThis.fetch = async () => { calls++; return mockYahooResponse(); };
     await fetchLiveMarketSnapshot('AAPL', { ttlMs: 0 });
@@ -95,6 +103,7 @@ try {
   });
 
   await asyncTest('rejects invalid symbols before network access', async () => {
+    resetAll();
     let calls = 0;
     globalThis.fetch = async () => { calls++; return mockYahooResponse(); };
     await assert.rejects(() => fetchLiveMarketSnapshot('bad symbol'), /رمز سهم غير صالح/);
@@ -102,6 +111,7 @@ try {
   });
 
   await asyncTest('rejects excessively long symbols before network access', async () => {
+    resetAll();
     let calls = 0;
     globalThis.fetch = async () => { calls++; return mockYahooResponse(); };
     await assert.rejects(() => fetchLiveMarketSnapshot('A'.repeat(13)), /رمز سهم غير صالح/);
@@ -110,6 +120,7 @@ try {
 
   await asyncTest('marks delayed data as stale using freshness threshold', async () => {
     clearLiveMarketDataCache();
+    resetAll();
     const oldTimestamp = Math.floor((Date.now() - 5 * 60_000) / 1000);
     globalThis.fetch = async () => mockYahooResponse({ timestamp: oldTimestamp });
     const snapshot = await fetchLiveMarketSnapshot('AAPL', { freshThresholdMs: 60_000 });
@@ -117,14 +128,42 @@ try {
     assert.equal(snapshot.freshness.status, 'STALE');
   });
 
+  await asyncTest('blocks provider access when Yahoo circuit is open', async () => {
+    clearLiveMarketDataCache();
+    resetAll();
+    getCircuitBreaker('yahoo').forceState('OPEN');
+    let calls = 0;
+    globalThis.fetch = async () => { calls++; return mockYahooResponse(); };
+    await assert.rejects(
+      () => fetchLiveMarketSnapshot('AAPL'),
+      (error) => error?.code === 'PROVIDER_CIRCUIT_OPEN'
+    );
+    assert.equal(calls, 0);
+    assert.equal(getCircuitBreaker('yahoo').getStatus().failureCount, 0);
+    resetAll();
+  });
+
+  await asyncTest('successful provider access records circuit success', async () => {
+    clearLiveMarketDataCache();
+    resetAll();
+    const breaker = getCircuitBreaker('yahoo');
+    breaker.forceState('HALF_OPEN');
+    globalThis.fetch = async () => mockYahooResponse();
+    await fetchLiveMarketSnapshot('AAPL');
+    assert.equal(breaker.getStatus().state, 'CLOSED');
+    assert.equal(breaker.getStatus().failureCount, 0);
+  });
+
   await asyncTest('propagates provider HTTP errors', async () => {
     clearLiveMarketDataCache();
+    resetAll();
     globalThis.fetch = async () => ({ ok: false, status: 429 });
     await assert.rejects(() => fetchLiveMarketSnapshot('AAPL'), /Yahoo Finance 429/);
   });
 
   await asyncTest('aborts requests after the configured timeout', async () => {
     clearLiveMarketDataCache();
+    resetAll();
     globalThis.fetch = (_url, { signal }) => new Promise((resolve, reject) => {
       signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
     });
@@ -133,9 +172,11 @@ try {
 
   await asyncTest('does not cache failed provider responses', async () => {
     clearLiveMarketDataCache();
+    resetAll();
     let calls = 0;
     globalThis.fetch = async () => { calls++; return { ok: false, status: 503 }; };
     await assert.rejects(() => fetchLiveMarketSnapshot('AAPL'), /Yahoo Finance 503/);
+    resetAll();
     await assert.rejects(() => fetchLiveMarketSnapshot('AAPL'), /Yahoo Finance 503/);
     assert.equal(calls, 2);
     assert.equal(getLiveMarketDataCacheStats().size, 0);
@@ -143,6 +184,7 @@ try {
 } finally {
   globalThis.fetch = originalFetch;
   clearLiveMarketDataCache();
+  resetAll();
 }
 
 console.log('\n========================================');
