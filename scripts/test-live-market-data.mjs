@@ -95,7 +95,17 @@ try {
   });
 
   await asyncTest('rejects invalid symbols before network access', async () => {
+    let calls = 0;
+    globalThis.fetch = async () => { calls++; return mockYahooResponse(); };
     await assert.rejects(() => fetchLiveMarketSnapshot('bad symbol'), /رمز سهم غير صالح/);
+    assert.equal(calls, 0);
+  });
+
+  await asyncTest('rejects excessively long symbols before network access', async () => {
+    let calls = 0;
+    globalThis.fetch = async () => { calls++; return mockYahooResponse(); };
+    await assert.rejects(() => fetchLiveMarketSnapshot('A'.repeat(13)), /رمز سهم غير صالح/);
+    assert.equal(calls, 0);
   });
 
   await asyncTest('marks delayed data as stale using freshness threshold', async () => {
@@ -111,6 +121,24 @@ try {
     clearLiveMarketDataCache();
     globalThis.fetch = async () => ({ ok: false, status: 429 });
     await assert.rejects(() => fetchLiveMarketSnapshot('AAPL'), /Yahoo Finance 429/);
+  });
+
+  await asyncTest('aborts requests after the configured timeout', async () => {
+    clearLiveMarketDataCache();
+    globalThis.fetch = (_url, { signal }) => new Promise((resolve, reject) => {
+      signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+    });
+    await assert.rejects(() => fetchLiveMarketSnapshot('AAPL', { timeoutMs: 1000 }), /Aborted/);
+  });
+
+  await asyncTest('does not cache failed provider responses', async () => {
+    clearLiveMarketDataCache();
+    let calls = 0;
+    globalThis.fetch = async () => { calls++; return { ok: false, status: 503 }; };
+    await assert.rejects(() => fetchLiveMarketSnapshot('AAPL'), /Yahoo Finance 503/);
+    await assert.rejects(() => fetchLiveMarketSnapshot('AAPL'), /Yahoo Finance 503/);
+    assert.equal(calls, 2);
+    assert.equal(getLiveMarketDataCacheStats().size, 0);
   });
 } finally {
   globalThis.fetch = originalFetch;
